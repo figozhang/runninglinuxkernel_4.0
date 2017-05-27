@@ -13,6 +13,9 @@ endif
 
 CFLAGS_REMOVE_return_address.o = -pg
 
+CFLAGS_psci_smp.o = -O
+CFLAGS_psci.o = -O
+
 # Object file lists.
 
 obj-y		:= elf.o entry-common.o irq.o opcodes.o \

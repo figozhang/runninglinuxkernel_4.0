@@ -1,6 +1,30 @@
 #ifndef _LINUX_HUGE_MM_H
 #define _LINUX_HUGE_MM_H
 
+enum transparent_hugepage_flag {
+	TRANSPARENT_HUGEPAGE_FLAG,
+	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
+	TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
+	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
+	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
+	TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
+#ifdef CONFIG_DEBUG_VM
+	TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
+#endif
+};
+
+enum page_check_address_pmd_flag {
+	PAGE_CHECK_ADDRESS_PMD_FLAG,
+	PAGE_CHECK_ADDRESS_PMD_NOTSPLITTING_FLAG,
+	PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG,
+};
+
+
+#define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
+#define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 extern int do_huge_pmd_anonymous_page(struct mm_struct *mm,
 				      struct vm_area_struct *vma,
 				      unsigned long address, pmd_t *pmd,
@@ -33,32 +57,27 @@ extern int move_huge_pmd(struct vm_area_struct *vma,
 extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 			unsigned long addr, pgprot_t newprot,
 			int prot_numa);
-
-enum transparent_hugepage_flag {
-	TRANSPARENT_HUGEPAGE_FLAG,
-	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-	TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
-	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
-	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
-	TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
-#ifdef CONFIG_DEBUG_VM
-	TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
-#endif
-};
-
-enum page_check_address_pmd_flag {
-	PAGE_CHECK_ADDRESS_PMD_FLAG,
-	PAGE_CHECK_ADDRESS_PMD_NOTSPLITTING_FLAG,
-	PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG,
-};
 extern pmd_t *page_check_address_pmd(struct page *page,
 				     struct mm_struct *mm,
 				     unsigned long address,
 				     enum page_check_address_pmd_flag flag,
 				     spinlock_t **ptl);
+#else
+extern int do_huge_pmd_anonymous_page(struct mm_struct *mm,
+				      struct vm_area_struct *vma,
+				      unsigned long address, pmd_t *pmd,
+				      unsigned int flags);
 
-#define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
-#define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+
+extern int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+			       unsigned long address, pmd_t *pmd,
+			       pmd_t orig_pmd);
+
+
+extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+			unsigned long addr, unsigned long end,
+			unsigned char *vec);
+#endif
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 #define HPAGE_PMD_SHIFT PMD_SHIFT
@@ -218,6 +237,50 @@ static inline bool is_huge_zero_page(struct page *page)
 	return false;
 }
 
+
+static inline struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+					  unsigned long addr,
+					  pmd_t *pmd,
+					  unsigned int flags){return NULL;}
+
+static inline int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+			 pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
+			 struct vm_area_struct *vma)
+{
+	return 0;
+}
+
+static inline int zap_huge_pmd(struct mmu_gather *tlb,
+			struct vm_area_struct *vma,
+			pmd_t *pmd, unsigned long addr)
+{
+	return 0;
+}
+
+static inline void huge_pmd_set_accessed(struct mm_struct *mm,
+				  struct vm_area_struct *vma,
+				  unsigned long address, pmd_t *pmd,
+				  pmd_t orig_pmd, int dirty)
+{
+}
+
+static inline  int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+			unsigned long addr, pgprot_t newprot,
+			int prot_numa) {return 0;}
+
+static inline  int move_huge_pmd(struct vm_area_struct *vma,
+			 struct vm_area_struct *new_vma,
+			 unsigned long old_addr,
+			 unsigned long new_addr, unsigned long old_end,
+			 pmd_t *old_pmd, pmd_t *new_pmd){return 0;}
+
+
+static inline pmd_t *page_check_address_pmd(struct page *page,
+				     struct mm_struct *mm,
+				     unsigned long address,
+				     enum page_check_address_pmd_flag flag,
+				     spinlock_t **ptl){return NULL;}
+ 
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #endif /* _LINUX_HUGE_MM_H */

@@ -182,7 +182,7 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 		} while (res);
 		break;
 	default:
-		__bad_cmpxchg(ptr, size);
+		//__bad_cmpxchg(ptr, size);
 		oldval = 0;
 	}
 

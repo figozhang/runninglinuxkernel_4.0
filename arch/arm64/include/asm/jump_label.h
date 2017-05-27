@@ -27,7 +27,8 @@
 
 static __always_inline bool arch_static_branch(struct static_key *key)
 {
-	asm goto("1: nop\n\t"
+#if 0
+	asm goto ("1: nop\n\t"
 		 ".pushsection __jump_table,  \"aw\"\n\t"
 		 ".align 3\n\t"
 		 ".quad 1b, %l[l_yes], %c0\n\t"
@@ -36,8 +37,25 @@ static __always_inline bool arch_static_branch(struct static_key *key)
 
 	return false;
 l_yes:
+#endif
 	return true;
 }
+
+#if 0
+static __always_inline bool arch_static_branch(struct static_key *key)
+{
+	asm_volatile_goto("1:\n\t"
+		 JUMP_LABEL_NOP "\n\t"
+		 ".pushsection __jump_table,  \"aw\"\n\t"
+		 ".word 1b, %l[l_yes], %c0\n\t"
+		 ".popsection\n\t"
+		 : :  "i" (key) :  : l_yes);
+
+	return false;
+l_yes:
+	return true;
+}
+#endif
 
 #endif /* __KERNEL__ */
 
