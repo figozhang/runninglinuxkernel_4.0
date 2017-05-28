@@ -1,0 +1,149 @@
+.\" -*- nroff -*-
+.TH TAPSET::TASK_TIME 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::task_time \- systemtap task_time tapset
+ 
+.SH DESCRIPTION
+
+ Task time query and utility functions provide information about
+ the time resource usage of the current task. These functions provide
+ information about the user time and system time of the current
+ task. And provide utility functions to turn the reported times
+ into miliseconds and create human readable string representations
+ of task time used. The reported times are approximates and should
+ be used for "coarse grained" measurements only. The reported user
+ and system time are only for the current task, not for the process
+ as a whole nor of any time spend by children of the current task.
+
+.TP
+.P
+.TP
+.B task_utime 
+User time of the task
+.IP
+See 
+.IR function::task_utime (3stap)
+ for details.
+.P
+.TP
+.B task_utime 
+User time of the task
+.IP
+See 
+.IR function::task_utime (3stap)
+ for details.
+.P
+.TP
+.B task_stime 
+System time of the task
+.IP
+See 
+.IR function::task_stime (3stap)
+ for details.
+.P
+.TP
+.B task_stime 
+System time of the task
+.IP
+See 
+.IR function::task_stime (3stap)
+ for details.
+.P
+.TP
+.B task_start_time 
+Start time of the given task
+.IP
+See 
+.IR function::task_start_time (3stap)
+ for details.
+.P
+.TP
+.B cputime_to_msecs 
+Translates the given cputime into milliseconds
+.IP
+See 
+.IR function::cputime_to_msecs (3stap)
+ for details.
+.P
+.TP
+.B cputime_to_usecs 
+Translates the given cputime into microseconds
+.IP
+See 
+.IR function::cputime_to_usecs (3stap)
+ for details.
+.P
+.TP
+.B msecs_to_string 
+Human readable string for given milliseconds
+.IP
+See 
+.IR function::msecs_to_string (3stap)
+ for details.
+.P
+.TP
+.B usecs_to_string 
+Human readable string for given microseconds
+.IP
+See 
+.IR function::usecs_to_string (3stap)
+ for details.
+.P
+.TP
+.B nsecs_to_string 
+Human readable string for given nanoseconds
+.IP
+See 
+.IR function::nsecs_to_string (3stap)
+ for details.
+.P
+.TP
+.B cputime_to_string 
+Human readable string for given cputime
+.IP
+See 
+.IR function::cputime_to_string (3stap)
+ for details.
+.P
+.TP
+.B task_time_string 
+Human readable string of task time usage
+.IP
+See 
+.IR function::task_time_string (3stap)
+ for details.
+.P
+.TP
+.B task_time_string_tid 
+Human readable string of task time usage
+.IP
+See 
+.IR function::task_time_string_tid (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::task_utime (3stap),
+.BR
+.IR \%function::task_stime (3stap),
+.BR
+.IR \%function::task_start_time (3stap),
+.BR
+.IR \%function::cputime_to_msecs (3stap),
+.BR
+.IR \%function::cputime_to_usecs (3stap),
+.BR
+.IR \%function::msecs_to_string (3stap),
+.BR
+.IR \%function::usecs_to_string (3stap),
+.BR
+.IR \%function::nsecs_to_string (3stap),
+.BR
+.IR \%function::cputime_to_string (3stap),
+.BR
+.IR \%function::task_time_string (3stap),
+.BR
+.IR \%function::task_time_string_tid (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

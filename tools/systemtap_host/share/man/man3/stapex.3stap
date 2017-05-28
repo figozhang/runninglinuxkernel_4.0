@@ -1,0 +1,132 @@
+.\" -*- nroff -*-
+.TH STAPEX 3stap 
+.SH NAME
+stapex \- systemtap examples
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH LANGUAGE BASICS
+These examples give a feel for basic systemtap syntax and
+control structures.
+
+.SAMPLE
+global odds, evens
+
+probe begin {
+  # "no" and "ne" are local integers
+  for (i=0; i<10; i++) {
+    if (i % 2) odds [no++] = i
+    else evens [ne++] = i 
+  }
+  delete odds[2]
+  delete evens[3]
+  exit ()
+}
+
+probe end {
+  foreach (x+ in odds) {
+    printf ("odds[%d] = %d\\n", x, odds[x])
+  }
+  foreach (x in evens\-) {
+    printf ("evens[%d] = %d\\n", x, evens[x])
+  }
+}
+.ESAMPLE
+This prints:
+.SAMPLE
+odds[1] = 1
+odds[3] = 5
+odds[4] = 7
+odds[5] = 9
+evens[5] = 8
+evens[4] = 6
+evens[2] = 2
+evens[1] = 0
+.ESAMPLE
+Note that all variables types are inferred, and that all locals
+and globals are automatically initialized.
+
+.PP
+This script prints the primes between 0 and 49.
+.SAMPLE
+function isprime (x) {
+  if (x < 2) return 0
+  for (i=2; i<x; i++) {
+    if (x % i == 0) return 0
+    if (i * i > x) break
+  }
+  return 1
+}
+probe begin {
+  for (i=0; i<50; i++)
+    if (isprime (i)) printf("%d\\n", i)
+  exit()
+}
+.ESAMPLE
+
+.PP
+This script demonstrates recursive functions.
+.SAMPLE
+function fibonacci(i) {
+  if (i < 1) error ("bad number")
+  if (i == 1) return 1
+  if (i == 2) return 2
+  return fibonacci (i\-1) + fibonacci (i\-2)
+}
+probe begin {
+  printf ("11th fibonacci number: %d\\n", fibonacci (11))
+  exit ()
+}
+.ESAMPLE
+Any larger number may exceed the MAXACTION or MAXNESTING
+limits, and result in an error.
+
+
+.SH PROBING
+
+To trace entry and exit from a function, use a pair of probes:
+.SAMPLE
+probe kernel.function("sys_mkdir") { println ("enter") }
+probe kernel.function("sys_mkdir").return { println ("exit") }
+.ESAMPLE
+
+To list the probeable functions in the kernel, use the listings mode.
+.SAMPLE
+% stap \-l \[aq]kernel.function("*")\[aq]
+.ESAMPLE
+
+To list the probeable functions and local variables in the kernel, use another listings mode.
+.SAMPLE
+% stap \-L \[aq]kernel.function("*")\[aq]
+.ESAMPLE
+
+.SH MORE EXAMPLES
+
+The directory to find more examples can be found in the stappaths (7) manual page,
+and online at
+.nh
+.BR http://sourceware.org/systemtap/examples/
+.hy
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1)
+.IR stapprobes (3stap)
+.IR stappaths (7)
+

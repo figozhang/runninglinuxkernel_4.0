@@ -1,0 +1,36 @@
+#! /usr/bin/env stap
+# errsnoop.stp
+# Copyright (C) 2009 Red Hat, Inc., Eugene Teo <eteo@redhat.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+# attack "stupid userspace" apps
+#
+
+global error%[6000], trace   // about 18.5MB kernel RAM
+
+probe syscall.* {
+	# assume syscall don't nest
+	trace[tid()] = argstr
+}
+
+probe syscall.*.return {
+	errno = errno_p(returnval())
+	if (errno != 0) {
+		argstr = trace[tid()]
+		delete trace[tid()]
+		errstr = sprintf("%3d/%s", errno, errno_str(errno))
+		error[sprintf("%-13s %17s %15s %5d %s", errstr, name, execname(), pid(), argstr)] <<< 1
+	}
+}
+
+probe timer.s(%( $# > 0 %? $1 %: 5 %)) {
+	ansi_clear_screen()
+	printf("%4s %-13s %17s %15s %5s %s\n",
+	       "HITS", "ERRSTR", "SYSCALL", "PROCESS", "PID", "ARGSTR")
+	foreach([bigstr] in error- limit %( $# > 1 %? $2 %: 20 %))
+		printf("%4d %s\n", @count(error[bigstr]), bigstr)
+	delete error
+}

@@ -1,0 +1,82 @@
+.\" -*- nroff -*-
+.TH TAPSET::STOPWATCH 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::stopwatch \- systemtap stopwatch tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B delete_stopwatch 
+Remove an existing stopwatch
+.IP
+See 
+.IR function::delete_stopwatch (3stap)
+ for details.
+.P
+.TP
+.B start_stopwatch 
+Start a stopwatch 
+.IP
+See 
+.IR function::start_stopwatch (3stap)
+ for details.
+.P
+.TP
+.B stop_stopwatch 
+Stop a stopwatch 
+.IP
+See 
+.IR function::stop_stopwatch (3stap)
+ for details.
+.P
+.TP
+.B read_stopwatch_ns 
+Reads the time in nanoseconds for a stopwatch
+.IP
+See 
+.IR function::read_stopwatch_ns (3stap)
+ for details.
+.P
+.TP
+.B read_stopwatch_us 
+Reads the time in microseconds for a stopwatch
+.IP
+See 
+.IR function::read_stopwatch_us (3stap)
+ for details.
+.P
+.TP
+.B read_stopwatch_ms 
+Reads the time in milliseconds for a stopwatch
+.IP
+See 
+.IR function::read_stopwatch_ms (3stap)
+ for details.
+.P
+.TP
+.B read_stopwatch_s 
+Reads the time in seconds for a stopwatch
+.IP
+See 
+.IR function::read_stopwatch_s (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::delete_stopwatch (3stap),
+.BR
+.IR \%function::start_stopwatch (3stap),
+.BR
+.IR \%function::stop_stopwatch (3stap),
+.BR
+.IR \%function::read_stopwatch_ns (3stap),
+.BR
+.IR \%function::read_stopwatch_us (3stap),
+.BR
+.IR \%function::read_stopwatch_ms (3stap),
+.BR
+.IR \%function::read_stopwatch_s (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

@@ -1,0 +1,30 @@
+.\" -*- nroff -*-
+.TH TAPSET::TOKENIZE 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::tokenize \- systemtap tokenize tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B tokenize 
+Return the next non-empty token in a string
+.IP
+See 
+.IR function::tokenize (3stap)
+ for details.
+.P
+.TP
+.B tokenize 
+Return the next non-empty token in a string
+.IP
+See 
+.IR function::tokenize (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::tokenize (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

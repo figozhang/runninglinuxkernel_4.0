@@ -1,0 +1,175 @@
+# arch-specific requests of ptrace ___________________________
+#
+%{
+// compat_ptrace_area is defined in a private header
+// (arch/s390/kernel/compat_ptrace.h), so define our own.
+typedef struct
+{
+	__u32   len;
+	__u32   kernel_addr;
+	__u32   process_addr;
+} __stp_compat_ptrace_area;
+
+%}
+
+function _stp_ptrace_area_u:string(ptrace_area_uaddr:long)
+%{ /* pure */
+	char *area_uaddr = (void *)(intptr_t)STAP_ARG_ptrace_area_uaddr;
+	ptrace_area area;
+	if (area_uaddr == NULL)
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char*)&area, area_uaddr,
+					sizeof(area)) == 0) {
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+				      "[{%u, %#lx, %#lx}]", area.len,
+				      area.kernel_addr, area.process_addr);
+	   	}
+		else
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				      (unsigned long)area_uaddr);
+	}
+%}
+
+function _stp_compat_ptrace_area_u:string(compat_ptrace_area_uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	char *area_uaddr = (void *)(intptr_t)STAP_ARG_compat_ptrace_area_uaddr;
+	__stp_compat_ptrace_area area;
+	if (area_uaddr == NULL)
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char*)&area, area_uaddr,
+					sizeof(area)) == 0) {
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+				      "[{%u, %#x, %#x}]", area.len,
+				      area.kernel_addr, area.process_addr);
+	   	}
+		else
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				      (unsigned long)area_uaddr);
+	}
+#endif
+%}
+
+%{
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
+
+#ifndef PTRACE_SINGLEBLOCK
+#define PTRACE_SINGLEBLOCK	      12
+#endif
+#ifndef PTRACE_GET_LAST_BREAK
+#define PTRACE_GET_LAST_BREAK	      0x5006
+#endif
+#ifndef PTRACE_PEEK_SYSTEM_CALL
+#define PTRACE_PEEK_SYSTEM_CALL       0x5007
+#endif
+#ifndef PTRACE_POKE_SYSTEM_CALL
+#define PTRACE_POKE_SYSTEM_CALL	      0x5008
+#endif
+#ifndef PTRACE_ENABLE_TE
+#define PTRACE_ENABLE_TE	      0x5009
+#endif
+#ifndef PTRACE_DISABLE_TE
+#define PTRACE_DISABLE_TE	      0x5010
+#endif
+#ifndef PTRACE_TE_ABORT_RAND
+#define PTRACE_TE_ABORT_RAND	      0x5011
+#endif
+
+static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
+	V(PTRACE_SINGLEBLOCK),
+	V(PTRACE_OLDSETOPTIONS),
+	V(PTRACE_PEEKUSR_AREA),
+	V(PTRACE_POKEUSR_AREA),
+	V(PTRACE_PEEKTEXT_AREA),
+	V(PTRACE_PEEKDATA_AREA),
+	V(PTRACE_POKETEXT_AREA),
+	V(PTRACE_POKEDATA_AREA),
+	V(PTRACE_GET_LAST_BREAK),
+	V(PTRACE_PEEK_SYSTEM_CALL),
+	V(PTRACE_POKE_SYSTEM_CALL),
+	V(PTRACE_ENABLE_TE),
+	V(PTRACE_DISABLE_TE),
+	V(PTRACE_TE_ABORT_RAND),
+	{0, NULL}
+};
+%}
+
+function __arch_ptrace_request_str:string(request:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_arch_ptrace_request_list,
+			(unsigned long)STAP_ARG_request, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+function _arch_ptrace_argstr(request, pid, addr, data)
+{
+	if (request == %{ /* pure */ PTRACE_OLDSETOPTIONS %})
+		return sprintf("PTRACE_OLDSETOPTIONS, %d, %#x, %s", pid,
+			       addr, _ptrace_options_str(data))
+	if (request == %{ /* pure */ PTRACE_PEEKUSR_AREA %}
+	    || request == %{ /* pure */ PTRACE_POKEUSR_AREA %}
+	    || request == %{ /* pure */ PTRACE_PEEKTEXT_AREA %}
+	    || request == %{ /* pure */ PTRACE_PEEKDATA_AREA %}
+	    || request == %{ /* pure */ PTRACE_POKETEXT_AREA %}
+	    || request == %{ /* pure */ PTRACE_POKEDATA_AREA %})
+		return sprintf("%s, %d, %s, %#x",
+			       __arch_ptrace_request_str(request), pid,
+			       (@__compat_task
+			        ? _stp_compat_ptrace_area_u(addr)
+			        : _stp_ptrace_area_u(addr)), data)
+	if (request == %{ /* pure */ PTRACE_GET_LAST_BREAK %}
+	    || request == %{ /* pure */ PTRACE_ENABLE_TE %}
+	    || request == %{ /* pure */ PTRACE_DISABLE_TE %}
+	    || request == %{ /* pure */ PTRACE_TE_ABORT_RAND %})
+		return sprintf("%s, %d, %#x, %#x",
+			       __arch_ptrace_request_str(request),
+			       pid, addr, data)
+
+	// Although the following ptrace requests are defined in the
+	// ptrace header file, they aren't implemented in the kernel.
+	if (request == %{ /* pure */ PTRACE_PEEK_SYSTEM_CALL %}
+	    || request == %{ /* pure */ PTRACE_POKE_SYSTEM_CALL %})
+		return sprintf("%s, %d, %#x, %#x",
+			       __arch_ptrace_request_str(request),
+			       pid, addr, data)
+}
+
+function _ptrace_return_arch_prctl_addr:long(request:long, addr:long, data:long)
+{
+	return 0
+}
+
+%( systemtap_v <= "3.0" %?
+function get_32mmap_args:string(args:long)
+%{ /* pure */
+	struct mmap_arg_struct_emu31 {
+		u32     addr;
+		u32     len;
+		u32     prot;
+		u32     flags;
+		u32     fd;
+		u32     offset;
+	} a;
+
+	if (_stp_copy_from_user((char *)&a, (char *)STAP_ARG_args,
+				sizeof(a)) == 0) {
+		int len;
+		_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%x, %u, ",
+			      a.addr, a.len);
+		_stp_lookup_or_str(_stp_mprotect_list, a.prot, STAP_RETVALUE,
+				   MAXSTRINGLEN);
+		strlcat (STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		_stp_lookup_or_str(_stp_mmap_list, a.flags, STAP_RETVALUE,
+				   MAXSTRINGLEN);
+		strlcat (STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      "%d, %d", a.fd, a.offset);
+	} else {
+		strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+	}
+%}
+%)

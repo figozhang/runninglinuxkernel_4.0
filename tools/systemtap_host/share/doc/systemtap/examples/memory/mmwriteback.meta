@@ -1,0 +1,14 @@
+title: Track Virtual Memory System Writing to Disk
+name: mmwriteback.stp
+version: 1.0
+author: Red Hat
+keywords: memory
+subsystem: memory
+status: experimental
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The mmwriteback.stp script uses the virtual memory tracepoints available in some kernels to report all of the file writebacks that occur form kupdate, pdflush and kjournald while the script is running.  It's useful in determining where writes are coming from on a supposedly idle system that is experiencing unexpected IO.
+test_support: (stap -l 'kernel.trace("balance_dirty_pages")' || stap -l 'kernel.trace("mm_balancedirty_writeout")' || stap -l 'kernel.trace("mm_pdflush_bgwriteout")') && (stap -l 'kernel.trace("writeback_pages_written")' || stap -l 'kernel.trace("mm_pdflush_kupdate")') && (stap -l 'kernel.trace("mm_vmscan_writepage")' || stap -l 'kernel.trace("mm_pagereclaim_pgout")')
+test_check: stap -p4 mmwriteback.stp
+test_installcheck: stap mmwriteback.stp -c "sleep 1"

@@ -1,0 +1,73 @@
+'\" t
+.\"     Title: function::ctime
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Time utility functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::CTIME" "3stap" "March 2016" "SystemTap Tapset Reference" "Time utility functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::ctime \- Convert seconds since epoch into human readable date/time string
+.SH "SYNOPSIS"
+.sp
+.nf
+1) ctime:string(epochsecs:long)
+.fi
+.sp
+.nf
+2) ctime:string()
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIepochsecs\fR
+.RS 4
+Number of seconds since epoch (as returned by
+\fBgettimeofday_s\fR)
+.RE
+.SH "DESCRIPTION"
+.PP
+1) Takes an argument of seconds since the epoch as returned by\fBgettimeofday_s\fR\&. Returns a string of the form
+.PP
+2)
+\(lqWed Jun 30 21:49:08 1993\(rq
+.PP
+The string will always be exactly 24 characters\&. If the time would be unreasonable far in the past (before what can be represented with a 32 bit offset in seconds from the epoch) an error will occur (which can be avoided with try/catch)\&. If the time would be unreasonable far in the future, an error will also occur\&.
+.PP
+Note that the epoch (zero) corresponds to
+.PP
+\(lqThu Jan 1 00:00:00 1970\(rq
+.PP
+The earliest full date given by ctime, corresponding to epochsecs \-2147483648 is
+\(lqFri Dec 13 20:45:52 1901\(rq\&. The latest full date given by ctime, corresponding to epochsecs 2147483647 is
+\(lqTue Jan 19 03:14:07 2038\(rq\&.
+.PP
+The abbreviations for the days of the week are \(oqSun\(cq, \(oqMon\(cq, \(oqTue\(cq, \(oqWed\(cq, \(oqThu\(cq, \(oqFri\(cq, and \(oqSat\(cq\&. The abbreviations for the months are \(oqJan\(cq, \(oqFeb\(cq, \(oqMar\(cq, \(oqApr\(cq, \(oqMay\(cq, \(oqJun\(cq, \(oqJul\(cq, \(oqAug\(cq, \(oqSep\(cq, \(oqOct\(cq, \(oqNov\(cq, and \(oqDec\(cq\&.
+.PP
+Note that the real C library
+\fBctime\fR
+function puts a newline (\*(Aq\en\*(Aq) character at the end of the string that this function does not\&. Also note that since the kernel has no concept of timezones, the returned time is always in GMT\&.
+.PP
+Without an argument, does the same as ctime(\fBgettimeofday_s\fR)\&.
+.SH SEE ALSO\n 
+.IR tapset::ctime (3stap)

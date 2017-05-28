@@ -1,0 +1,13 @@
+title: Show Attribues in Table for ansi_set_color()
+name: ansi_colors2.stp
+version: 1.0
+author: Eugene Teo
+keywords: format
+subsystem: none
+status: production
+exit: fixed
+output: graph
+scope: system-wide
+description: The script prints a table showing the available attributes (bold, underline, and inverse) with color combinations for the ans_set_color() function in the ansi.stp tapset.
+test_check: stap -p4 ansi_colors2.stp
+test_installcheck: stap ansi_colors2.stp

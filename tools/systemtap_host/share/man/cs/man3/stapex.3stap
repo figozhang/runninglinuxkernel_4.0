@@ -1,0 +1,135 @@
+.\" -*- nroff -*-
+.TH STAPEX 3stap
+.SH JMÉNO
+stapex \- příklady
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH ZÁKLADY SKRIPTOVACÍHO JAZYKA
+Následující příklady demonstrují základy syntaxe a řídicích struktur
+skriptovacího jazyka systemtapu.
+
+.SAMPLE
+global odds, evens
+
+probe begin {
+  # "no" and "ne" are local integers
+  for (i=0; i<10; i++) {
+    if (i % 2) odds [no++] = i
+    else evens [ne++] = i
+  }
+  delete odds[2]
+  delete evens[3]
+  exit ()
+}
+
+probe end {
+  foreach (x+ in odds) {
+    printf ("odds[%d] = %d\\n", x, odds[x])
+  }
+  foreach (x in evens\-) {
+    printf ("evens[%d] = %d\\n", x, evens[x])
+  }
+}
+.ESAMPLE
+Výstupem výše uvedeného skriptu bude:
+.SAMPLE
+odds[1] = 1
+odds[3] = 5
+odds[4] = 7
+odds[5] = 9
+evens[5] = 8
+evens[4] = 6
+evens[2] = 2
+evens[1] = 0
+.ESAMPLE
+Poznamenejme, že datové typy všech proměnných jsou automaticky odvozené, a že
+všechny globální proměnné jsou automaticky inicializovány.
+
+.PP
+Následující skript vypíše prvočísla mezi 0 a 49.
+.SAMPLE
+function isprime (x) {
+  if (x < 2) return 0
+  for (i=2; i<x; i++) {
+    if (x % i == 0) return 0
+    if (i * i > x) break
+  }
+  return 1
+}
+probe begin {
+  for (i=0; i<50; i++)
+    if (isprime (i)) printf("%d\\n", i)
+  exit()
+}
+.ESAMPLE
+
+.PP
+Tento skript je ukázkou použití rekurzivních funkcí.
+.SAMPLE
+function fibonacci(i) {
+  if (i < 1) error ("bad number")
+  if (i == 1) return 1
+  if (i == 2) return 2
+  return fibonacci (i\-1) + fibonacci (i\-2)
+}
+probe begin {
+  printf ("11th fibonacci number: %d\\n", fibonacci (11))
+  exit ()
+}
+.ESAMPLE
+Při pokusu o generování větších čísel bychom narazili na limity MAXACTION,
+nebo MAXNESTING a výsledkem by byla chyba.
+
+.SH SONDOVÁNÍ
+
+Pro sledování vstupu do funkce a výstupu z ní použijte následující pár sond:
+.SAMPLE
+probe kernel.function("sys_mkdir") { println ("enter") }
+probe kernel.function("sys_mkdir").return { println ("exit") }
+.ESAMPLE
+
+Pro vypsání jaderných funkcí do kterých lze vložit sondu použijte režim
+výpisu -l:
+
+.SAMPLE
+% stap \-l \[aq]kernel.function("*")\[aq]
+.ESAMPLE
+
+Pro výpis jaderných funkcí a v nich přístupných lokálních proměnných
+použijte režim výpisu -L:
+
+.SAMPLE
+% stap \-L \[aq]kernel.function("*")\[aq]
+.ESAMPLE
+
+.SH VÍCE PŘÍKLADŮ
+
+Adresář s příklady je zmíněn v manuálové stránce stappaths (7), případně online
+na adrese:
+.nh
+.BR http://sourceware.org/systemtap/examples/
+.hy
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1)
+.IR stapprobes (3stap)
+.IR stappaths (7)
+

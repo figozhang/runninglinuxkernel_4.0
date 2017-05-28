@@ -1,0 +1,73 @@
+
+@__private30 global _target_set # map: target-set-pid -> ancestor-pid
+
+/**
+ * sfunction target_set_pid - Does pid descend from target process?
+ *
+ * @pid: The pid of the process to query
+ *
+ * Description: This function returns whether the given process-id is
+ * within the "target set", that is whether it is a descendant of the
+ * top-level target() process.
+ */
+function target_set_pid (pid)
+{
+	return ([pid] in _target_set)
+}
+
+probe init
+{
+	if (target())
+		_target_set[target()] = stp_pid()
+}
+
+
+# pre-2.6.18 systems don't support dwarfless probes,
+# so we'll use 'syscall' probes instead of 'nd_syscall' probes.
+
+probe process.begin !,
+%( kernel_v >= "2.6.18" %?
+      nd_syscall.fork.return ?, nd_syscall.vfork.return ?,
+      nd_syscall.clone.return !,
+%)
+      syscall.fork.return, syscall.vfork.return, syscall.clone.return
+{
+	if (is_return()) {
+		# fork.return runs in parent context
+		pid = @choose_defined($return, returnval())
+		ppid = pid()
+	} else {
+		# process.begin runs in child context
+		pid = pid()
+		ppid = ppid()
+	}
+
+	# NB: when using process.*, if target() execs we'll see a process.end
+	# (removing it) then a new process.begin.  The target's ppid (stp_pid)
+	# is not part of the target set, so check for this case.
+	if (pid == target() || ppid in _target_set)
+		_target_set[pid] = ppid
+}
+
+probe process.end !,
+%( kernel_v >= "2.6.18" %?
+      nd_syscall.exit !,
+%)
+      syscall.exit
+{
+	delete _target_set[pid()]
+}
+
+
+/**
+ * sfunction target_set_report - Print a report about the target set
+ *
+ * Description: This function prints a report about the processes in the
+ * target set, and their ancestry.
+ */
+function target_set_report ()
+{
+	printf("target set:\n")
+	foreach (pid in _target_set+)
+		printf("%d begat %d\n", _target_set[pid], pid)
+}

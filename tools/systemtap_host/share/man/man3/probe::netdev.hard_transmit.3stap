@@ -1,0 +1,59 @@
+'\" t
+.\"     Title: probe::netdev.hard_transmit
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Networking Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NETDEV\&.HARD" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::netdev.hard_transmit \- Called when the devices is going to TX (hard)
+.SH "SYNOPSIS"
+.sp
+.nf
+netdev\&.hard_transmit 
+.fi
+.SH "VALUES"
+.PP
+\fIdev_name\fR
+.RS 4
+The device scheduled to transmit
+.RE
+.PP
+\fIlength\fR
+.RS 4
+The length of the transmit buffer\&.
+.RE
+.PP
+\fItruesize\fR
+.RS 4
+The size of the data to be transmitted\&.
+.RE
+.PP
+\fIprotocol\fR
+.RS 4
+The protocol used in the transmission
+.RE
+.SH SEE ALSO\n 
+.IR tapset::networking (3stap)

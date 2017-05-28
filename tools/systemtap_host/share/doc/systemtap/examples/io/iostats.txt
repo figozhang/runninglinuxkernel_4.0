@@ -1,0 +1,8 @@
+# stap iostats.stp -c "sleep 1"
+
+starting probe
+
+                                       read     read             write    write
+            name     open     read   KB tot    B avg    write   KB tot    B avg
+           sleep       10        1        0      512        0        0        0
+          stapio        0        7        0        3        1        0       15

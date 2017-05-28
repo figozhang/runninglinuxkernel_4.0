@@ -1,0 +1,17 @@
+#!/usr/bin/env stap
+
+global nfsdcalls
+
+probe begin {
+  printf("Collecting top NFSD procs...\n")
+}
+
+probe {kernel,module("nfs")}.function("*@fs/nfs/*proc.c") ? {
+  nfsdcalls[execname(), pid()]++
+}
+
+probe end {
+  printf("\nname(pid) nfs ops\n");
+  foreach ([name,p] in nfsdcalls- limit 20)
+    printf("%s(%d) %d\n", name, p, nfsdcalls[name, p])
+}

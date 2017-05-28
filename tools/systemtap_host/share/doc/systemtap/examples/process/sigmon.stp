@@ -1,0 +1,35 @@
+#! /usr/bin/env stap
+
+# Copyright (C) 2006 IBM Corp.
+#
+# This file is part of systemtap, and is free software.  You can
+# redistribute it and/or modify it under the terms of the GNU General
+# Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+#
+# Track when a specific process ID receives a specific signal.  For example,
+# when process ID 31994 receives a SIGKILL signal.
+#
+# Example command line: 
+#
+#   stap -x 31994 sigmon.stp SIGKILL
+#
+# Example output: 
+#
+#   SPID     SNAME            RPID  RNAME            SIGNUM SIGNAME
+#   5609     bash             31994 find             9      SIGKILL 
+#
+
+probe begin
+{
+  printf("%-8s %-16s %-5s %-16s %6s %-16s\n",
+         "SPID", "SNAME", "RPID", "RNAME", "SIGNUM", "SIGNAME")
+}
+
+probe signal.send 
+{
+  if (sig_name == @1 && sig_pid == target())
+    printf("%-8d %-16s %-5d %-16s %-6d %-16s\n", 
+      pid(), execname(), sig_pid, pid_name, sig, sig_name)
+}

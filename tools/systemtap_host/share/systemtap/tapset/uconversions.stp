@@ -1,0 +1,816 @@
+// userspace conversions tapset
+// Copyright (C) 2005-2015 Red Hat Inc.
+// Copyright (C) 2007 Intel Corporation.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// implement in terms of runtime/loc2c-runtime.h macro uread()
+%{
+#define __STP_GET_USER(t, warn)						\
+	do {								\
+		__label__ deref_fault;					\
+		t *_ptr = (t*) (intptr_t) STAP_ARG_addr;		\
+		STAP_RETVALUE = uread (_ptr);				\
+		if (0) {						\
+		deref_fault:						\
+			STAP_RETVALUE = 0;				\
+			CONTEXT->last_error = NULL;			\
+			if (warn) {					\
+				snprintf(CONTEXT->error_buffer,		\
+				    sizeof(CONTEXT->error_buffer),	\
+				    "user %s copy fault %p [man error::fault]", #t, _ptr);	\
+				_stp_warn(CONTEXT->error_buffer);	\
+			}						\
+		}							\
+	} while (0)
+
+#define STP_GET_USER(t) __STP_GET_USER(t, 0)
+#define STP_GET_USER_WARN(t) __STP_GET_USER(t, 1)
+%}
+
+/**
+ * sfunction user_string - Retrieves string from user space
+ *
+ * @addr: the user space address to retrieve the string from
+ *
+ * Description: Returns the null terminated C string from a given user space
+ * memory address. Reports an error on the rare cases when userspace
+ * data is not accessible.
+ */
+function user_string:string (addr:long) {
+	return user_string_n(addr, @MAXSTRINGLEN)
+}
+
+/**
+ * sfunction user_string - Retrieves string from user space with alternative error string
+ *
+ * @addr: the user space address to retrieve the string from
+ * @err_msg: the error message to return when data isn't available
+ *
+ * Description: Returns the null terminated C string from a given user space
+ * memory address. Reports the given error message on the rare cases when
+ * userspace data is not accessible.
+ */
+function user_string:string (addr:long, err_msg:string) {
+	return user_string_n(addr, @MAXSTRINGLEN, err_msg)
+}
+%(systemtap_v <= "3.0" %?
+function user_string2:string (addr:long, err_msg:string) {
+	return user_string_n(addr, @MAXSTRINGLEN, err_msg)
+}
+%)
+
+/**
+ * sfunction user_string_warn - Retrieves string from user space
+ *
+ * @addr: the user space address to retrieve the string from
+ *
+ * Description: Returns the null terminated C string from a given user space
+ * memory address. Reports "" on the rare cases when userspace data is
+ * not accessible and warns (but does not abort) about the failure.
+ */
+function user_string_warn:string (addr:long) {
+%(systemtap_v < "2.3" %? // PR15044
+	return user_string_warn(addr, "<unknown>")
+%:
+	return user_string_warn(addr, "")
+%)
+}
+
+
+/**
+ * sfunction user_string_warn - Retrieves string from user space with alternative warning string
+ *
+ * @addr: the user space address to retrieve the string from
+ * @warn_msg: the warning message to return when data isn't available
+ * 
+ * Description: Returns the null terminated C string from a given user space
+ * memory address. Reports the given warning message on the rare cases
+ * when userspace data is not accessible and warns (but does not abort)
+ * about the failure.
+ */
+function user_string_warn:string (addr:long, warn_msg:string) {
+	return user_string_n_warn(addr, @MAXSTRINGLEN, warn_msg)
+}
+%(systemtap_v <= "3.0" %?
+function user_string2_warn:string (addr:long, warn_msg:string) {
+	return user_string_n_warn(addr, @MAXSTRINGLEN, warn_msg)
+}
+%)
+
+/**
+ * sfunction user_string_quoted - Retrieves and quotes string from user space
+ *
+ * @addr: the user space address to retrieve the string from
+ *
+ * Description: Returns the null terminated C string from a given user space
+ * memory address where any ASCII characters that are not printable are
+ * replaced by the corresponding escape sequence in the returned string. Note
+ * that the string will be surrounded by double quotes. On the rare cases when
+ * userspace data is not accessible at the given address, the address itself is
+ * returned as a string, without double quotes.
+ */
+function user_string_quoted:string (addr:long) {
+  try { return string_quoted(user_string(addr)) } catch { return sprintf("0x%x", addr) }
+}
+
+
+
+
+/**
+ * sfunction user_string_n - Retrieves string of given length from user space
+ *
+ * @addr: the user space address to retrieve the string from
+ * @n: the maximum length of the string (if not null terminated)
+ *
+ * Description: Returns the C string of a maximum given length from a
+ * given user space address. Reports an error on the rare cases
+ * when userspace data is not accessible at the given address.
+ */
+function user_string_n:string (addr:long, n:long)
+%( systemtap_v < "2.3" %? // PR15044
+	{ return user_string_n(addr, n, "<unknown>") }
+%:
+	%{ /* pure */ /* myproc-unprivileged */
+		long rc;
+		int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
+		rc = _stp_strncpy_from_user(STAP_RETVALUE,
+			(char __user *) (uintptr_t) STAP_ARG_addr, len);
+		if (rc < 0) {
+			strlcpy(STAP_RETVALUE, "<unknown>", MAXSTRINGLEN);
+			snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+				"user string copy fault %ld at %p [man error::fault]", rc,
+				(void *) (uintptr_t) STAP_ARG_addr);
+			CONTEXT->last_error = CONTEXT->error_buffer;
+		} else
+			STAP_RETVALUE[len - 1] = '\0';
+	%}
+%)
+
+/**
+ * sfunction user_string_n - Retrieves string of given length from user space
+ *
+ * @addr: the user space address to retrieve the string from
+ * @n: the maximum length of the string (if not null terminated)
+ * @err_msg: the error message to return when data isn't available
+ *
+ * Description: Returns the C string of a maximum given length from a
+ * given user space address. Returns the given error message string on
+ * the rare cases when userspace data is not accessible at the given
+ * address.
+ */
+function user_string_n:string (addr:long, n:long, err_msg:string)
+%{ /* pure */ /* myproc-unprivileged */ /* unmodified-fnargs */
+  int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
+  if (_stp_strncpy_from_user(STAP_RETVALUE, 
+        (char __user *) (uintptr_t) STAP_ARG_addr, len) < 0)
+    strlcpy(STAP_RETVALUE, STAP_ARG_err_msg, MAXSTRINGLEN);
+  else
+    STAP_RETVALUE[len - 1] = '\0';
+%}
+%(systemtap_v <= "3.0" %?
+function user_string_n2:string (addr:long, n:long, err_msg:string)
+%{ /* pure */ /* myproc-unprivileged */ /* unmodified-fnargs */
+  int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
+  if (_stp_strncpy_from_user(STAP_RETVALUE, 
+        (char __user *) (uintptr_t) STAP_ARG_addr, len) < 0)
+    strlcpy(STAP_RETVALUE, STAP_ARG_err_msg, MAXSTRINGLEN);
+  else
+    STAP_RETVALUE[len - 1] = '\0';
+%}
+%)
+
+/**
+ * sfunction user_string_n_warn - Retrieves string from user space
+ *
+ * @addr: the user space address to retrieve the string from
+ * @n: the maximum length of the string (if not null terminated)
+ *
+ * Description: Returns up to n characters of a C string from a given
+ * user space memory address. Reports "<unknown>" on the rare cases
+ * when userspace data is not accessible and warns (but does not abort)
+ * about the failure.
+ */
+function user_string_n_warn:string (addr:long, n:long) {
+%(systemtap_v < "2.3" %? // PR15044
+	return user_string_n_warn(addr, n, "<unknown>")
+%:
+	return user_string_n_warn(addr, n, "")
+%)
+}
+
+/**
+ * sfunction user_string_n_warn - Retrieves string from user space with alternative warning string
+ *
+ * @addr: the user space address to retrieve the string from
+ * @n: the maximum length of the string (if not null terminated)
+ * @warn_msg: the warning message to return when data isn't available
+ * 
+ * Description: Returns up to n characters of a C string from a given
+ * user space memory address. Reports the given warning message on the
+ * rare cases when userspace data is not accessible and warns (but does
+ * not abort) about the failure.
+ */
+function user_string_n_warn:string (addr:long, n:long, warn_msg:string)
+%{ /* pure */ /* myproc-unprivileged */ /* unmodified-fnargs */
+	int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
+	long rc;
+	rc = _stp_strncpy_from_user(STAP_RETVALUE,
+			(char __user *) (uintptr_t) STAP_ARG_addr, len);
+	if (rc < 0) {
+		// NB: using error_buffer to get local space for the warning, but we're
+		// not aborting, so leave last_error alone.
+		snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+				"user string copy fault %ld at %p [man error::fault]", rc,
+				(void *) (uintptr_t) STAP_ARG_addr);
+		_stp_warn(CONTEXT->error_buffer);
+		strlcpy (STAP_RETVALUE, STAP_ARG_warn_msg, MAXSTRINGLEN);
+	} else
+		STAP_RETVALUE[len - 1] = '\0';
+%}
+%(systemtap_v <= "3.0" %?
+function user_string2_n_warn:string (addr:long, n:long, warn_msg:string)
+%{ /* pure */ /* myproc-unprivileged */ /* unmodified-fnargs */
+	int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
+	long rc;
+	rc = _stp_strncpy_from_user(STAP_RETVALUE,
+			(char __user *) (uintptr_t) STAP_ARG_addr, len);
+	if (rc < 0) {
+		// NB: using error_buffer to get local space for the warning, but we're
+		// not aborting, so leave last_error alone.
+		snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+				"user string copy fault %ld at %p [man error::fault]", rc,
+				(void *) (uintptr_t) STAP_ARG_addr);
+		_stp_warn(CONTEXT->error_buffer);
+		strlcpy (STAP_RETVALUE, STAP_ARG_warn_msg, MAXSTRINGLEN);
+	} else
+		STAP_RETVALUE[len - 1] = '\0';
+%}
+%)
+
+/**
+ * sfunction user_string_n_quoted - Retrieves and quotes string from user space
+ *
+ * @addr: the user space address to retrieve the string from
+ * @n: the maximum length of the string (if not null terminated)
+ *
+ * Description: Returns up to n characters of a C string from the given
+ * user space memory address where any ASCII characters that are not
+ * printable are replaced by the corresponding escape sequence in the
+ * returned string. Note that the string will be surrounded by double quotes.
+ * On the rare cases when userspace data is not accessible at the given address,
+ * the address itself is returned as a string, without double quotes.
+ */
+function user_string_n_quoted:string (addr:long, n:long) {
+%(systemtap_v < "2.4" %?
+	// We used to count n by output characters
+	return user_string_n_quoted(addr, @MAXSTRINGLEN, n)
+%:
+	return user_string_n_quoted(addr, n, @MAXSTRINGLEN)
+%)
+}
+
+/**
+ * sfunction user_string_n_quoted - Retrieves and quotes string from user space
+ *
+ * @addr: the user space address to retrieve the string from
+ * @inlen: the maximum length of the string to read (if not null terminated)
+ * @outlen: the maximum length of the output string
+ *
+ * Description: Reads up to inlen characters of a C string from the given user
+ * space memory address, and returns up to outlen characters, where any ASCII
+ * characters that are not printable are replaced by the corresponding escape
+ * sequence in the returned string. Note that the string will be surrounded by
+ * double quotes.  On the rare cases when userspace data is not accessible at
+ * the given address, the address itself is returned as a string, without
+ * double quotes.
+ */
+function user_string_n_quoted:string (addr:long, inlen:long, outlen:long)
+%( systemtap_v >= "3.0" %?
+   {
+     try
+       {
+         __str = string_quoted(user_string_n(addr, inlen))
+         if (strlen(__str) > outlen-2) // room for the double-quotes plus \ldots
+           __str = (substr(__str,0,outlen-4) . "\"...")
+         return __str
+       }
+     catch
+       {
+         return sprintf("0x%x", addr)
+       }
+   }
+%:   
+
+%{ /* pure */ /* myproc-unprivileged */
+	// Note the lack of STAP_ARG_n+1 as in other funcs() -- PR15617
+	int64_t inlen = clamp_t(int64_t, STAP_ARG_inlen, 0, MAXSTRINGLEN);
+	int64_t outlen = clamp_t(int64_t, STAP_ARG_outlen, 0, MAXSTRINGLEN);
+	if (STAP_ARG_addr == 0)
+#if STAP_COMPAT_VERSION < STAP_VERSION(2,3) // PR15044
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+#else
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p", (void *)(long)STAP_ARG_addr);
+#endif
+	else {
+		int rc = _stp_text_str(STAP_RETVALUE,
+			(char *)(uintptr_t)STAP_ARG_addr, inlen, outlen, 1, 1);
+		if (rc < 0) {
+#if STAP_COMPAT_VERSION < STAP_VERSION(2,3) // PR15044
+			strlcpy(STAP_RETVALUE, "<unknown>", MAXSTRINGLEN);
+#else
+#ifdef CONFIG_COMPAT
+			if (_stp_is_compat_task())
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%x",
+					 (compat_long_t)STAP_ARG_addr);
+			else
+#endif
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p",
+					 (void *)(long)STAP_ARG_addr);
+#endif
+		}
+	}
+%}
+   
+%)
+%(systemtap_v <= "3.0" %?
+function user_string_n2_quoted:string (addr:long, inlen:long, outlen:long)
+%( systemtap_v >= "3.0" %?
+   {
+     try
+       {
+         __str = string_quoted(user_string_n(addr, inlen))
+         if (strlen(__str) > outlen-2) // room for the double-quotes plus \ldots
+           __str = (substr(__str,0,outlen-4) . "\"...")
+         return __str
+       }
+     catch
+       {
+         return sprintf("0x%x", addr)
+       }
+   }
+%:   
+
+%{ /* pure */ /* myproc-unprivileged */
+	// Note the lack of STAP_ARG_n+1 as in other funcs() -- PR15617
+	int64_t inlen = clamp_t(int64_t, STAP_ARG_inlen, 0, MAXSTRINGLEN);
+	int64_t outlen = clamp_t(int64_t, STAP_ARG_outlen, 0, MAXSTRINGLEN);
+	if (STAP_ARG_addr == 0)
+#if STAP_COMPAT_VERSION < STAP_VERSION(2,3) // PR15044
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+#else
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p", (void *)(long)STAP_ARG_addr);
+#endif
+	else {
+		int rc = _stp_text_str(STAP_RETVALUE,
+			(char *)(uintptr_t)STAP_ARG_addr, inlen, outlen, 1, 1);
+		if (rc < 0) {
+#if STAP_COMPAT_VERSION < STAP_VERSION(2,3) // PR15044
+			strlcpy(STAP_RETVALUE, "<unknown>", MAXSTRINGLEN);
+#else
+#ifdef CONFIG_COMPAT
+			if (_stp_is_compat_task())
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%x",
+					 (compat_long_t)STAP_ARG_addr);
+			else
+#endif
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p",
+					 (void *)(long)STAP_ARG_addr);
+#endif
+		}
+	}
+%}
+   
+%)
+%)
+
+/**
+ * sfunction user_string_utf32 - Retrieves UTF-32 string from user memory
+ * @addr: The user address to retrieve the string from
+ *
+ * Description: This function returns a null terminated UTF-8 string converted
+ * from the UTF-32 string at a given user memory address. Reports an error on
+ * string copy fault or conversion error.
+ */
+function user_string_utf32:string (addr:long) %{ /* pure */ /* myproc-unprivileged */
+  int rc = 0, len = MAXSTRINGLEN;
+  uint32_t c32, *source = (uint32_t*)(intptr_t)STAP_ARG_addr;
+  char *destination = STAP_RETVALUE;
+
+  *destination = '\0';
+  while (len > 1 && (c32 = uread(source))) {
+    if ((rc = _stp_convert_utf32(destination, len, c32)) <= 0) {
+      if (rc < 0) {
+        snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+                  "invalid UTF-32 character U+%X at 0x%p", c32, source);
+        CONTEXT->last_error = CONTEXT->error_buffer;
+      }
+      break;
+    }
+    ++source;
+    destination += rc;
+    len -= rc;
+  }
+
+  if (0) {
+deref_fault: /* branched to from deref_string() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+              "user string copy fault at 0x%p [man error::fault]", source);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction user_string_utf32 - Retrieves UTF-32 string from user memory with alternative error string
+ * @addr: The user address to retrieve the string from
+ * @err_msg: The error message to return when data isn't available
+ *
+ * Description: This function returns a null terminated UTF-8 string converted
+ * from the UTF-32 string at a given user memory address. Reports the given
+ * error message on string copy fault or conversion error.
+ */
+function user_string_utf32:string (addr:long, err_msg:string) {
+  try { return user_string_utf32(addr) } catch { return err_msg }
+}
+%(systemtap_v <= "3.0" %?
+function user_string2_utf32:string (addr:long, err_msg:string) {
+  try { return user_string_utf32(addr) } catch { return err_msg }
+}
+%)
+
+
+/**
+ * sfunction user_string_quoted_utf32 - Quote given user UTF-32 string.
+ * @addr: The user address to retrieve the string from
+ *
+ * Description: This function combines quoting as per @string_quoted
+ * and UTF-32 decoding as per @user_string_utf32.
+ */
+function user_string_quoted_utf32:string (addr:long) {
+  try { return string_quoted(user_string_utf32(addr)) } catch { return sprintf("0x%x", addr) }
+}
+
+
+
+/**
+ * sfunction user_string_utf16 - Retrieves UTF-16 string from user memory
+ * @addr: The user address to retrieve the string from
+ *
+ * Description: This function returns a null terminated UTF-8 string converted
+ * from the UTF-16 string at a given user memory address. Reports an error on
+ * string copy fault or conversion error.
+ */
+function user_string_utf16:string (addr:long) %{ /* pure */ /* myproc-unprivileged */
+  int rc = 0, len = MAXSTRINGLEN;
+  uint32_t c32;
+  uint16_t c16low, *source = (uint16_t*)(intptr_t)STAP_ARG_addr;
+  char *destination = STAP_RETVALUE;
+
+  *destination = '\0';
+  while (len > 1 && (c32 = uread(source))) {
+    /* Check for a UTF-16 high surrogate, then its low pair, and combine them.
+     * Broken surrogates will just fall through to _stp_convert_utf32 and get
+     * flagged as an error there.  (Or even allowed, if we decide to be lax.)
+     */
+    if (c32 >= 0xD800 && c32 <= 0xDBFF) {
+      ++source;
+      c16low = uread(source);
+      if (c16low >= 0xDC00 && c16low <= 0xDFFF)
+        c32 = 0x10000 + ((c32 & 0x3FF) << 10) + (c16low & 0x3FF);
+      else
+        --source;
+    }
+
+    if ((rc = _stp_convert_utf32(destination, len, c32)) <= 0) {
+      if (rc < 0) {
+        snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+                  "invalid UTF-16 character U+%X at 0x%p", c32, source);
+        CONTEXT->last_error = CONTEXT->error_buffer;
+      }
+      break;
+    }
+    ++source;
+    destination += rc;
+    len -= rc;
+  }
+
+  if (0) {
+deref_fault: /* branched to from deref_string() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+              "user string copy fault at 0x%p [man error::fault]", source);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction user_string_utf16 - Retrieves UTF-16 string from user memory with alternative error string
+ * @addr: The user address to retrieve the string from
+ * @err_msg: The error message to return when data isn't available
+ *
+ * Description: This function returns a null terminated UTF-8 string converted
+ * from the UTF-16 string at a given user memory address. Reports the given
+ * error message on string copy fault or conversion error.
+ */
+function user_string_utf16:string (addr:long, err_msg:string) {
+  try { return user_string_utf16(addr) } catch { return err_msg }
+}
+%(systemtap_v <= "3.0" %?
+function user_string2_utf16:string (addr:long, err_msg:string) {
+  try { return user_string_utf16(addr) } catch { return err_msg }
+}
+%)
+
+
+/**
+ * sfunction user_string_quoted_utf16 - Quote given user UTF-16 string.
+ * @addr: The user address to retrieve the string from
+ *
+ * Description: This function combines quoting as per @string_quoted
+ * and UTF-16 decoding as per @user_string_utf16.
+ */
+function user_string_quoted_utf16:string (addr:long) {
+  try { return string_quoted(user_string_utf16(addr)) } catch { return sprintf("0x%x", addr) }
+}
+
+
+/**
+ * sfunction user_char - Retrieves a char value stored in user space
+ *
+ * @addr: the user space address to retrieve the char from
+ *
+ * Description: Returns the char value from a given user space address.
+ * Returns zero when user space data is not accessible.
+ */
+function user_char:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(char);
+%}
+
+/**
+ * sfunction user_char_warn - Retrieves a char value stored in user space
+ *
+ * @addr: the user space address to retrieve the char from
+ *
+ * Description: Returns the char value from a given user space address.
+ * Returns zero when user space and warns (but does not abort) about the
+ * failure.
+ */
+function user_char_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER_WARN(char);
+%}
+
+/**
+ * sfunction user_short - Retrieves a short value stored in user space
+ *
+ * @addr: the user space address to retrieve the short from
+ *
+ * Description: Returns the short value from a given user space address.
+ * Returns zero when user space data is not accessible.
+ */
+function user_short:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(short);
+%}
+
+/**
+ * sfunction user_short_warn - Retrieves a short value stored in user space
+ *
+ * @addr: the user space address to retrieve the short from
+ *
+ * Description: Returns the short value from a given user space address.
+ * Returns zero when user space and warns (but does not abort) about the
+ * failure.
+ */
+function user_short_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER_WARN(short);
+%}
+
+/**
+ * sfunction user_ushort - Retrieves an unsigned short value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned short from
+ *
+ * Description: Returns the unsigned short value from a given user
+ * space address.  Returns zero when user space data is not accessible.
+ */
+function user_ushort:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(unsigned short);
+%}
+
+/**
+ * sfunction user_ushort_warn - Retrieves an unsigned short value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned short from
+ *
+ * Description: Returns the unsigned short value from a given user
+ * space address.  Returns zero when user space and warns (but does
+ * not abort) about the failure.
+ */
+function user_ushort_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER_WARN(unsigned short);
+%}
+
+/**
+ * sfunction user_int - Retrieves an int value stored in user space
+ *
+ * @addr: the user space address to retrieve the int from
+ *
+ * Description: Returns the int value from a given user space address.
+ * Returns zero when user space data is not accessible.
+ */
+function user_int:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(int);
+%}
+
+/**
+ * sfunction user_int_warn - Retrieves an int value stored in user space
+ *
+ * @addr: the user space address to retrieve the int from
+ *
+ * Description: Returns the int value from a given user space address.
+ * Returns zero when user space and warns (but does not abort) about the
+ * failure.
+ */
+function user_int_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER_WARN(int);
+%}
+
+/**
+ * sfunction user_long - Retrieves a long value stored in user space
+ *
+ * @addr: the user space address to retrieve the long from
+ *
+ * Description: Returns the long value from a given user space address.
+ * Returns zero when user space data is not accessible. Note that the
+ * size of the long depends on the architecture of the current user space
+ * task (for those architectures that support both 64/32 bit compat tasks).
+ */
+function user_long:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+#ifdef CONFIG_COMPAT
+	if (_stp_is_compat_task())
+		STP_GET_USER(compat_long_t);
+	else
+#endif
+		STP_GET_USER(long);
+%}
+
+/**
+ * sfunction user_long_warn - Retrieves a long value stored in user space
+ *
+ * @addr: the user space address to retrieve the long from
+ *
+ * Description: Returns the long value from a given user space address.
+ * Returns zero when user space and warns (but does not abort) about the
+ * failure. Note that the size of the long depends on the architecture
+ * of the current user space task (for those architectures that support
+ * both 64/32 bit compat tasks).
+ */
+function user_long_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+#ifdef CONFIG_COMPAT
+	if (_stp_is_compat_task())
+		STP_GET_USER_WARN(compat_long_t);
+	else
+#endif
+		STP_GET_USER_WARN(long);
+%}
+
+/**
+ * sfunction user_ulong - Retrieves an unsigned long value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned long from
+ *
+ * Description: Returns the unsigned long value from a given user
+ * space address. Returns zero when user space data is not
+ * accessible. Note that the size of the unsigned long depends on the
+ * architecture of the current user space task (for those
+ * architectures that support both 64/32 bit compat tasks).
+ */
+function user_ulong:long (addr:long)
+%{ /* pure */ /* myproc-unprivileged */
+#ifdef CONFIG_COMPAT
+	if (_stp_is_compat_task())
+		STP_GET_USER(compat_ulong_t);
+	else
+#endif
+		STP_GET_USER(unsigned long);
+%}
+
+/**
+ * sfunction user_ulong_warn - Retrieves an unsigned long value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned long from
+ *
+ * Description: Returns the unsigned long value from a given user
+ * space address. Returns zero when user space and warns (but does not
+ * abort) about the failure. Note that the size of the unsigned long
+ * depends on the architecture of the current user space task (for
+ * those architectures that support both 64/32 bit compat tasks).
+ */
+function user_ulong_warn:long (addr:long)
+%{ /* pure */ /* myproc-unprivileged */
+#ifdef CONFIG_COMPAT
+	if (_stp_is_compat_task())
+		STP_GET_USER_WARN(compat_ulong_t);
+	else
+#endif
+		STP_GET_USER_WARN(unsigned long);
+%}
+
+/**
+ * sfunction user_int8 - Retrieves a 8-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the 8-bit integer from
+ *
+ * Description: Returns the 8-bit integer value from a given user space
+ * address.  Returns zero when user space data is not accessible.
+ */
+function user_int8:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(int8_t);
+%}
+
+/**
+ * sfunction user_uint8 - Retrieves an unsigned 8-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned 8-bit integer from
+ *
+ * Description: Returns the unsigned 8-bit integer value from a given user
+ * space address.  Returns zero when user space data is not accessible.
+ */
+function user_uint8:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(uint8_t);
+%}
+
+/**
+ * sfunction user_int16 - Retrieves a 16-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the 16-bit integer from
+ *
+ * Description: Returns the 16-bit integer value from a given user space
+ * address.  Returns zero when user space data is not accessible.
+ */
+function user_int16:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(int16_t);
+%}
+
+/**
+ * sfunction user_uint16 - Retrieves an unsigned 16-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned 16-bit integer from
+ *
+ * Description: Returns the unsigned 16-bit integer value from a given user
+ * space address.  Returns zero when user space data is not accessible.
+ */
+function user_uint16:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(uint16_t);
+%}
+
+/**
+ * sfunction user_int32 - Retrieves a 32-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the 32-bit integer from
+ *
+ * Description: Returns the 32-bit integer value from a given user space
+ * address.  Returns zero when user space data is not accessible.
+ */
+function user_int32:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(int32_t);
+%}
+
+/**
+ * sfunction user_uint32 - Retrieves an unsigned 32-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned 32-bit integer from
+ *
+ * Description: Returns the unsigned 32-bit integer value from a given user
+ * space address.  Returns zero when user space data is not accessible.
+ */
+function user_uint32:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(uint32_t);
+%}
+
+/**
+ * sfunction user_int64 - Retrieves a 64-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the 64-bit integer from
+ *
+ * Description: Returns the 64-bit integer value from a given user space
+ * address.  Returns zero when user space data is not accessible.
+ */
+function user_int64:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(int64_t);
+%}
+
+/**
+ * sfunction user_uint64 - Retrieves an unsigned 64-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned 64-bit integer from
+ *
+ * Description: Returns the unsigned 64-bit integer value from a given user
+ * space address.  Returns zero when user space data is not accessible.
+ */
+function user_uint64:long (addr:long) {
+	/* NB: We have no script-level notion of 64-bit unsigned,
+	 * but we keep user_uint64 anyway for API completeness. */
+	return user_int64 (addr);
+}

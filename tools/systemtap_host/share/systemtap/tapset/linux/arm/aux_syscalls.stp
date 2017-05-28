@@ -1,0 +1,68 @@
+# arch-specific requests of ptrace ___________________________
+#
+
+%{
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
+#include <asm/ptrace.h>
+static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
+	V(PTRACE_GETREGS),
+	V(PTRACE_SETREGS),
+	V(PTRACE_GETFPREGS),
+	V(PTRACE_SETFPREGS),
+	V(PTRACE_GETWMMXREGS),
+	V(PTRACE_SETWMMXREGS),
+	V(PTRACE_OLDSETOPTIONS),
+	V(PTRACE_GET_THREAD_AREA),
+	V(PTRACE_SET_SYSCALL),
+	V(PTRACE_GETCRUNCHREGS),
+	V(PTRACE_SETCRUNCHREGS),
+	V(PTRACE_GETVFPREGS),
+	V(PTRACE_SETVFPREGS),
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+	V(PTRACE_GETHBPREGS),
+	V(PTRACE_SETHBPREGS),
+#endif
+	{0, NULL}
+};
+%}
+
+function __arch_ptrace_request_str:string(request:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_arch_ptrace_request_list,
+			(unsigned long)STAP_ARG_request, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+function _arch_ptrace_argstr(request, pid, addr, data)
+{
+	if (request == %{ /* pure */ PTRACE_GETREGS %}
+	    || request == %{ /* pure */ PTRACE_SETREGS %}
+	    || request == %{ /* pure */ PTRACE_GETFPREGS %}
+	    || request == %{ /* pure */ PTRACE_SETFPREGS %}
+	    || request == %{ /* pure */ PTRACE_GETWMMXREGS %}
+	    || request == %{ /* pure */ PTRACE_SETWMMXREGS %}
+	    || request == %{ /* pure */ PTRACE_SET_SYSCALL %}
+	    || request == %{ /* pure */ PTRACE_GETCRUNCHREGS %}
+	    || request == %{ /* pure */ PTRACE_SETCRUNCHREGS %}
+	    || request == %{ /* pure */ PTRACE_GETVFPREGS %}
+	    || request == %{ /* pure */ PTRACE_SETVFPREGS %}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+	    || request == %{ /* pure */ PTRACE_GETHBPREGS %}
+	    || request == %{ /* pure */ PTRACE_SETHBPREGS %})
+#endif
+		return sprintf("%s, %d, %#x, %p",
+			       __arch_ptrace_request_str(request), pid,
+			       addr, data)
+	if (request == %{ /* pure */ PTRACE_OLDSETOPTIONS %})
+		return sprintf("PTRACE_OLDSETOPTIONS, %d, %#x, %s", pid,
+			       addr, _ptrace_options_str(data))
+	if (request == %{ /* pure */ PTRACE_GET_THREAD_AREA %})
+		return sprintf("PTRACE_GET_THREAD_AREA, %d, %d, %p", 
+			       pid, __int32(addr), data)
+}
+
+function _ptrace_return_arch_prctl_addr:long(request:long, addr:long, data:long)
+{
+	return 0
+}

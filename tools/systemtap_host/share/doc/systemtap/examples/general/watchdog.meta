@@ -1,0 +1,14 @@
+title: Watchdog Timer for Arbitrary Events
+name: watchdog.stp
+version: 1.0
+author: anonymous
+keywords: watchdog backtrace
+subsystem: any
+status: proposed
+exit: user-controlled
+output: on-exit
+scope: system-wide
+description: The watchdog.stp script provides a watchdog timer mechanism for arbitrary events. The script takes three arguments: the events to start watchdog timer, the event to stop the watchdog timer, and the time in millseconds for the watchdog. If the watchdog timer is exceed, the script will trigger a stack backtrace of the user-process that timed out using pstack. This script can be used to diagnose what the userspace application is doing when a slower than expected operation occurs.
+test_support: which /usr/bin/pstack
+test_check: stap -p4 watchdog.stp 'syscall.nanosleep' 'syscall.nanosleep.return' 1000
+test_installcheck: stap watchdog.stp 'syscall.nanosleep' 'syscall.nanosleep.return' 1000 -c "sleep 1"

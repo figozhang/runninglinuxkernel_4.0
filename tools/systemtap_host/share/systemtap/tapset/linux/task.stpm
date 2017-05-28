@@ -1,0 +1,7 @@
+@define task(ptr) %(
+    @cast(@ptr, "task_struct", "kernel<linux/sched.h>")
+%)
+
+@define mm(ptr) %(
+    @cast(@ptr, "mm_struct", "kernel<linux/sched.h>")
+%)

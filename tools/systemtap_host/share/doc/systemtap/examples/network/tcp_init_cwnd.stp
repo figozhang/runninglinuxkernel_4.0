@@ -1,0 +1,15 @@
+#! /usr/bin/stap -g
+
+# Based upon http://blog.yufeng.info/archives/1173, bring the goodness
+# of linux commit 442b9635c5 to the pre-2.6.39 masses.
+
+probe kernel.function("tcp_init_cwnd").return
+{
+  r = $return
+  if (r > 0 && r < 10) 
+    $return = 10;
+  counts[r,$return] <<< 1
+}
+
+global counts  # will be automatically summarized at shutdown
+

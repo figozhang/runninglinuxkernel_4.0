@@ -1,0 +1,19 @@
+#! /usr/bin/env stap
+
+// A TCP dump like example
+
+probe begin, timer.s(1) {
+  printf("-----------------------------------------------------------------\n")
+  printf("       Source IP         Dest IP  SPort  DPort  U  A  P  R  S  F \n")
+  printf("-----------------------------------------------------------------\n")
+}
+
+probe udp.recvmsg /* ,udp.sendmsg */ {
+  printf(" %15s %15s  %5d  %5d  UDP\n",
+         saddr, daddr, sport, dport)
+}
+
+probe tcp.receive {
+  printf(" %15s %15s  %5d  %5d  %d  %d  %d  %d  %d  %d\n",
+         saddr, daddr, sport, dport, urg, ack, psh, rst, syn, fin)
+}

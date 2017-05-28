@@ -1,0 +1,14 @@
+# stap pf3.stp -c "sleep 6" --all-modules --ldd
+
+--- 831 samples recorded:
+k:kernel:native_safe_halt     	   818
+k:kernel:_spin_unlock_irqrestore	     3
+k:kernel:drain_array          	     2
+k:kernel:flush_old_exec       	     1
+k:kernel:native_flush_tlb_single	     1
+k:kernel:handle_pte_fault     	     1
+u:/lib/libc-2.12.so:0x3d144e  	     1
+k:kernel:finish_task_switch   	     1
+k:kernel:copy_from_user       	     1
+k:kernel:run_timer_softirq    	     1
+u:<unknown>:0x47d3f4          	     1

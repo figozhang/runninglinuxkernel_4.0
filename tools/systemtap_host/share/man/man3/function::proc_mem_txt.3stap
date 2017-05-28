@@ -1,0 +1,53 @@
+'\" t
+.\"     Title: function::proc_mem_txt
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Memory Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::PROC_MEM_T" "3stap" "March 2016" "SystemTap Tapset Reference" "Memory Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::proc_mem_txt \- Program text (code) size in pages
+.SH "SYNOPSIS"
+.sp
+.nf
+1) proc_mem_txt:long()
+.fi
+.sp
+.nf
+2) proc_mem_txt:long(pid:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIpid\fR
+.RS 4
+The pid of process to examine
+.RE
+.SH "DESCRIPTION"
+.PP
+1) Returns the current process text (code) size in pages, or zero when there is no current process or the number of pages couldn\*(Aqt be retrieved\&.
+.PP
+2) Returns the given process text (code) size in pages, or zero when the process doesn\*(Aqt exist or the number of pages couldn\*(Aqt be retrieved\&.
+.SH SEE ALSO\n 
+.IR tapset::proc_mem (3stap)

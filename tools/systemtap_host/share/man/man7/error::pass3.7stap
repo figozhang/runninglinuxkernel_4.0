@@ -1,0 +1,28 @@
+.\" t
+.TH ERROR::PASS3 7stap 
+.SH NAME
+error::pass3 \- systemtap pass-3 errors
+
+.SH DESCRIPTION
+Errors during pass 3 (translation) occur only rarely.  
+
+.TP
+unsupported code generation
+Some script language constructs are not available in every
+probe point.  For example, the 
+.IR @perf()
+counter-reading function may only be used in 
+.IR process.*
+probes.
+
+.SH GATHERING MORE INFORMATION
+Increasing the verbosity of pass-3 with an option such as
+.IR "--vp 002"
+may help pinpoint the problem.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR stapprobes (3stap)
+.IR error::reporting (7stap)

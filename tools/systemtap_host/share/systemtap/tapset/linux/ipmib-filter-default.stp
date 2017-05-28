@@ -1,0 +1,28 @@
+/*
+ *      Copyright (C) 2009 IBM Corp.
+ *      Copyright (C) 2010 Red Hat Inc.
+ *
+ *      This file is part of systemtap, and is free software.  You can
+ *      redistribute it and/or modify it under the terms of the GNU General
+ *      Public License (GPL); either version 2, or (at your option) any
+ *      later version.
+ */
+
+/**
+ * sfunction ipmib_filter_key - Default filter function for ipmib.* probes
+ *
+ * @skb: pointer to the struct sk_buff
+ * @op: value to be counted if @skb passes the filter
+ * @SourceIsLocal: 1 is local operation and 0 is non-local operation
+ *
+ * This function is a default filter function.
+ * The user can replace this function with their own.
+ * The user-supplied filter function returns an index key based on the values
+ * in @skb.
+ * A return value of 0 means this particular @skb should be not be counted.
+ */
+function ipmib_filter_key:long (skb:long, op:long, SourceIsLocal:long)
+{
+       if (!skb) return 0
+       return 1
+}

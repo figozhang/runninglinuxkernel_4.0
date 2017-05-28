@@ -1,0 +1,250 @@
+// networking tapset
+// Copyright (C) 2005, 2006 IBM Corp.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// This family of probe points is used to probe the activities of the network device. 
+// </tapsetdescription>
+
+/* A function that returns the device name given the net_device struct */
+function get_netdev_name:string (addr:long) {
+	return kernel_string(@cast(addr, "net_device")->name)
+}
+
+/**
+ * probe netdev.receive - Data received from network device.
+ * @dev_name: The name of the device. e.g: eth0, ath1.
+ * @length: The length of the receiving buffer.
+ * @protocol: Protocol of received packet.
+ *
+ */
+///    <varlistentry><term>protocol</term>
+///       <listitem><para>The possible values of protocol could be:
+///         <table frame='all'><title>Protocol Values</title>
+///         <tgroup cols='2' align='left' colsep='1' rowsep='1'>
+///         <colspec colname='Value'/>
+///         <colspec colname='Protocol'/>
+///	    <thead>
+///   	    <row><entry>Value(Hex)</entry><entry>Protocol</entry></row>
+///	    </thead>
+///	    <tbody>
+///   	    <row><entry>0001</entry><entry>802.3</entry></row>
+///   	    <row><entry>0002</entry><entry>AX.25</entry></row>
+///   	    <row><entry>0004</entry><entry>802.2</entry></row>
+///   	    <row><entry>0005</entry><entry>SNAP</entry></row>
+///   	    <row><entry>0009</entry><entry>Localtalk</entry></row>
+///   	    <row><entry>0800</entry><entry>IP</entry></row>
+///   	    <row><entry>0805</entry><entry>X.25</entry></row>
+///   	    <row><entry>0806</entry><entry>ARP</entry></row>
+///   	    <row><entry>8035</entry><entry>RARP</entry></row>
+///   	    <row><entry>8100</entry><entry>802.1Q VLAN</entry></row>
+///   	    <row><entry>8137</entry><entry>IPX</entry></row>
+///   	    <row><entry>86DD</entry><entry>IPv6</entry></row>
+///	    </tbody>
+///	    </tgroup>
+///	    </table>
+///       </para></listitem>
+///    </varlistentry>
+///
+///    <varlistentry><term>truesize</term>
+///       <listitem><para>
+///           The size of the received data.
+///       </para></listitem>
+///    </varlistentry>
+///
+///  </variablelist>
+///</para>
+// Main device receive routine, be called when packet arrives on network device
+probe netdev.receive
+	=  kernel.function("netif_receive_skb")
+{
+	dev_name = kernel_string($skb->dev->name)
+	length = $skb->len
+	protocol = $skb->protocol
+	truesize = $skb->truesize
+}
+
+/**
+ * probe netdev.transmit - Network device transmitting buffer
+ * @dev_name: The name of the device. e.g: eth0, ath1.
+ * @length: The length of the transmit buffer.
+ * @protocol: The protocol of this packet(defined in include/linux/if_ether.h).
+ * @truesize: The size of the data to be transmitted.
+ *
+ */
+// Queue a buffer for transmission to a network device
+probe netdev.transmit
+	= kernel.function("__dev_queue_xmit") !,
+	  kernel.function("dev_queue_xmit")
+{
+	dev_name = kernel_string($skb->dev->name)
+	length = $skb->len
+	protocol = $skb->protocol
+	truesize = $skb->truesize
+}
+
+/**
+ * probe netdev.change_mtu - Called when the netdev MTU is changed
+ * @dev_name: The device that will have the MTU changed
+ * @old_mtu: The current MTU
+ * @new_mtu: The new MTU
+ */
+probe netdev.change_mtu
+	= kernel.function("dev_set_mtu")
+{
+	old_mtu = $dev->mtu
+	new_mtu = $new_mtu
+	dev_name = get_netdev_name($dev)
+}
+
+/**
+ * probe netdev.open - Called when the device is opened
+ * @dev_name: The device that is going to be opened
+ */
+probe netdev.open
+	= kernel.function("dev_open")
+{
+	dev_name = get_netdev_name($dev)
+}
+
+/**
+ * probe netdev.close - Called when the device is closed
+ * @dev_name: The device that is going to be closed
+ */
+probe netdev.close
+	= kernel.function("dev_close")
+{
+	dev_name = get_netdev_name($dev)
+}
+
+/**
+ * probe netdev.hard_transmit - Called when the devices is going to TX (hard)
+ * @dev_name: The device scheduled to transmit
+ * @protocol: The protocol used in the transmission
+ * @length: The length of the transmit buffer.
+ * @truesize: The size of the data to be transmitted.
+ */
+probe netdev.hard_transmit
+	= kernel.function("dev_hard_start_xmit") ?
+{
+	dev_name = get_netdev_name($dev)
+	protocol = @choose_defined($first, $skb)->protocol
+	length = @choose_defined($first, $skb)->len
+	truesize = @choose_defined($first, $skb)->truesize
+}
+
+/**
+ * probe netdev.rx - Called when the device is going to receive a packet
+ * @dev_name: The device received the packet
+ * @protocol: The packet protocol
+ */
+probe netdev.rx
+	= kernel.function("netif_rx")
+{
+	netdev = $skb->dev
+	dev_name = get_netdev_name(netdev)
+	protocol = $skb->protocol
+}
+
+/**
+ * probe netdev.change_rx_flag - Called when the device RX flag will be changed
+ * @dev_name: The device that will be changed
+ * @flags: The new flags
+ */
+probe netdev.change_rx_flag
+	= kernel.function("dev_change_rx_flags") ?
+{
+	dev_name = (@defined($dev) ? get_netdev_name($dev) : "unknown")
+	flags = @choose_defined($flags, 0)
+}
+
+/**
+ * probe netdev.set_promiscuity - Called when the device enters/leaves promiscuity
+ * @dev_name: The device that is entering/leaving promiscuity mode
+ * @enable: If the device is entering promiscuity mode
+ * @disable: If the device is leaving promiscuity mode
+ * @inc: Count the number of promiscuity openers
+ */
+probe netdev.set_promiscuity
+	= kernel.function("dev_set_promiscuity")
+{
+	dev_name = get_netdev_name($dev)
+	if ($inc){
+		enable = 1
+	} else {
+		disable = 1
+	}
+	inc = $inc
+}
+
+/**
+ * probe netdev.ioctl - Called when the device suffers an IOCTL
+ * @cmd: The IOCTL request
+ * @arg: The IOCTL argument (usually the netdev interface)
+ */
+probe netdev.ioctl
+	= kernel.function("dev_ioctl")
+{
+	cmd = $cmd
+	arg = user_string_quoted($arg)
+}
+
+/**
+ * probe netdev.register - Called when the device is registered
+ * @dev_name: The device that is going to be registered
+ */
+probe netdev.register
+	= kernel.function("register_netdevice"),
+	  kernel.function("register_netdev")
+{
+	dev_name = get_netdev_name($dev)
+}
+
+/**
+ * probe netdev.unregister - Called when the device is being unregistered
+ * @dev_name: The device that is going to be unregistered
+ */
+probe netdev.unregister
+	= kernel.function("unregister_netdev")
+{
+	dev_name = get_netdev_name($dev)
+}
+
+/**
+ * probe netdev.get_stats - Called when someone asks the device statistics
+ * @dev_name: The device that is going to provide the statistics
+ */
+probe netdev.get_stats
+	= kernel.function("dev_get_stats") ?
+{
+	dev_name = get_netdev_name($dev)
+}
+
+/**
+ * probe netdev.change_mac - Called when the netdev_name has the MAC changed
+ * @dev_name: The device that will have the MAC changed
+ * @mac_len: The MAC length
+ * @old_mac: The current MAC address
+ * @new_mac: The new MAC address
+ */
+probe netdev.change_mac
+	= kernel.function("dev_set_mac_address") ?
+{
+	dev_name = get_netdev_name($dev)
+	mac_len = $dev->addr_len
+
+	// Old MAC Address
+	old_mac = sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
+			  $dev->dev_addr[0], $dev->dev_addr[1],
+			  $dev->dev_addr[2], $dev->dev_addr[3],
+			  $dev->dev_addr[4], $dev->dev_addr[5])
+
+	// New MAC Address
+	new_mac = sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
+			  $sa->sa_data[0], $sa->sa_data[1],
+			  $sa->sa_data[2], $sa->sa_data[3],
+			  $sa->sa_data[4], $sa->sa_data[5])
+}

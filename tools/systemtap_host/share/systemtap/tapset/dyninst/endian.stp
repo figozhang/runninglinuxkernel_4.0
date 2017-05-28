@@ -1,0 +1,29 @@
+// NB: functionally equivalent to linux/endian.stp
+
+%{
+#include <endian.h>
+%}
+
+function big_endian2:long (val:long) %{ /* pure */
+	STAP_RETVALUE = htobe16((uint16_t)STAP_ARG_val);
+%}
+
+function big_endian4:long (val:long) %{ /* pure */
+	STAP_RETVALUE = htobe32((uint32_t)STAP_ARG_val);
+%}
+
+function big_endian8:long (val:long) %{ /* pure */
+	STAP_RETVALUE = htobe64((uint64_t)STAP_ARG_val);
+%}
+
+function little_endian2:long (val:long) %{ /* pure */
+	STAP_RETVALUE = htole16((uint16_t)STAP_ARG_val);
+%}
+
+function little_endian4:long (val:long) %{ /* pure */
+	STAP_RETVALUE = htole32((uint32_t)STAP_ARG_val);
+%}
+
+function little_endian8:long (val:long) %{ /* pure */
+	STAP_RETVALUE = htole64((uint64_t)STAP_ARG_val);
+%}

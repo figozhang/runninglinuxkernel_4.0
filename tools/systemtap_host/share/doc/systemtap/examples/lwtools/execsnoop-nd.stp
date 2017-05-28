@@ -1,0 +1,39 @@
+#!/usr/bin/stap
+/*
+ * execsnoop-nd.stp	Trace process exec()s with arguments.
+ *			For Linux, uses SystemTap (non-debuginfo).
+ *
+ * This is useful for identifying new process creation, provided it follows the
+ * fork()->exec() sequence. New processes that only fork will not be seen; catch
+ * those by tracing fork() or using the process.begin probe.
+ *
+ * USAGE: ./execsnoop-nd.stp
+ *
+ * This is a basic version of execsnoop.
+ *
+ * Copyright (C) 2015 Brendan Gregg.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * 07-Apr-2014	Brendan Gregg	Created this.
+ */
+
+probe begin
+{
+	printf("%-24s %6s %6s %6s %14s %s\n", "TIME", "UID", "PPID", "PID",
+	    "COMM", "ARGS");
+}
+
+probe nd_syscall.execve.return
+{
+	printf("%-24s %6d %6d %6d %14s %s\n", ctime(gettimeofday_s()), uid(),
+	    ppid(), pid(), execname(), cmdline_str());
+}

@@ -1,0 +1,59 @@
+'\" t
+.\"     Title: probe::tty.read
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: TTY Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::TTY\&.READ" "3stap" "March 2016" "SystemTap Tapset Reference" "TTY Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::tty.read \- called when a tty line will be read
+.SH "SYNOPSIS"
+.sp
+.nf
+tty\&.read 
+.fi
+.SH "VALUES"
+.PP
+\fIbuffer\fR
+.RS 4
+the buffer that will receive the characters
+.RE
+.PP
+\fIdriver_name\fR
+.RS 4
+the driver name
+.RE
+.PP
+\fIfile_name\fR
+.RS 4
+the file name lreated to the tty
+.RE
+.PP
+\fInr\fR
+.RS 4
+The amount of characters to be read
+.RE
+.SH SEE ALSO\n 
+.IR tapset::tty (3stap)

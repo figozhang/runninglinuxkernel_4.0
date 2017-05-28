@@ -1,0 +1,23 @@
+#! /usr/bin/env stap
+
+global bt%[100]
+
+probe process("/lib*/libc.so.*").function("free") {
+  // we use @defined($mem) here because on 64 bit systems, the
+  // wildcard search takes us through both 64 bit and 32 bit
+  // libc (which doesn't have debuginfo), this means the probe
+  // point resolved from the 32 bit library has no context info
+  if (@defined($mem)) {
+    bt[execname(),tid(),$mem,sprint_ubacktrace()]
+      <<< local_clock_ns()
+  }
+  // Any monotonically increasing expression would do.
+  // With some arbitrary expression or constant instead,
+  // at worst we get the last 100ish results out of order.
+}
+
+probe end,error {
+  foreach ([e,t,p,b] in bt @max+) // iterate in increasing index order
+     printf("free #%d: %s[%d], pointer %p:\n%s\n\n",
+            @max(bt[e,t,p,b]), e, t, p, b)
+}

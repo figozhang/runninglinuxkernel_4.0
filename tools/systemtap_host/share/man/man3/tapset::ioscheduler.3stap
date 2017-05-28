@@ -1,0 +1,145 @@
+.\" -*- nroff -*-
+.TH TAPSET::IOSCHEDULER 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::ioscheduler \- systemtap ioscheduler tapset
+ 
+.SH DESCRIPTION
+
+ This family of probe points is used to probe IO scheduler activities. 
+
+.TP
+.P
+.TP
+.B ioscheduler.elv_next_request 
+Fires when a request is retrieved from the request queue
+.IP
+ See 
+.IR probe::ioscheduler.elv_next_request (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler.elv_next_request.return 
+Fires when a request retrieval issues a return signal
+.IP
+ See 
+.IR probe::ioscheduler.elv_next_request.return (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler.elv_completed_request 
+Fires when a request is completed
+.IP
+ See 
+.IR probe::ioscheduler.elv_completed_request (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler.elv_add_request.kp 
+kprobe based probe to indicate that a request was added to the request queue
+.IP
+ See 
+.IR probe::ioscheduler.elv_add_request.kp (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler.elv_add_request.tp 
+tracepoint based probe to indicate a request is added to the request queue.
+.IP
+ See 
+.IR probe::ioscheduler.elv_add_request.tp (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler.elv_add_request 
+probe to indicate request is added to the request queue.
+.IP
+ See 
+.IR probe::ioscheduler.elv_add_request (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler_trace.elv_completed_request 
+Fires when a request is
+.IP
+ See 
+.IR probe::ioscheduler_trace.elv_completed_request (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler_trace.elv_issue_request 
+Fires when a request is
+.IP
+ See 
+.IR probe::ioscheduler_trace.elv_issue_request (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler_trace.elv_requeue_request 
+Fires when a request is
+.IP
+ See 
+.IR probe::ioscheduler_trace.elv_requeue_request (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler_trace.elv_abort_request 
+Fires when a request is aborted.
+.IP
+ See 
+.IR probe::ioscheduler_trace.elv_abort_request (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler_trace.plug 
+Fires when a request queue is plugged;
+.IP
+ See 
+.IR probe::ioscheduler_trace.plug (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler_trace.unplug_io 
+Fires when a request queue is unplugged;
+.IP
+ See 
+.IR probe::ioscheduler_trace.unplug_io (3stap)
+ for details.
+.P
+.TP
+.B ioscheduler_trace.unplug_timer 
+Fires when unplug timer associated
+.IP
+ See 
+.IR probe::ioscheduler_trace.unplug_timer (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::ioscheduler.elv_next_request (3stap),
+.BR
+.IR \%probe::ioscheduler.elv_next_request.return (3stap),
+.BR
+.IR \%probe::ioscheduler.elv_completed_request (3stap),
+.BR
+.IR \%probe::ioscheduler.elv_add_request.kp (3stap),
+.BR
+.IR \%probe::ioscheduler.elv_add_request.tp (3stap),
+.BR
+.IR \%probe::ioscheduler.elv_add_request (3stap),
+.BR
+.IR \%probe::ioscheduler_trace.elv_completed_request (3stap),
+.BR
+.IR \%probe::ioscheduler_trace.elv_issue_request (3stap),
+.BR
+.IR \%probe::ioscheduler_trace.elv_requeue_request (3stap),
+.BR
+.IR \%probe::ioscheduler_trace.elv_abort_request (3stap),
+.BR
+.IR \%probe::ioscheduler_trace.plug (3stap),
+.BR
+.IR \%probe::ioscheduler_trace.unplug_io (3stap),
+.BR
+.IR \%probe::ioscheduler_trace.unplug_timer (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

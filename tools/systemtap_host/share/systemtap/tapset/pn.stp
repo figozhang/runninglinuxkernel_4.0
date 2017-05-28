@@ -1,0 +1,55 @@
+// probe-name tapset
+// Copyright (C) 2010, 2014 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+%{
+#ifndef STP_NEED_PROBE_NAME
+#define STP_NEED_PROBE_NAME 1
+#endif
+%}
+
+/**
+ * sfunction pn - Returns the active probe name
+ *
+ * Description: This function returns the script-level probe point
+ * associated with a currently running probe handler, including
+ * wild-card expansion effects. Context: The current probe point.
+ */
+function pn:string ()
+%{ /* pure */ /* unprivileged */ /* stable */
+	const char* name = CONTEXT->probe_name ?: CONTEXT->probe_point;
+	strlcpy (STAP_RETVALUE, name, MAXSTRINGLEN);
+%}
+
+/**
+ * sfunction pnlabel - Returns the label name parsed from the probe name
+ *
+ * Description: This returns the label name as parsed from the
+ * script-level probe point. This function will only work if called
+ * directly from the body of a '.label' probe point (i.e. no aliases).
+ * Context: The current probe point.
+ */
+function pnlabel:string ()
+%{ /* pure */ /* unprivileged */ /* stable */
+	char *ptr, *start;
+
+	if (!CONTEXT->probe_name) {
+		STAP_RETURN("");
+	}
+
+	/* This function is modelled after ppfunc() */
+	STAP_RETVALUE[0] = '\0';
+	start = strstr(CONTEXT->probe_name, "label(\""); /* XXX: could be smarter */
+	ptr = start + 7;
+
+	if (start) {
+		int len = MAXSTRINGLEN;
+		char *dst = STAP_RETVALUE;
+		while (*ptr != '"' && --len > 0 && *ptr)
+			*dst++ = *ptr++;
+		*dst = 0;
+	}
+%}

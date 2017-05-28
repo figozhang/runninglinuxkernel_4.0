@@ -1,0 +1,45 @@
+'\" t
+.\"     Title: function::sa_handler_str
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Signal Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::SA_HANDLER" "3stap" "March 2016" "SystemTap Tapset Reference" "Signal Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::sa_handler_str \- Returns the string representation of an sa_handler
+.SH "SYNOPSIS"
+.sp
+.nf
+    sa_handler_str(handler:)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIhandler\fR
+.RS 4
+the sa_handler to convert to string\&.
+.RE
+.SH "DESCRIPTION"
+.PP
+Returns the string representation of an sa_handler\&. If it is not SIG_DFL, SIG_IGN or SIG_ERR, it will return the address of the handler\&.

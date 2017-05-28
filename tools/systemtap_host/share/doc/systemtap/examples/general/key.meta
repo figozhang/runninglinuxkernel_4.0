@@ -1,0 +1,6 @@
+title: make keyboard noises
+name: key.stp
+keywords: simple
+description: For fans of Leroy Anderson and Typewriters only, this script arranges to play a click or a zing for various keystrokes.
+test_check: stap -p4 key.stp
+test_installcheck: stap key.stp -c 'sleep 5'

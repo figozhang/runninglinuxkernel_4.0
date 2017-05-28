@@ -1,0 +1,13 @@
+title: Show Paths to Kernel Malloc Invocations
+name: kmalloc-top
+version: 1.0
+author: anonymous
+keywords: memory
+subsystem: memory
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The kmalloc-top perl program runs a small systemtap script to collect stack traces for each call to the kmalloc function and counts the time that each stack trace is observed. When kmalloc-top exits it prints out sorted list. The output can be filtered to print only the first N stack traces (-t), stack traces with a minimum counts (-m), or exclude certain stack traces (-e).
+test_check: ./kmalloc-top -o "-p4" -c "sleep 1"
+test_installcheck: ./kmalloc-top -c "sleep 1"

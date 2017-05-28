@@ -1,0 +1,39 @@
+#! /bin/sh
+
+//bin/true && exec stap -g $0 ${1+"$@"}
+
+# Override NPTL's "ulimit -s" based default stacksize for new pthreads.
+# Invoke with   # stap -g threadstacks.stp -Gsize=NNNN
+#    ... add "-x PID" or "-c CMD", unless you wish to target the entire system.
+#    ... due to a possible stap bug, might need to add "-d BINARY" for relevant binaries
+#
+# NB: 'size' needs to be a sufficiently large multiple of the OS pagesize,
+# else pthread_create(3) will fail.
+#
+# See also http://sourceware.org/ml/libc-alpha/2013-01/msg00572.html
+
+global size = 0;
+
+# Notice we're probing "/lib*/*/libpthread.so.*". On RHEL7 ppc64
+# systems, the pthread library that gets used is located in
+# /lib64/power8/.
+probe process("/lib*/libpthread.so.*").function("allocate_stack"),
+      process("/lib*/*/libpthread.so.*").function("allocate_stack")?
+{
+    old_size = @choose_defined($__default_stacksize,
+			       $__default_pthread_attr->stacksize)
+    if ((size != 0) && (old_size != size)) {  /* requested but not yet changed */
+	/* change it and report */
+	if (@defined($__default_stacksize)) {
+            $__default_stacksize = size
+	    printf("%s[%d] overwrote __default_stacksize@%p (%d->%d)\n",
+		   execname(), tid(), &$__default_stacksize, old_size, size)
+	}
+	else {
+	    $__default_pthread_attr->stacksize = size
+	    printf("%s[%d] overwrote __default_stacksize@%p (%d->%d)\n",
+		   execname(), tid(), &$__default_pthread_attr->stacksize,
+		   old_size, size)
+	}
+    }
+}

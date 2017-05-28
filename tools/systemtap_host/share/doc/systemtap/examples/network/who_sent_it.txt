@@ -1,0 +1,20 @@
+# stap who_sent_it.stp -G the_dport=53 -c "ping -c 1 sourceware.org"
+
+PING sourceware.org (209.132.180.131) 56(84) bytes of data.
+64 bytes from server1.sourceware.org (209.132.180.131): icmp_seq=1 ttl=47 time=90.9 ms
+[...]
+nscd[21841] sent packet to 192.168.1.10:53                    <<<< output from systemtap
+
+
+# stap who_sent_it.stp -G the_daddr="192.168.1.10"
+
+swapper/0[0] sent packet to 192.168.1.10:2049
+zsh[2215] sent packet to 192.168.1.10:2049
+swapper/0[0] sent packet to 192.168.1.10:2049
+ssh[24933] sent packet to 192.168.1.10:22
+ssh[21400] sent packet to 192.168.1.10:22
+swapper/0[0] sent packet to 192.168.1.10:22   <<<< not necessarily originating thread
+ssh[24933] sent packet to 192.168.1.10:22
+ssh[24933] sent packet to 192.168.1.10:22
+ssh[21400] sent packet to 192.168.1.10:22
+[...]

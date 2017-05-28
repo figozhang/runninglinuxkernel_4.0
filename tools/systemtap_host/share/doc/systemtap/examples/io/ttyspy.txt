@@ -1,0 +1,12 @@
+The stream of text is shown on leftward-scrolling ticker-text.
+
+# stap -g ttyspy.txt
+
+(maj,min, pgrp,  uid)
+(128, 16,    0,  500) ttyspy.txt\r\n\r\n
+(128, 18,    0,  500) \033[1;1H\033[J(maj,min, pgrp,  uid)\r\n\033[1;1H\033
+(136, 11,27836,  500) pwdd\027passwd\n
+(128, 11,    0,  500) word for fche.\r(current) UNIX password:
+(136,  3,21709,  500) pwd\nls -altr\npasswd\027
+(128,  3,    0,  500) l\r\r\033]2;very ls -altr\bp\b\b\b\b\b\b      \b\b\b\b\b
+

@@ -1,0 +1,24 @@
+Fri Jun  5 09:40:53 2015 EDT, STP Protocol ID 0, Version ID 0, Flags 0, bridge-id 52:54:00:e7:34:7f
+Message Age 0s, Max-Age 20s, Hello-time 2s, Forward-delay 2s
+Root-id 52:54:00:e7:34:7f, Root-pathcost 0
+Fri Jun  5 09:40:53 2015 EDT, STP Protocol ID 0, Version ID 0, Flags 0, bridge-id 52:54:00:e7:34:7f
+Message Age 0s, Max-Age 20s, Hello-time 2s, Forward-delay 2s
+Root-id 52:54:00:e7:34:7f, Root-pathcost 0
+Fri Jun  5 09:40:55 2015 EDT, STP Protocol ID 0, Version ID 0, Flags 0, bridge-id 52:54:00:e7:34:7f
+Message Age 0s, Max-Age 20s, Hello-time 2s, Forward-delay 2s
+Root-id 52:54:00:e7:34:7f, Root-pathcost 0
+Fri Jun  5 09:40:55 2015 EDT, STP Protocol ID 0, Version ID 0, Flags 0, bridge-id 52:54:00:e7:34:7f
+Message Age 0s, Max-Age 20s, Hello-time 2s, Forward-delay 2s
+Root-id 52:54:00:e7:34:7f, Root-pathcost 0
+Fri Jun  5 09:40:57 2015 EDT, STP Protocol ID 0, Version ID 0, Flags 0, bridge-id 52:54:00:e7:34:7f
+Message Age 0s, Max-Age 20s, Hello-time 2s, Forward-delay 2s
+Root-id 52:54:00:e7:34:7f, Root-pathcost 0
+Fri Jun  5 09:40:57 2015 EDT, STP Protocol ID 0, Version ID 0, Flags 0, bridge-id 52:54:00:e7:34:7f
+Message Age 0s, Max-Age 20s, Hello-time 2s, Forward-delay 2s
+Root-id 52:54:00:e7:34:7f, Root-pathcost 0
+Fri Jun  5 09:40:59 2015 EDT, STP Protocol ID 0, Version ID 0, Flags 0, bridge-id 52:54:00:e7:34:7f
+Message Age 0s, Max-Age 20s, Hello-time 2s, Forward-delay 2s
+Root-id 52:54:00:e7:34:7f, Root-pathcost 0
+Fri Jun  5 09:40:59 2015 EDT, STP Protocol ID 0, Version ID 0, Flags 0, bridge-id 52:54:00:e7:34:7f
+Message Age 0s, Max-Age 20s, Hello-time 2s, Forward-delay 2s
+Root-id 52:54:00:e7:34:7f, Root-pathcost 0

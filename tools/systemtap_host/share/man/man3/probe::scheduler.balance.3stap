@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: probe::scheduler.balance
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Scheduler Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SCHEDULER\&.B" "3stap" "March 2016" "SystemTap Tapset Reference" "Scheduler Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::scheduler.balance \- A cpu attempting to find more work\&.
+.SH "SYNOPSIS"
+.sp
+.nf
+scheduler\&.balance 
+.fi
+.SH "VALUES"
+.PP
+\fIname\fR
+.RS 4
+name of the probe point
+.RE
+.SH "CONTEXT"
+.PP
+The cpu looking for more work\&.
+.SH SEE ALSO\n 
+.IR tapset::scheduler (3stap)

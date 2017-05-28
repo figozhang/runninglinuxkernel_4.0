@@ -1,0 +1,14 @@
+title: Tally the Number of User-Space QEMU Events
+name: qemu_count.stp
+version: 1.0
+author: William Cohen
+keywords: virtualization qemu kvm
+subsystem: virtualization
+status: experimental
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The qemu_count.stp script tallies the number of times each of the user-space qemu probepoints is encountered. When the script exits, it prints a list of the number of times each user-space qemu probepoint is encountered.
+test_support: stap -l 'qemu.*.*.*?' || stap -l 'qemu.kvm.*?'
+test_check: stap -p4 qemu_count.stp
+test_installcheck: stap qemu_count.stp -c "sleep 1"

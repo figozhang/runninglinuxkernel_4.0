@@ -1,0 +1,7 @@
+title: System-Wide Count of Network Packets by IPs
+name: netfilter_summary.stp
+keywords: _best network traffic
+exit: user-controlled
+description: The script watches all IPv4 network traffic on the system. On exit the script prints a list showing the number of packets sent along source IP address / destination IP address pair encountered, and the total number of bytes sent among the pair. The list is ordered from greatest to least number of packets seen among the source/destination pairs.
+test_check: stap -p4 netfilter_summary.stp
+test_installcheck: stap netfilter_summary.stp -c "sleep 1"

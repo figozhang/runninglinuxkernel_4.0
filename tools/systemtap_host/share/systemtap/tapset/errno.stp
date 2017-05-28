@@ -1,0 +1,473 @@
+// errno tapset
+// Copyright (C) 2006 Red Hat Inc.
+//
+// This file is part of SystemTap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+%{
+#define N(a) [a]=#a
+
+static const char * const errlist[] = {
+/* from asm-generic/errno-base.h */
+[1] = "EPERM",
+[2] = "ENOENT",
+[3] = "ESRCH",
+[4] = "EINTR",
+[5] = "EIO",
+[6] = "ENXIO",
+[7] = "E2BIG",
+[8] = "ENOEXEC",
+[9] = "EBADF",
+[10]= "ECHILD",
+[11]= "EAGAIN",
+[12]= "ENOMEM",
+[13]= "EACCES",
+[14]= "EFAULT",
+[15]= "ENOTBLK",
+[16]= "EBUSY",
+[17]= "EEXIST",
+[18]= "EXDEV",
+[19]= "ENODEV",
+[20]= "ENOTDIR",
+[21]= "EISDIR",
+[22]= "EINVAL",
+[23]= "ENFILE",
+[24]= "EMFILE",
+[25]= "ENOTTY",
+[26]= "ETXTBSY",
+[27]= "EFBIG",
+[28]= "ENOSPC",
+[29]= "ESPIPE",
+[30]= "EROFS",
+[31]= "EMLINK",
+[32]= "EPIPE",
+[33]= "EDOM",
+[34]= "ERANGE",
+/* end of errno-base.h */
+/* The rest of this is arch-dependent */
+#ifdef EDEADLK
+	N(EDEADLK),
+#endif
+#ifdef ENAMETOOLONG
+	N(ENAMETOOLONG),
+#endif
+#ifdef ENOLCK
+	N(ENOLCK),
+#endif
+#ifdef ENOSYS
+	N(ENOSYS),
+#endif
+#ifdef ENOTEMPTY
+	N(ENOTEMPTY),
+#endif
+#ifdef ELOOP
+	N(ELOOP),
+#endif
+#ifdef ENOMSG
+	N(ENOMSG),
+#endif
+#ifdef EIDRM
+	N(EIDRM),
+#endif
+#ifdef ECHRNG
+	N(ECHRNG),
+#endif
+#ifdef EL2NSYNC
+	N(EL2NSYNC),
+#endif
+#ifdef EL3HLT
+	N(EL3HLT),
+#endif
+#ifdef EL3RST
+	N(EL3RST),
+#endif
+#ifdef ELNRNG
+	N(ELNRNG),
+#endif
+#ifdef EUNATCH
+	N(EUNATCH),
+#endif
+#ifdef ENOCSI
+	N(ENOCSI),
+#endif
+#ifdef EL2HLT
+	N(EL2HLT),
+#endif
+#ifdef EBADE
+	N(EBADE),
+#endif
+#ifdef EBADR
+	N(EBADR),
+#endif
+#ifdef EXFULL
+	N(EXFULL),
+#endif
+#ifdef ENOANO
+	N(ENOANO),
+#endif
+#ifdef EBADRQC
+	N(EBADRQC),
+#endif
+#ifdef EBADSLT
+	N(EBADSLT),
+#endif
+#ifdef EBFONT
+	N(EBFONT),
+#endif
+#ifdef ENOSTR
+	N(ENOSTR),
+#endif
+#ifdef ENODATA
+	N(ENODATA),
+#endif
+#ifdef ETIME
+	N(ETIME),
+#endif
+#ifdef ENOSR
+	N(ENOSR),
+#endif
+#ifdef ENONET
+	N(ENONET),
+#endif
+#ifdef ENOPKG
+	N(ENOPKG),
+#endif
+#ifdef EREMOTE
+	N(EREMOTE),
+#endif
+#ifdef ENOLINK
+	N(ENOLINK),
+#endif
+#ifdef EADV
+	N(EADV),
+#endif
+#ifdef ESRMNT
+	N(ESRMNT),
+#endif
+#ifdef ECOMM
+	N(ECOMM),
+#endif
+#ifdef EPROTO
+	N(EPROTO),
+#endif
+#ifdef EMULTIHOP
+	N(EMULTIHOP),
+#endif
+#ifdef EDOTDOT
+	N(EDOTDOT),
+#endif
+#ifdef EBADMSG
+	N(EBADMSG),
+#endif
+#ifdef EOVERFLOW
+	N(EOVERFLOW),
+#endif
+#ifdef ENOTUNIQ
+	N(ENOTUNIQ),
+#endif
+#ifdef EBADFD
+	N(EBADFD),
+#endif
+#ifdef EREMCHG
+	N(EREMCHG),
+#endif
+#ifdef ELIBACC
+	N(ELIBACC),
+#endif
+#ifdef ELIBBAD
+	N(ELIBBAD),
+#endif
+#ifdef ELIBSCN
+	N(ELIBSCN),
+#endif
+#ifdef ELIBMAX
+	N(ELIBMAX),
+#endif
+#ifdef ELIBEXEC
+	N(ELIBEXEC),
+#endif
+#ifdef EILSEQ
+	N(EILSEQ),
+#endif
+#ifdef ERESTART
+	N(ERESTART),
+#endif
+#ifdef ESTRPIPE
+	N(ESTRPIPE),
+#endif
+#ifdef EUSERS
+	N(EUSERS),
+#endif
+#ifdef ENOTSOCK
+	N(ENOTSOCK),
+#endif
+#ifdef EDESTADDRREQ
+	N(EDESTADDRREQ),
+#endif
+#ifdef EMSGSIZE
+	N(EMSGSIZE),
+#endif
+#ifdef EPROTOTYPE
+	N(EPROTOTYPE),
+#endif
+#ifdef ENOPROTOOPT
+	N(ENOPROTOOPT),
+#endif
+#ifdef EPROTONOSUPPORT
+	N(EPROTONOSUPPORT),
+#endif
+#ifdef ESOCKTNOSUPPORT
+	N(ESOCKTNOSUPPORT),
+#endif
+#ifdef EOPNOTSUPP
+	N(EOPNOTSUPP),
+#endif
+#ifdef EPFNOSUPPORT
+	N(EPFNOSUPPORT),
+#endif
+#ifdef EAFNOSUPPORT
+	N(EAFNOSUPPORT),
+#endif
+#ifdef EADDRINUSE
+	N(EADDRINUSE),
+#endif
+#ifdef EADDRNOTAVAIL
+	N(EADDRNOTAVAIL),
+#endif
+#ifdef ENETDOWN
+	N(ENETDOWN),
+#endif
+#ifdef ENETUNREACH
+	N(ENETUNREACH),
+#endif
+#ifdef ENETRESET
+	N(ENETRESET),
+#endif
+#ifdef ECONNABORTED
+	N(ECONNABORTED),
+#endif
+#ifdef ECONNRESET
+	N(ECONNRESET),
+#endif
+#ifdef ENOBUFS
+	N(ENOBUFS),
+#endif
+#ifdef EISCONN
+	N(EISCONN),
+#endif
+#ifdef ENOTCONN
+	N(ENOTCONN),
+#endif
+#ifdef ESHUTDOWN
+	N(ESHUTDOWN),
+#endif
+#ifdef ETOOMANYREFS
+	N(ETOOMANYREFS),
+#endif
+#ifdef ETIMEDOUT
+	N(ETIMEDOUT),
+#endif
+#ifdef ECONNREFUSED
+	N(ECONNREFUSED),
+#endif
+#ifdef EHOSTDOWN
+	N(EHOSTDOWN),
+#endif
+#ifdef EHOSTUNREACH
+	N(EHOSTUNREACH),
+#endif
+#ifdef EALREADY
+	N(EALREADY),
+#endif
+#ifdef EINPROGRESS
+	N(EINPROGRESS),
+#endif
+#ifdef ESTALE
+	N(ESTALE),
+#endif
+#ifdef EUCLEAN
+	N(EUCLEAN),
+#endif
+#ifdef ENOTNAM
+	N(ENOTNAM),
+#endif
+#ifdef ENAVAIL
+	N(ENAVAIL),
+#endif
+#ifdef EISNAM
+	N(EISNAM),
+#endif
+#ifdef EREMOTEIO
+	N(EREMOTEIO),
+#endif
+#ifdef EDQUOT
+	N(EDQUOT),
+#endif
+#ifdef ENOMEDIUM
+	N(ENOMEDIUM),
+#endif
+#ifdef EMEDIUMTYPE
+	N(EMEDIUMTYPE),
+#endif
+#ifdef ECANCELED
+	N(ECANCELED),
+#endif
+#ifdef ENOKEY
+	N(ENOKEY),
+#endif
+#ifdef EKEYEXPIRED
+	N(EKEYEXPIRED),
+#endif
+#ifdef EKEYREVOKED
+	N(EKEYREVOKED),
+#endif
+#ifdef EKEYREJECTED
+	N(EKEYREJECTED),
+#endif
+#ifdef EOWNERDEAD
+	N(EOWNERDEAD),
+#endif
+#ifdef ENOTRECOVERABLE
+	N(ENOTRECOVERABLE),
+#endif
+#if defined (EDEADLOCK) && EDEADLOCK != EDEADLK
+	N(EDEADLOCK),
+#endif
+#ifdef E
+	N(EADV),
+#endif
+};
+#undef N
+static const int Maxerrno = sizeof(errlist)/sizeof(char *);
+%}
+
+/**
+ * sfunction errno_str - Symbolic string associated with error code
+ *
+ * @err: The error number received
+ *
+ * Description: This function returns the symbolic string associated
+ * with the giver error code, such as ENOENT for the number 2, or
+ * E#3333 for an out-of-range value such as 3333.
+ */
+function errno_str:string (err:long) %{ /* pure */
+	long e = STAP_ARG_err;
+	e = (e > 0 ? e : -e);
+	if (e > 0 && e < Maxerrno && errlist[e])
+		strlcpy (STAP_RETVALUE, errlist[e], MAXSTRINGLEN);
+%}
+
+function errno_p:long (err:long) %{ /* pure */
+	long e = STAP_ARG_err;
+	e = (e > 0 ? e : -e);
+	if (e > 0 && e < Maxerrno && errlist[e])
+		STAP_RETVALUE = e;	
+	else
+		STAP_RETVALUE = 0;
+%}
+
+%{
+static long _stp_returnval(struct pt_regs *regs) {
+	if (regs) {
+#if defined  (STAPCONF_X86_UNIREGS)  && (defined (__x86_64__) || defined (__i386__))
+		return regs->ax;
+#elif defined (__i386__)
+		return regs->eax;
+#elif defined (__x86_64__)
+		// TODO: Handle -m32 apps.
+		return regs->rax;
+#elif defined (__powerpc__)
+		return regs->gpr[3];
+#elif defined (__ia64__)
+		return regs->r8;
+#elif defined (__sparc64__)
+		return regs->u_regs[UREG_RETPC];
+#elif defined (__s390x__)
+		return regs->gprs[2];
+#elif defined (__aarch64__)
+		return regs->regs[0];
+#elif defined (__arm__)
+		return regs->ARM_r0;
+#else
+		_stp_error("returnval() not defined for this architecture");
+		return 0;
+#endif
+	} else {
+		_stp_error("returnval() not defined in this context");
+		return 0;
+	}
+}
+%}
+
+/**
+ * sfunction returnval - Possible return value of probed function
+ *
+ * Description: Return the value of the register in which function values
+ * are typically returned. Can be used in probes where $return isn't
+ * available. This is only a guess of the actual return value and can be
+ * totally wrong. Normally only used in dwarfless probes.
+ */
+function returnval:long () %{ /* pure */ /* stable */
+	struct pt_regs *regs;
+	regs = (CONTEXT->user_mode_p ? CONTEXT->uregs : CONTEXT->kregs);
+	STAP_RETVALUE = _stp_returnval(regs);
+%}
+
+/**
+ * sfunction returnstr - Formats the return value as a string
+ *
+ * @format: Variable to determine return type base value
+ * 
+ * Description: This function is used by the nd_syscall tapset, and 
+ * returns a string. Set format equal to 1 for a decimal, 
+ * 2 for hex, 3 for octal.
+ *
+ * Note that this function should only be used in dwarfless probes
+ * (i.e. 'kprobe.function("foo")').  Other probes should use
+ * return_str().
+ */
+function returnstr:string (format:long) %{ /* pure */
+	struct pt_regs *regs;
+	regs = (CONTEXT->user_mode_p ? CONTEXT->uregs : CONTEXT->kregs);
+	if (regs) {
+		long ret = _stp_returnval(regs);
+		if (ret < 0 && ret > -Maxerrno && errlist[-ret])
+			snprintf (STAP_RETVALUE, MAXSTRINGLEN, "%ld (%s)", ret, errlist[-ret]);
+		else if (STAP_ARG_format == 2)
+			snprintf (STAP_RETVALUE, MAXSTRINGLEN, "0x%lx", ret);
+		else if (STAP_ARG_format == 3)
+			snprintf (STAP_RETVALUE, MAXSTRINGLEN, "%#lo", ret);
+		else 	
+			snprintf (STAP_RETVALUE, MAXSTRINGLEN, "%ld", ret);
+	} else {
+no_ret:
+		strlcpy(STAP_RETVALUE, "N/A", MAXSTRINGLEN);
+	}
+%}
+
+/** 
+ * sfunction return_str - Formats the return value as a string
+ *
+ * @format: Variable to determine return type base value
+ * @ret: Return value (typically $return)
+ * 
+ * Description: This function is used by the syscall tapset, and 
+ * returns a string. Set format equal to 1 for a decimal, 
+ * 2 for hex, 3 for octal.
+ *
+ * Note that this function is preferred over returnstr().
+ */
+function return_str:string(format:long, ret:long)
+{
+	if (ret < 0 && errno_p(ret))
+		return sprintf("%d (%s)", ret, errno_str(ret))
+
+	if (format == 2)
+		return sprintf("0x%x", ret)
+	else if (format == 3)
+		return sprintf("%#o", ret)
+	else	
+		return sprintf("%d", ret)
+}

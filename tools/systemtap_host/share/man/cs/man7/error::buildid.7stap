@@ -1,0 +1,78 @@
+.\" t
+.TH ERROR::BUILDID 7stap 
+.SH NAME
+error::buildid \- chyby ověření build-id
+
+.\" macros
+.de SAMPLE
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+..
+
+
+.SH DESCRIPTION
+
+Systemtap skript prochází několika fázemi zpracování, které nemusejí nutně
+následovat bezprostředně po sobě.  Někdy je nutné ověřit některé invarianty.
+Jedním z nich je build-id, které zaručuje, že pokud systemtap skript
+běží proti uživatelským programům, jde o ty jejich verze, proti kterým byl
+systemtap skript skutečně zkompilován.  Build-id je údaj, který moderní (2007+)
+překladače přidávají do binárních souborů jako ELF značku
+.IR NT_GNU_BUILD_ID .
+Build-id lze zobrazit příkazem
+.IR "readelf -n" .
+
+.PP
+
+Na build-id jsou citlivé jen skripty, které provádějí hlubokou analýzu binárních
+souborů a jejich ladicích informací.  Například skripty, které používají sondy 
+.IR .function " nebo " .statement
+, nebo skripty, které generují backtrace.
+Jiné skripty mohou spoléhat například na sondy
+.IR process.mark " nebo " kernel.trace, 
+které nepotřebují ladicí informace, a ty pak na build-id citlivé nejsou.  Viz
+sekci LADICÍ INFORMACE FORMÁTU DWARF manuálové stránky
+.IR stapprobes (3stap).
+
+.PP
+
+Systemtap uchovává kopii relevantních build-id uvnitř svých jaderných modulů.
+Za běhu modulu pak dojde ke srovnání uloženého build-id se skutečnou hodnotou,
+která je pro daný obraz binárního souboru uložena v paměti.  V případě neshody
+se vypíše chybová hláška a systemtap odmítne do daného binárního souboru vložit
+sondy.  To je důležité z bezpečnostního hlediska, kdy by vložení sond na
+nesprávná místa mohlo způsobit pád programu.
+
+.PP
+
+Nesoulad build-id může být způsoben různými příčinami.  Tou hlavní je situace,
+kdy je verze nebo architektura zkoumaného binárního souboru odlišná od verze
+nebo architektury souboru, proti kterému byl systemtap modul vytvořen.
+Například je možné, že systemtap modul byl sestaven na stroji s mírně odlišnou
+verzí nebo jinou distribucí OS.  Mohlo dojít k "rebuildu" jádra při zachování
+čísla verze.  Mohlo také například dojít k "upgrade" jádra, po kterém obraz v
+paměti není v souladu s obsahem souborů na disku.  Nebo v případě, že Vaše
+distribuce používá samostatné "debuginfo" balíčky, nemusí verze "debuginfo"
+balíčku přesně odpovídat verzi hlavního balíčku.
+
+.PP
+
+Pokud má nesoulad build-id známou příčinu, a je zřejmé, že nedojde
+ke škodám, je možno test na build-id obejít volbou
+.IR -DSTP_NO_BUILDID_CHECK .
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR http://fedoraproject.org/wiki/Releases/FeatureBuildId ,
+.IR stap (1),
+.IR stapprobes (3stap),
+.IR warning::debuginfo (7stap),
+.IR error::reporting (7stap)

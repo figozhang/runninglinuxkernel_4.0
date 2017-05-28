@@ -1,0 +1,41 @@
+# stap numa_faults.stp 
+
+Starting pagefault counters 
+^C
+Printing counters: 
+
+Execname         PID     RD Faults  WR Faults Node:Faults         
+======================= ========== ========== =============
+systemd-journal     587          0        107 
+firefox           25587          1        676 
+memcheck-amd64-   16210          0       7762 
+pmcd              29170          0        238 
+systemd-udevd     29519         22         29 
+systemd-udevd      1199          0         23 
+zsh               24943          0         76 
+zsh               29525         32         71 
+hostname          29526         62         53 
+cut               29527         70         55 
+emacs             29528        914       5252 
+xfce4-terminal    24458          0          5 
+pmlogger          29202         10          0 
+systemd               1          0        162 
+rm                29532        132        750 
+sh                29533         95        754 
+pmlogcheck        29534        122        165 
+sh                29535         95        752 
+pmlogcheck        29536        126        165 
+pmlogger          29537        208        934 
+modprobe          29539         54         45 
+xfce4-panel       24165          0       1869 
+epiphany          29540       1613      15552 
+dbus-daemon       24298          0          3 
+dbus-daemon       24018          0         24 
+epiphany          29549        114         44 
+WebKitNetworkPr   29550       1355      25654 
+dbus-daemon         835          0          9 
+epiphany          29558        114         50 
+WebKitWebProces   29559       1741      10835 
+Xorg.bin          24002       1600          0 
+gvfsd-http         7374          3          7 
+

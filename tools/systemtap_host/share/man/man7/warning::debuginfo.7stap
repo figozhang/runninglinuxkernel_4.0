@@ -1,0 +1,139 @@
+.\" t
+.TH WARNING::DEBUGINFO 7stap
+.SH NAME
+warning::debuginfo \- systemtap missing-debuginfo warnings
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH DESCRIPTION
+For many symbolic probing operations, systemtap needs DWARF debuginfo for
+the relevant binaries.  This often includes resolving function/statement
+probes, or $context variables in related handlers.  DWARF debuginfo may
+be found in the original binaries built during compilation, or may have
+been split into separate files.  The
+.IR SYSTEMTAP_DEBUGINFO_PATH
+environment variable affects where systemtap looks for these files.
+.PP
+If your operating system came from a distributor, check with them if
+debuginfo packages or variants are available.  If your distributor does
+not have debuginfo-equipped binaries at all, you may need to rebuild it.
+.PP
+Systemtap uses the 
+.IR elfutils
+library to process ELF/DWARF files.  The version of elfutils used by systemtap
+is the number after the slash in the 
+.IR \-V
+output:
+.SAMPLE
+% stap -V
+Systemtap translator/driver (version 2.3/0.156, rpm 2.3-1.fc19)
+Copyright (C) 2005-2014 Red Hat, Inc. and others
+[...]
+.ESAMPLE
+This indicates systemtap version 2.3 with elfutils version 0.156.
+
+.TP
+kernel debuginfo
+For scripts that target the kernel, systemtap may search for the
+.IR vmlinux
+file created during its original build.  This is distinct from the
+boot-loader's compressed/stripped
+.IR vmlinuz
+file, and much larger.  If you have a hand-built kernel, make sure
+it was built with the
+.IR CONFIG_DEBUG_INFO=y
+option.  Some Linux distributions may include several kernel variants,
+including a confusingly named \fIkernel-debug\fR (an alternative kernel,
+with its own \fIkernel-debug-debuginfo\fR package), which is not the same
+thing as the \fIkernel-debuginfo\fR (DWARF data for the base \fIkernel\fR).
+The
+.IR stap\-prep
+program can help install the right set.
+
+.TP
+process debuginfo
+For scripts that target user-space, systemtap may search for debuginfo.
+If you have hand-built binaries, use
+.IR "CFLAGS=-g -O2"
+to compile them.
+
+.TP
+minidebuginfo
+On some systems, binaries may be compiled with a subset of debuginfo
+useful for function tracing and backtraces.  This 'Minidebuginfo' is
+a xz compressed section labeled .gnu_debugdata.  Support for
+minidebuginfo relies on elfutils version 0.156 or later.
+
+.TP
+compressed debuginfo
+On some systems, debuginfo may be available, but compressed into
+.IR .zdebug_*
+sections.  Support for compressed debuginfo relies on elfutils
+version 0.153 or later.
+
+.TP
+unnecessary debuginfo
+In some cases, a script may be altered to avoid requiring debuginfo.
+For example, as script that uses
+.IR "probe syscall.*"
+probes could try instead
+.IR "probe nd_syscall.*"
+(for non-DWARF syscall): these work similarly, and use more intricate
+(fragile) tapset functions to extract system call arguments.  Another
+option is use of compiled-in instrumentation such as kernel tracepoints
+or user-space
+.IR <sys/sdt.h>
+markers in libraries or executables, which do not require debuginfo.
+If debuginfo was required for resolving a complicated
+.IR $var->foo->bar
+expression, it may be possible to use
+.IR @cast(var,"foo","foo.h")->foo->bar
+to synthesize debuginfo for that type from a header file.
+
+.SH AUTOMATION
+
+On some platforms, systemtap may advise what commands to run, in order
+to download needed debuginfo.  Another possibility is to invoke systemtap
+with the
+.IR \-\-download\-debuginfo
+flag.
+The
+.IR stap\-prep
+script included with systemtap may be able to download the
+appropriate kernel debuginfo.  Another possibility is to install and
+use a
+.IR stap\-server
+remote-compilation instance on a machine on your network, where
+debuginfo and compilation resources can be centralized.  Try the
+.IR "stap --use-server"
+option, in case such a server is already running.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR stappaths (7),
+.IR stap-server (8),
+.IR stap-prep (1),
+.IR strip (1),
+.IR warning::symbols (7stap),
+.IR error::dwarf (7stap),
+.IR error::reporting (7stap),
+.IR error::contextvars (7stap),
+.IR http://fedorahosted.org/elfutils ,
+.IR http://fedoraproject.org/wiki/Features/MiniDebugInfo

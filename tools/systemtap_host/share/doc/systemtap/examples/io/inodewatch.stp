@@ -1,0 +1,10 @@
+#! /usr/bin/env stap
+
+probe vfs.{write,read}
+{
+  # dev and ino are defined by vfs.write and vfs.read
+  if (dev == MKDEV($1,$2) # major/minor device
+      && ino == $3)
+    printf ("%s(%d) %s 0x%x/%u\n",
+      execname(), pid(), ppfunc(), dev, ino)
+}

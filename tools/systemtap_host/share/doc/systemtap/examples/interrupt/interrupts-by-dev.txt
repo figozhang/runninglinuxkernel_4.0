@@ -1,0 +1,17 @@
+This script reports every 100ms, so we limit it to 10 reports.
+
+# stap interrupts-by-dev.stp -c 'sleep 1'
+
+	  DEVICE 	 NUMBER OF INTERRUPTS 
+                 p2p1 :      4
+                 p2p1 :      5
+                 p2p1 :     12
+                 p2p1 :      8
+                 p2p1 :      5
+                 p2p1 :      6
+                 p2p1 :      4
+             xhci_hcd :     20
+                 p2p1 :      5
+                 p2p1 :      6
+                 p2p1 :      4
+               nvidia :      1

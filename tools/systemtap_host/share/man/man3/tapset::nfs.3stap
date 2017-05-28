@@ -1,0 +1,242 @@
+.\" -*- nroff -*-
+.TH TAPSET::NFS 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::nfs \- systemtap nfs tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B nfs.fop.llseek 
+NFS client llseek operation
+.IP
+ See 
+.IR probe::nfs.fop.llseek (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.read 
+NFS client read operation
+.IP
+ See 
+.IR probe::nfs.fop.read (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.write 
+NFS client write operation
+.IP
+ See 
+.IR probe::nfs.fop.write (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.aio_read 
+NFS client aio_read file operation
+.IP
+ See 
+.IR probe::nfs.fop.aio_read (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.read_iter 
+NFS client read_iter file operation
+.IP
+ See 
+.IR probe::nfs.fop.read_iter (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.aio_write 
+NFS client aio_write file operation
+.IP
+ See 
+.IR probe::nfs.fop.aio_write (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.write_iter 
+NFS client write_iter file operation
+.IP
+ See 
+.IR probe::nfs.fop.write_iter (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.mmap 
+NFS client mmap operation
+.IP
+ See 
+.IR probe::nfs.fop.mmap (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.open 
+NFS client file open operation
+.IP
+ See 
+.IR probe::nfs.fop.open (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.flush 
+NFS client flush file operation
+.IP
+ See 
+.IR probe::nfs.fop.flush (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.release 
+NFS client release page operation
+.IP
+ See 
+.IR probe::nfs.fop.release (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.fsync 
+NFS client fsync operation
+.IP
+ See 
+.IR probe::nfs.fop.fsync (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.lock 
+NFS client file lock operation
+.IP
+ See 
+.IR probe::nfs.fop.lock (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.sendfile 
+NFS client send file operation
+.IP
+ See 
+.IR probe::nfs.fop.sendfile (3stap)
+ for details.
+.P
+.TP
+.B nfs.fop.check_flags 
+NFS client checking flag operation
+.IP
+ See 
+.IR probe::nfs.fop.check_flags (3stap)
+ for details.
+.P
+.TP
+.B nfs.aop.readpage 
+NFS client synchronously reading a page
+.IP
+ See 
+.IR probe::nfs.aop.readpage (3stap)
+ for details.
+.P
+.TP
+.B nfs.aop.readpages 
+NFS client reading multiple pages
+.IP
+ See 
+.IR probe::nfs.aop.readpages (3stap)
+ for details.
+.P
+.TP
+.B nfs.aop.set_page_dirty 
+NFS client marking page as dirty
+.IP
+ See 
+.IR probe::nfs.aop.set_page_dirty (3stap)
+ for details.
+.P
+.TP
+.B nfs.aop.writepage 
+NFS client writing a mapped page to the NFS server
+.IP
+ See 
+.IR probe::nfs.aop.writepage (3stap)
+ for details.
+.P
+.TP
+.B nfs.aop.writepages 
+NFS client writing several dirty pages to the NFS server
+.IP
+ See 
+.IR probe::nfs.aop.writepages (3stap)
+ for details.
+.P
+.TP
+.B nfs.aop.write_begin 
+NFS client begin to write data
+.IP
+ See 
+.IR probe::nfs.aop.write_begin (3stap)
+ for details.
+.P
+.TP
+.B nfs.aop.write_end 
+NFS client complete writing data
+.IP
+ See 
+.IR probe::nfs.aop.write_end (3stap)
+ for details.
+.P
+.TP
+.B nfs.aop.release_page 
+NFS client releasing page
+.IP
+ See 
+.IR probe::nfs.aop.release_page (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::nfs.fop.llseek (3stap),
+.BR
+.IR \%probe::nfs.fop.read (3stap),
+.BR
+.IR \%probe::nfs.fop.write (3stap),
+.BR
+.IR \%probe::nfs.fop.aio_read (3stap),
+.BR
+.IR \%probe::nfs.fop.read_iter (3stap),
+.BR
+.IR \%probe::nfs.fop.aio_write (3stap),
+.BR
+.IR \%probe::nfs.fop.write_iter (3stap),
+.BR
+.IR \%probe::nfs.fop.mmap (3stap),
+.BR
+.IR \%probe::nfs.fop.open (3stap),
+.BR
+.IR \%probe::nfs.fop.flush (3stap),
+.BR
+.IR \%probe::nfs.fop.release (3stap),
+.BR
+.IR \%probe::nfs.fop.fsync (3stap),
+.BR
+.IR \%probe::nfs.fop.lock (3stap),
+.BR
+.IR \%probe::nfs.fop.sendfile (3stap),
+.BR
+.IR \%probe::nfs.fop.check_flags (3stap),
+.BR
+.IR \%probe::nfs.aop.readpage (3stap),
+.BR
+.IR \%probe::nfs.aop.readpages (3stap),
+.BR
+.IR \%probe::nfs.aop.set_page_dirty (3stap),
+.BR
+.IR \%probe::nfs.aop.writepage (3stap),
+.BR
+.IR \%probe::nfs.aop.writepages (3stap),
+.BR
+.IR \%probe::nfs.aop.write_begin (3stap),
+.BR
+.IR \%probe::nfs.aop.write_end (3stap),
+.BR
+.IR \%probe::nfs.aop.release_page (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

@@ -1,0 +1,105 @@
+.\" t
+.TH ERROR::DWARF 7stap 
+.SH NAME
+error::dwarf \- dwarf debuginfo quality problems
+
+.SH DESCRIPTION
+
+Systemtap sometimes relies on ELF/DWARF debuginfo for programs being
+instrumented to locate places to probe, or context variables to
+read/write, just like a symbolic debugger does.  Even though
+examination of the program's source code may show variables or lines
+where probes may be desired, the compiler must preserve information
+about them for systemtap (or a debugger such as gdb) to get pinpoint
+access to the desired information.  If a script requires such data,
+but the compiler did not preserve enough of it, pass-2 errors may
+result.
+.PP
+Common conditions that trigger these problems include:
+
+.TP
+compiler version
+Prior to GCC version 4.5, debuginfo quality was fairly limited.
+Often developers were advised to build their programs with 
+.IR "-O0 -g"
+flags to disable optimization.  GCC version 4.5 introduced 
+a facility called "variable-tracking assignments" that allows it
+to generate high-quality debuginfo under full 
+.IR "-O2 -g"
+optimization.  It is not perfect, but much better than before.
+Note that, due to another gcc bug (PR51358)
+.IR "-O0 -g"
+can actually sometimes make debuginfo quality worse than for
+.IR "-O2 -g" .
+
+Another related problem involves debuginfo quality for the
+prologue area of a function (PR15123), wherein a program
+compiled with CFLAGS=-mfentry (especially the kernel, for ftrace)
+may lack accurate debuginfo for the entry instructions for gcc
+prior to version 4.8.  If able, arrange to compile your programs
+with 
+.IR "-grecord-gcc-switches"
+CFLAGS, and/or try rerunning systemtap with
+.nh
+.IR $PR15123_ASSUME_MFENTRY=1 .
+.hy
+
+.TP
+function inlining
+Even modern gcc sometimes has problems with parameters for inlined functions.
+It may be necessary to change the script to probe at a slightly different place.
+Try a 
+.IR .statement() " probe, instead of a " .function() " probe,"
+somewhere a few source lines into the body of the inlined function.  Or try
+putting a probe at the call site of the inlined function.  Or use the
+.nh
+.IR "if @defined($var) { ... }"
+.hy
+script language construct to test for the resolvability of the context
+variable before using it.
+
+.TP
+instruction reordering
+Heavily optimized code often smears the instructions from
+multiple source statements together.  This can leave systemtap with no place
+to choose to place a probe, especially a statement probe specified by line
+number.  Systemtap may advise to try a nearby line number, but these may
+not work well either.  Consider placing a probe by a statement wildcard
+or line number range.
+
+.TP
+elfutils configuration
+It is possible that the DWARF debuginfo being sought is available, but not in
+a format acceptable to the copy of elfutils used by systemtap.  For example,
+your copy of gcc might produce compressed debuginfo (\f2.zdebug_*\f1 ELF
+sections or \f2.xz\f1 files) while your copy of elfutils might lack
+appropriate decompression capabilities.  Unfortunately, there is no easy
+way to tell if this is the problem.  If you're building your own copy
+of elfutils, ensure all decompression library headers/libraries are
+available at build time.
+
+.TP
+debuginfo configuration
+Some tools may generate debuginfo that is unsupported by systemtap, such
+as the linux kernel CONFIG_DEBUG_INFO_SPLIT (\f2.dwo\f1 files) option.
+Stick with plain ELF/DWARF (optinally split, Fedora-style), if possible.
+
+.SH ALTERNATIVES
+
+In order to reduce reliance on ELF/DWARF debuginfo, consider the use of
+statically compiled-in instrumentation, such as kernel tracepoints, or
+.IR <sys/sdt.h>
+userspace markers.  Such instrumentation hook sites are relatively low
+cost (just one NOP instruction for sdt.h), and nearly guarantee the
+availability of parameter data and a reliable probe site,
+all without reliance on debuginfo.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR http://dwarfstd.org/ ,
+.IR http://sourceware.org/systemtap/wiki/TipContextVariables ,
+.IR http://gcc.gnu.org/wiki/Var_Tracking_Assignments ,
+.IR warning::debuginfo (7stap),
+.IR error::reporting (7stap)

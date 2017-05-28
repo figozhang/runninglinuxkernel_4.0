@@ -1,0 +1,14 @@
+title: Track a Particular Signal to a Specific Process
+name: sigmon.stp
+version: 1.0
+author: IBM
+keywords: signals
+subsystem: signals
+status: experimental
+exit: user-controlled
+output: trace
+scope: process
+description: The script watches for a particular signal sent to a specific process. When that signal is sent to the specified process, the script prints out the PID and executable of the process sending the signal, the PID and executable name of the process receiving the signal, and the signal number and name.
+arg_1: The name of the signal to look for on selected process.
+test_check: stap -p4 sigmon.stp SIGKILL
+test_installcheck: stap sigmon.stp -c "sleep 1" SIGKILL

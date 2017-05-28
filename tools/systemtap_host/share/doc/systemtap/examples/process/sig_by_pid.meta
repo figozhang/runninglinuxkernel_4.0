@@ -1,0 +1,13 @@
+title:  Signal Counts by Process ID
+name: sig_by_pid.stp
+version: 1.0
+author: IBM
+keywords: signals
+subsystem: signals
+status: experimental
+exit: user-controlled
+output: sorted-list on-exit
+scope: system-wide
+description: Print signal counts by process ID in descending order.
+test_check: stap -p4 sig_by_pid.stp
+test_installcheck: stap sig_by_pid.stp -c "sleep 1"

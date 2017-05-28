@@ -1,0 +1,50 @@
+.\" t
+.TH ERROR::FAULT 7stap 
+.SH JMÉNO
+error::fault \- chyba přístupu do paměti
+
+.\" macros
+.de SAMPLE
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+..
+
+
+.SH POPIS
+
+Během činnosti systemtap skriptu může nastat chyba čtení nebo zápisu, pokud se
+sktipt pokusí dereferencovat neplatný ukazatel.  To může nastat při použití
+kontextových proměnných, které nemají platnou hodnotu, nebo případně při
+přístupu do paměti, která byla odstránkována na disk.
+
+.PP
+Tyto chyby jsou benigní, neboť je lze zachytit za běhu a korektně obsloužit.
+Pokud bezprostřední ukončení není žádoucí, následující volby mohou být
+užitečné:
+.IR \-\-skip\-badvars " nebo " \-\-suppress\-handler\-errors " nebo " \-DMAXERRORS=NN" ,"
+případně obalení relevantních částí kódu
+.IR try / catch
+blokem.
+
+.PP
+
+Možností je také upravit zkoumaný program tak, aby nedošlo k odstránkování
+důležitých dat.  Jednou z možností je přidat nějaké nenáročné operace s danými
+daty, jako například
+.I strlen(foo)
+pro string, nebo iterování přes prvky pole, či lineárního seznamu, případně
+přečíst několik bajtů v bloku na haldě.  Cílem je vyvolat "page fault" dříve
+než se bude k daným datům pokoušet přistoupit systemtap.
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR error::reporting (7stap)

@@ -1,0 +1,13 @@
+title: Print the Size of a C Type
+name: sizeof.stp
+version: 1.0
+author: anonymous
+keywords: statistics memory
+subsystem: any
+status: proposed
+exit: event-ended
+output: on-exit
+scope: system-wide
+description: This script prints the size of a type, based on dwarf debuginfo for any kernel or userspace module, or trial-compilation of a given header file name.
+test_check: stap -p4 sizeof.stp task_struct 'kernel:<include/linux/sched.h>'
+test_installcheck: stap sizeof.stp FILE '</usr/include/stdio.h>'

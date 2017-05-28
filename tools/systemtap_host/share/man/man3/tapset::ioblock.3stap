@@ -1,0 +1,62 @@
+.\" -*- nroff -*-
+.TH TAPSET::IOBLOCK 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::ioblock \- systemtap ioblock tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B ioblock.request 
+Fires whenever making a generic block I/O request.
+.IP
+ See 
+.IR probe::ioblock.request (3stap)
+ for details.
+.P
+.TP
+.B ioblock.end 
+Fires whenever a block I/O transfer is complete.
+.IP
+ See 
+.IR probe::ioblock.end (3stap)
+ for details.
+.P
+.TP
+.B ioblock_trace.bounce 
+Fires whenever a buffer bounce is needed for at least one page of a block IO request.
+.IP
+ See 
+.IR probe::ioblock_trace.bounce (3stap)
+ for details.
+.P
+.TP
+.B ioblock_trace.request 
+Fires just as a generic block I/O request is created for a bio.
+.IP
+ See 
+.IR probe::ioblock_trace.request (3stap)
+ for details.
+.P
+.TP
+.B ioblock_trace.end 
+Fires whenever a block I/O transfer is complete.
+.IP
+ See 
+.IR probe::ioblock_trace.end (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::ioblock.request (3stap),
+.BR
+.IR \%probe::ioblock.end (3stap),
+.BR
+.IR \%probe::ioblock_trace.bounce (3stap),
+.BR
+.IR \%probe::ioblock_trace.request (3stap),
+.BR
+.IR \%probe::ioblock_trace.end (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

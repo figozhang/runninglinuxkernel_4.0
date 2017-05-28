@@ -1,0 +1,12 @@
+#! /usr/bin/env stap
+
+function trace(entry_p)
+{
+  printf("%s%s%s\n",
+         thread_indent (entry_p),
+         (entry_p>0?"->":"<-"),
+         ppfunc ())
+}
+
+probe $1.call   { trace(1) }
+probe $1.return { trace(-1) }

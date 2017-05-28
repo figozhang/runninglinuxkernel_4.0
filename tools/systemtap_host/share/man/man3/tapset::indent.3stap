@@ -1,0 +1,52 @@
+.\" -*- nroff -*-
+.TH TAPSET::INDENT 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::indent \- systemtap indent tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B thread_indent 
+returns an amount of space with the current task information
+.IP
+See 
+.IR function::thread_indent (3stap)
+ for details.
+.P
+.TP
+.B thread_indent_depth 
+returns the nested-depth of the current task
+.IP
+See 
+.IR function::thread_indent_depth (3stap)
+ for details.
+.P
+.TP
+.B indent 
+returns an amount of space to indent
+.IP
+See 
+.IR function::indent (3stap)
+ for details.
+.P
+.TP
+.B indent_depth 
+returns the global nested-depth
+.IP
+See 
+.IR function::indent_depth (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::thread_indent (3stap),
+.BR
+.IR \%function::thread_indent_depth (3stap),
+.BR
+.IR \%function::indent (3stap),
+.BR
+.IR \%function::indent_depth (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

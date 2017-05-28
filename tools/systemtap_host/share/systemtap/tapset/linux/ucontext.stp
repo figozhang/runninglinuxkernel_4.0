@@ -1,0 +1,59 @@
+// User context tapset
+// Copyright (C) 2010-2011 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/**
+ * sfunction umodname - Returns the (short) name of the user module.
+ * @addr: User-space address
+ *
+ * Returns the short name of the user space module for the current task that
+ * that the given address is part of. Reports an error when the address
+ * isn't in a (mapped in) module, or the module cannot be found for some reason.
+ */
+function umodname:string (addr:long) %{
+/* pure */ /* myproc-unprivileged */ /* pragma:vma */
+  const char *name = NULL;
+  _stp_umod_lookup(STAP_ARG_addr, current, &name, NULL, NULL);
+  if (!name) {
+    name = "<unknown>";
+#if STAP_COMPAT_VERSION >= STAP_VERSION(2,3) // PR15044
+    CONTEXT->last_error = "module cannot be found";
+#endif
+  }
+  strlcpy (STAP_RETVALUE, name, MAXSTRINGLEN);
+%}
+
+/**
+ *  sfunction ucallers - Return first n elements of user stack backtrace
+ *  
+ *  @n: number of levels to descend in the stack (not counting the top
+ *  level). If n is -1, print the entire stack.
+ *
+ *  Description: This function returns a string of the first n hex
+ *  addresses from the backtrace of the user stack. Output may be
+ *  truncated as per maximum string length (MAXSTRINGLEN).
+ *
+ *  Note: To get (full) backtraces for user space applications and shared
+ *  shared libraries not mentioned in the current script run stap with
+ *  -d /path/to/exe-or-so and/or add --ldd to load all needed unwind data.
+ */
+function ucallers:string (n:long) {
+         __str = ""; __l = 0
+         for (__i = 0; __i <= n || n == -1; __i++) {
+             __foo = __i > 0 ? " " : ""
+             try {
+                 __foo .= sprintf("0x%x", ustack(__i))
+             } catch { /* assume we've hit the end of the stack */
+                 if (n == -1) break
+                 @__context_unwind_error(n)
+             }
+             // ensure string cuts off cleanly at MAXSTRINGLEN:
+             __l += strlen(__foo); if (__l > @MAXSTRINGLEN) break
+             __str .= __foo
+         }
+         return __str
+}

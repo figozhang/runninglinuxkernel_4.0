@@ -1,0 +1,13 @@
+title: Periodically Summarize Socket Activity on the System
+name: socktop
+version: 1.0
+author: IBM
+keywords: network socket
+subsystem: network
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The socktop script periodically prints out a list of the processes with the highest socket activity.  Command line options for the script allow filtering to focus on particular types of sockets. The "-h" option lists socktop script's filtering options.
+test_check: ./socktop -m socktop
+test_installcheck: ./socktop -c 1

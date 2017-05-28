@@ -1,0 +1,13 @@
+title: Trace Time Spent in wait4 Syscalls
+name: wait4time.stp
+version: 1.0
+author: Daniel Berrange and Will Cohen
+keywords: syscall process
+subsystem: syscall
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The script watches each wait4 syscall on the system. At the end of each wait4 syscall the script prints out a line with a timestamp in microseconds, the pid, the executable name in parentheses, the "wait4:" key, the duration of the wait and the PID that the wait4 was waiting for. If the waited for PID is not specified , it is "-1".
+test_check: stap -p4 wait4time.stp
+test_installcheck: stap wait4time.stp -c "sleep 1"

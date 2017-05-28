@@ -1,0 +1,15 @@
+probe netfilter.bridge.* {
+    if (protocol == llcproto_stp) {
+        printf("%s, ", tz_ctime(gettimeofday_s()))
+        printf("STP Protocol ID %x, ", br_prid)
+        printf("Version ID %x, ", br_vid)
+        printf("Flags %d, ", br_flags)
+        printf("bridge-id %s\n", br_mac)
+        printf("Message Age %ds, ", br_msg/256)
+        printf("Max-Age %ds, ", br_max/256)
+        printf("Hello-time %ds, ", br_htime/256)
+        printf("Forward-delay %ds\n", br_fd/256)
+        printf("Root-id %s, ", br_rmac)
+        printf("Root-pathcost %d\n", br_cost)
+    }
+}

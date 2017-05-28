@@ -1,0 +1,14 @@
+title: Track Time Processes Spend in Various States Using Tracepoints
+name: schedtimes.stp
+version: 1.0
+author: Jason Baron
+keywords: process scheduler time tracepoint
+subsystem: scheduler
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The schedtimes.stp script instruments the scheduler to track the amount of time that each process spends in running, sleeping, queuing, and waiting for io. On exit the script prints out the accumulated time for each state of processes observed.  Optionally, this script can be used with the '-c' or '-x' options to focus on a specific PID and its children.
+test_support: stap -l 'kernel.trace("sched_switch")' && stap -l 'kernel.trace("sched_wakeup")'
+test_check: stap -p4 schedtimes.stp
+test_installcheck: stap schedtimes.stp -c "sleep 1"

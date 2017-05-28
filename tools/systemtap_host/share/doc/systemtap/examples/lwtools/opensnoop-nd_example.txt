@@ -1,0 +1,25 @@
+Examples of opensnoop-nd.stp, the Linux SystemTap version.
+
+
+This shows the files opened by an "iostat -x 1" command, using opensnoop-nd.stp:
+
+# ./opensnoop-nd.stp 
+   UID    PID             COMM   FD PATH
+     0  13858           iostat    3 /etc/ld.so.cache
+     0  13858           iostat    3 /lib64/libc.so.6
+     0  13858           iostat    3 /usr/lib/locale/locale-archive
+     0  13858           iostat    3 /sys/devices/system/cpu
+     0  13858           iostat    3 /proc/diskstats
+     0  13858           iostat    3 /etc/localtime
+     0  13858           iostat    3 /proc/uptime
+     0  13858           iostat    3 /proc/stat
+     0  13858           iostat    3 /proc/diskstats
+     0  13858           iostat    4 /etc/sysconfig/sysstat.ioconf
+     0  13858           iostat    3 /proc/uptime
+     0  13858           iostat    3 /proc/stat
+     0  13858           iostat    3 /proc/diskstats
+[...]
+
+This can be a handy way to locate configuration files and source files. The
+output includes /proc pathnames where the iostat statistics are sourced, as
+well as /etc/sysconfig/sysstat.ioconf, a configuration file.

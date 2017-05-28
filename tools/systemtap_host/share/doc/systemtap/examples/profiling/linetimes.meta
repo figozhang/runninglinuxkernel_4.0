@@ -1,0 +1,13 @@
+title: Show Time Spent on Each Line of a Function
+name: linetimes.stp
+version: 1.0
+author: William Cohen
+keywords: profiling _best
+subsystem: any
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The linetimes.stp script takes two arguments: where to find the function and the function name. linetimes.stp will instrument each line in the function. It will print out the number of times that the function is called, a table with the average and maximum time each line takes, and control flow information when the script exits.
+test_check: stap -p4 linetimes.stp kernel sys_nanosleep
+test_installcheck: stap linetimes.stp kernel sys_nanosleep -c "sleep 1"

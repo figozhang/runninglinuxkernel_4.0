@@ -1,0 +1,6 @@
+@define __private30
+%(
+    %( systemtap_v >= "3.0" %?
+        private
+    %)
+%)

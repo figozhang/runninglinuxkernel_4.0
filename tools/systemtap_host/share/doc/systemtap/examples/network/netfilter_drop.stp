@@ -1,0 +1,50 @@
+#! /usr/bin/env stap
+
+global drop_count
+
+probe begin {
+
+  // Make sure the protocol is either UDP or TCP
+  // and the number of packets is positive.
+  if ((@1 != "TCP" && @1 != "UDP" && @1 != "ALL") || ($2 <0))
+  {
+    printf("Please enter \"TCP\", \"UDP\" or \"ALL\" on the command line, followed by the number of packets to drop.\n")
+    exit()
+  }
+  else
+    printf("Dropping packets! Ctrl-C to exit.\n")
+}
+
+probe netfilter.ipv4.local_in {
+
+  // If the protocol matches that specified (or ALL),
+  // make sure we have not exceeded the number
+  // provided, then drop the packet.
+  if(convert_protocol(protocol) == @1 || @1 == "ALL") {
+    if(@count(drop_count[@1]) >= $2 && $2 != 0)
+      exit()
+    else {
+      $verdict = nf_drop
+      drop_count[@1]<<<length
+    }
+  }
+}
+
+probe end {
+
+  foreach (proto in drop_count)
+    printf("%d %s packets dropped, %d total bytes\n",
+        @count(drop_count[proto]), proto, @sum(drop_count[proto]))
+}
+
+// Convert numerical protocol to string equivalent
+function convert_protocol (proto_n){
+
+  proto_s = "Other"
+  if(proto_n == 6)
+    proto_s = "TCP"
+  else if (proto_n == 17)
+    proto_s = "UDP"
+
+  return proto_s
+}

@@ -1,0 +1,6 @@
+title: Trace system calls
+name: strace.stp
+keywords: _best process syscall
+description: The script loosely emulates strace, when applied to individual processes or hierarchies (via -c/-x), or the entire system (without -c/-x).  A few output configuration parameters may be set with -G.
+test_check: stap -p4 strace.stp
+test_installcheck: stap strace.stp -c "sleep 1"

@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::log
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Logging Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::LOG" "3stap" "March 2016" "SystemTap Tapset Reference" "Logging Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::log \- Send a line to the common trace buffer
+.SH "SYNOPSIS"
+.sp
+.nf
+    log(msg:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fImsg\fR
+.RS 4
+The formatted message string
+.RE
+.SH "DESCRIPTION"
+.PP
+This function logs data\&. log sends the message immediately to staprun and to the bulk transport (relayfs) if it is being used\&. If the last character given is not a newline, then one is added\&. This function is not as efficient as printf and should be used only for urgent messages\&.
+.SH SEE ALSO\n 
+.IR tapset::logging (3stap)

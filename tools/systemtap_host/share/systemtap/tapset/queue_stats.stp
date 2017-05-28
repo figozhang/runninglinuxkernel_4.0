@@ -1,0 +1,277 @@
+# qstats.stp: Queue statistics gathering tapset
+/* <tapsetdescription>
+ * The queue_stats tapset provides functions that,
+ * given notifications of elementary queuing events (wait, run, done),
+ * tracks averages such as queue length, service and wait times,
+ * utilization.
+ * 
+ * The functions qs_wait(), qs_run(), and qs_done() should be called
+ * from appropriate probes, in sequence.
+ * 
+ * Functions with the prefix qsq_ are for querying the statistics averaged
+ * since the first queue operation (or when qsq_start() was called).
+ * Since statistics are often fractional, a scale parameter is used to
+ * multiply the result to a more useful scale. For some fractions, a scale
+ * of 100 will usefully return percentage numbers.
+ * </tapsetdescription>
+ */
+
+# ------------------------------------------------------------------------
+
+# The default timing function: microseconds.  This function could
+# go into a separate file (say, qstats_qs_time.stp), so that a user
+# script can override it with another definition.
+
+/* XXX: docstring */
+function qs_time () { return gettimeofday_us () }
+
+# ------------------------------------------------------------------------
+
+@__private30 global qs_wtime, qs_wlentime, qs_wcount
+@__private30 global qs_rtime, qs_rlentime, qs_rcount
+@__private30 global qs_stime, qs_utime, qs_dcount
+
+# ------------------------------------------------------------------------
+
+@__private30 function _qs_update (qname) {
+  now = qs_time ()
+  then = qs_utime[qname]; if (! then) { then = now }
+  delta = now-then
+
+  qs_wtime[qname] += qs_wcount[qname] ? delta : 0
+  qs_wlentime[qname] += qs_wcount[qname] * delta
+  qs_rtime[qname] += qs_rcount[qname] ? delta : 0
+  qs_rlentime[qname] += qs_rcount[qname] * delta
+  qs_utime[qname] = now  
+}
+
+/**
+ * sfunction qs_wait - Function to record enqueue requests
+ * @qname: the name of the queue requesting enqueue
+ *
+ * Description: This function records that a new request
+ * was enqueued for the given queue name.
+ */
+function qs_wait (qname:string) { # enqueueing request
+   _qs_update (qname)
+   qs_wcount[qname] ++
+}
+
+/**
+ * sfunction qs_run - Function to record being moved from wait queue to being serviced 
+ * @qname: the name of the service being moved and started 
+ *
+ * Description: This function records that the previous enqueued
+ * request was removed from the given wait queue and is now 
+ * being serviced. 
+ */
+function qs_run (qname:string) { # starting to service request
+  _qs_update (qname)
+  if (qs_wcount[qname] > 0) {
+    qs_wcount[qname] --
+    qs_rcount[qname] ++
+  }
+}
+
+/**
+ * sfunction qs_done - Function to record finishing request 
+ * @qname: the name of the service that finished 
+ *
+ * Description: This function records that a request 
+ * originally from the given queue has completed being 
+ * serviced.
+ */
+function qs_done (qname:string) { # done servicing request
+  _qs_update (qname)
+  if (qs_rcount[qname] > 0) {
+    qs_rcount[qname] --
+    qs_dcount[qname] ++
+  }
+}
+
+# ------------------------------------------------------------------------
+
+/**
+ * sfunction qsq_start - Function to reset the stats for a queue
+ * @qname: the name of the service that finished 
+ *
+ * Description: This function resets the statistics counters for the given
+ * queue, and restarts tracking from the moment the function was called.
+ * This function is also used to create intialize a queue.
+ */
+function qsq_start (qname:string) {  # reset statistics for new baseline
+  qs_rcount[qname] = 0
+  delete qs_rtime[qname]
+  delete qs_rlentime[qname]
+  qs_wcount[qname] = 0
+  delete qs_wtime[qname]
+  delete qs_wlentime[qname]
+  delete qs_dcount[qname]
+  delete qs_utime[qname]
+  qs_stime[qname] = qs_time ()
+}
+
+# ------------------------------------------------------------------------
+# Various query functions.  Each returns the average, taken over the time
+# interval from the last qsq_start().  Most deal with fractions, and so
+# also take a scale parameter (use 100 for percent).
+
+/**
+ * sfunction qsq_utilization - Fraction of time that any request was being serviced 
+ * @qname: queue name
+ * @scale: scale variable to take account for interval fraction
+ *
+ * Description: This function returns the average time in microseconds
+ * that at least one request was being serviced. 
+ */
+function qsq_utilization:long (qname:string, scale:long) {
+  _qs_update (qname)
+  elapsed = qs_time() - qs_stime[qname]
+  return (scale * qs_rtime[qname]) / elapsed
+}
+
+# fraction of time that any request was blocked in the wait queue
+
+/**
+ * sfunction qsq_blocked - Returns the time reqest was on the wait queue 
+ * @qname: queue name
+ * @scale: scale variable to take account for interval fraction
+ *
+ * Description: This function returns the fraction of elapsed time during
+ * which one or more requests were on the wait queue.
+ */
+function qsq_blocked:long (qname:string, scale:long) {
+  _qs_update (qname)
+  elapsed = qs_time() - qs_stime[qname]
+  return (scale * qs_wtime[qname]) / elapsed
+}
+
+# length of wait queue 
+/**
+ * sfunction qsq_wait_queue_length - length of wait queue 
+ * @qname: queue name
+ * @scale: scale variable to take account for interval fraction
+ *
+ * Description: This function returns the average length of the wait queue 
+ */
+function qsq_wait_queue_length:long (qname:string, scale:long) {
+  _qs_update (qname)
+  elapsed = qs_time() - qs_stime[qname]
+  return (scale * qs_wlentime[qname]) / elapsed
+}
+
+/**
+ * sfunction qsq_service_time - Amount of time per request service 
+ * @qname: queue name
+ * @scale: scale variable to take account for interval fraction
+ *
+ * Description: This function returns the average time in microseconds
+ * required to service a request once it is removed from the wait queue.
+ */
+function qsq_service_time:long (qname:string, scale:long) {
+  _qs_update (qname)
+  return (scale * qs_rlentime[qname]) / qs_dcount[qname]
+}
+
+/**
+ * sfunction qsq_wait_time - Amount of time in queue + service per request
+ * @qname: queue name
+ * @scale: scale variable to take account for interval fraction
+ *
+ * Description: This function returns the average time in microseconds
+ * that it took for a request to be serviced (qs_wait() to qa_done()).
+ */
+function qsq_wait_time:long (qname:string, scale:long) {
+  _qs_update (qname)
+  return (scale * (qs_rlentime[qname] + qs_wlentime[qname]))
+    / qs_dcount[qname]
+}
+
+/**
+ * sfunction qsq_throughput - Number of requests served per unit time 
+ * @qname: queue name
+ * @scale: scale variable to take account for interval fraction
+ *
+ * Description: This function returns the average number or requests
+ * served per microsecond. 
+ */
+function qsq_throughput:long (qname:string, scale:long) {
+  _qs_update (qname)
+  elapsed = qs_time() - qs_stime[qname]
+  return (scale * qs_dcount[qname]) / elapsed
+}
+
+
+# ------------------------------------------------------------------------
+
+/**
+ * sfunction qsq_print - Prints a line of statistics for the given queue
+ * @qname: queue name
+ *
+ * Description: This function prints a line containing the following
+ * statistics for the given queue:
+ * the queue name, 
+ * the average rate of requests per second,
+ * the average wait queue length,
+ * the average time on the wait queue,
+ * the average time to service a request,
+ * the percentage of time the wait queue was used, 
+ * and the percentage of time request was being serviced.
+ */
+function qsq_print (qname:string) {
+  qt = qsq_throughput (qname, 1000000000) # 1000 * (number of requests served per second)
+  qwl = qsq_wait_queue_length (qname, 1000)
+  printf("%s: %d.%03d ops/s, %d.%03d qlen, %d await, %d svctm, %d%% wait, %d%% util\n",
+    qname,
+    qt/1000, qt%1000,
+    qwl/1000, qwl%1000,
+    qsq_wait_time (qname, 1),
+    qsq_service_time (qname, 1),
+    qsq_blocked (qname, 100),
+    qsq_utilization (qname, 100))
+}
+
+/* What follows in an example form src/testsuite/systemtap.samples/queue_demo.stp
+ * It uses the randomize feature of the timer probe to simulate queuing activity.
+ *
+ * probe begin {
+ *	qsq_start ("block-read")
+ *	qsq_start ("block-write")
+ * }
+ * 
+ * probe timer.ms(3500), end {
+ * 	qsq_print ("block-read")
+ *	qsq_start ("block-read")
+ *	qsq_print ("block-write")
+ * 	qsq_start ("block-write")
+ * }
+ * 
+ * probe timer.ms(10000) {
+ * 	exit()
+ * }
+ * 
+ * // synthesize queue work/service using three randomized "threads" for each queue.
+ * global tc
+ * 
+ * function qs_doit (thread, name) {
+ * 	n = tc[thread] = (tc[thread]+1) % 3 //per-thread state counter
+ * 	if (n==1) qs_wait (name)
+ * 	else if (n==2) qs_run (name)
+ *      else if (n==0) qs_done (name)
+ * }
+ * 
+ * probe timer.ms(100).randomize(100) { qs_doit (0, "block-read") }
+ * probe timer.ms(100).randomize(100) { qs_doit (1, "block-read") }
+ * probe timer.ms(100).randomize(100) { qs_doit (2, "block-read") }
+ * probe timer.ms(100).randomize(100) { qs_doit (3, "block-write") }
+ * probe timer.ms(100).randomize(100) { qs_doit (4, "block-write") }
+ * probe timer.ms(100).randomize(100) { qs_doit (5, "block-write") }
+ * 
+ * //This prints:
+ * block-read: 9 ops/s, 1.090 qlen, 215749 await, 96382 svctm, 69% wait, 64% util
+ * block-write: 9 ops/s, 0.992 qlen, 208485 await, 103150 svctm, 69% wait, 61% util
+ * block-read: 9 ops/s, 0.968 qlen, 197411 await, 97762 svctm, 63% wait, 63% util
+ * block-write: 8 ops/s, 0.930 qlen, 202414 await, 93870 svctm, 60% wait, 56% util
+ * block-read: 8 ops/s, 0.744 qlen, 192957 await, 99995 svctm, 58% wait, 62% util
+ * block-write: 9 ops/s, 0.861 qlen, 193857 await, 101573 svctm, 56% wait, 64% util
+ */

@@ -1,0 +1,74 @@
+'\" t
+.\"     Title: probe::signal.do_action
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Signal Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SIGNAL\&.DO_A" "3stap" "March 2016" "SystemTap Tapset Reference" "Signal Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::signal.do_action \- Examining or changing a signal action
+.SH "SYNOPSIS"
+.sp
+.nf
+signal\&.do_action 
+.fi
+.SH "VALUES"
+.PP
+\fIname\fR
+.RS 4
+Name of the probe point
+.RE
+.PP
+\fIsig_name\fR
+.RS 4
+A string representation of the signal
+.RE
+.PP
+\fIsigact_addr\fR
+.RS 4
+The address of the new sigaction struct associated with the signal
+.RE
+.PP
+\fIsa_handler\fR
+.RS 4
+The new handler of the signal
+.RE
+.PP
+\fIsig\fR
+.RS 4
+The signal to be examined/changed
+.RE
+.PP
+\fIsa_mask\fR
+.RS 4
+The new mask of the signal
+.RE
+.PP
+\fIoldsigact_addr\fR
+.RS 4
+The address of the old sigaction struct associated with the signal
+.RE
+.SH SEE ALSO\n 
+.IR tapset::signal (3stap)

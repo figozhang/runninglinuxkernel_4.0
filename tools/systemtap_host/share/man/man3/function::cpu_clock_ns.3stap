@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::cpu_clock_ns
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Timestamp Functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::CPU_CLOCK_" "3stap" "March 2016" "SystemTap Tapset Reference" "Timestamp Functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::cpu_clock_ns \- Number of nanoseconds on the given cpu\*(Aqs clock
+.SH "SYNOPSIS"
+.sp
+.nf
+    cpu_clock_ns:long(cpu:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIcpu\fR
+.RS 4
+Which processor\*(Aqs clock to read
+.RE
+.SH "DESCRIPTION"
+.PP
+This function returns the number of nanoseconds on the given cpu\*(Aqs clock\&. This is always monotonic comparing on the same cpu, but may have some drift between cpus (within about a jiffy)\&.
+.SH SEE ALSO\n 
+.IR tapset::timestamp_monotonic (3stap)

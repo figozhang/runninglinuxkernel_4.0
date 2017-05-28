@@ -1,0 +1,68 @@
+// This script tracks time between packet queue and transmit. The
+// information is provided to userspace via procfs in JSON format.
+
+global net_devices
+
+probe json_data
+{
+  @json_output_data_start
+
+  foreach (dev in net_devices) {
+    if (@count(skb_queue_t[dev])) {
+      @json_output_array_numeric_value("net_xmit_data", dev, "xmit_count",
+				       @sum(skb_queue_t[dev]))
+      @json_output_array_numeric_value("net_xmit_data", dev, "xmit_latency",
+				       @count(skb_queue_t[dev]))
+    }
+    else {
+      @json_output_array_numeric_value("net_xmit_data", dev, "xmit_count", 0)
+      @json_output_array_numeric_value("net_xmit_data", dev, "xmit_latency", 0)
+    }
+  }
+
+  @json_output_data_end
+}
+
+// Set up the metrics
+probe begin
+{
+  // fallback instance device "eth0" if none specified
+  if (argc == 0) {
+    argv[1] = "eth0"
+    argc = 1
+  }
+  
+  // remember all the network devices
+  for (i = 1; i <= argc; i++) {
+    dev = argv[i]
+    net_devices[dev] = i - 1
+  }
+
+  // Set the prefix to be used instead of the module name.
+  json_set_prefix("net_xmit")
+
+  // Add the metrics
+  json_add_array("net_xmit_data",
+		 "Network transmit data indexed by ethernet device")
+  json_add_array_numeric_metric("net_xmit_data", "xmit_count",
+				"number of packets for xmit device", "count")
+  json_add_array_numeric_metric("net_xmit_data", "xmit_latency",
+				"sum of latency for xmit device", "")
+}
+
+// probes to track the information
+
+global skb_queue_start_t, skb_queue_t
+
+probe kernel.trace("net_dev_queue") {
+  skb_queue_start_t[$skb] = gettimeofday_ns();
+}
+
+probe kernel.trace("net_dev_start_xmit") ?, kernel.trace("net_dev_xmit") {
+  t = gettimeofday_ns();
+  st = skb_queue_start_t[$skb]
+  if (st){
+    skb_queue_t[kernel_string($dev->name)] <<< t - st
+    delete skb_queue_start_t[$skb]
+  }
+}

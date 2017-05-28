@@ -1,0 +1,13 @@
+title: Callgraph Tracing with Verbose Arguments
+name: para-callgraph-verbose.stp
+version: 1.0
+author: anonymous
+keywords: trace callgraph
+subsystem: any
+status: proposed
+exit: user-controlled
+output: trace
+scope: system-wide
+description: Print a timed per-thread microsecond-timed callgraph, complete with pretty-printed function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.
+test_check: stap -p4 para-callgraph-verbose.stp 'kernel.function("*@fs/proc*.c")' 'kernel.function("vfs_read")'
+test_installcheck: stap para-callgraph-verbose.stp 'kernel.function("*@fs/proc*.c")' 'kernel.function("vfs_read")' -c "cat /proc/sys/vm/* || true"

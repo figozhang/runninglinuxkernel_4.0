@@ -1,0 +1,14 @@
+title: Tracing Contention on Big Kernel Lock
+name: bkl.stp
+version: 1.1
+keywords: locking 
+subsystem: locking
+author: Flavio Leitner
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The bkl.stp script can help determine whether the Big Kernel Lock (BKL) is causing serialization on a multiprocessor system due to excessive contention of the BKL. The bkl.stp script takes two arguments. The first one is optional, and used to enable backtraces, and print them once a process has been holding the BKL for a user specified number of nseconds is reached. The second option is compulsory and is the number of processes waiting for the Big Kernel Lock (BKL). When the number of processes waiting for the BKL is reached or exceeded, the script will print a time stamp, the number of processes waiting for the BKL, the holder of the BKL, and the amount of time the BKL was held. If backtraces are enabled, a backtrace will be printed as well.
+test_support: stap -l 'kernel.function("lock_kernel").return'
+test_check: stap -p4 bkl.stp 1
+test_installcheck: stap bkl.stp -c "sleep 1" 1

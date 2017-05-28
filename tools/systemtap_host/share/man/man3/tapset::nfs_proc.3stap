@@ -1,0 +1,192 @@
+.\" -*- nroff -*-
+.TH TAPSET::NFS_PROC 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::nfs_proc \- systemtap nfs_proc tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B nfs.proc.lookup 
+NFS client opens/searches a file on server
+.IP
+ See 
+.IR probe::nfs.proc.lookup (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.read 
+NFS client synchronously reads file from server
+.IP
+ See 
+.IR probe::nfs.proc.read (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.write 
+NFS client synchronously writes file to server
+.IP
+ See 
+.IR probe::nfs.proc.write (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.commit 
+NFS client committing data on server
+.IP
+ See 
+.IR probe::nfs.proc.commit (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.read_setup 
+NFS client setting up a read RPC task
+.IP
+ See 
+.IR probe::nfs.proc.read_setup (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.read_done 
+NFS client response to a read RPC task
+.IP
+ See 
+.IR probe::nfs.proc.read_done (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.write_setup 
+NFS client setting up a write RPC task
+.IP
+ See 
+.IR probe::nfs.proc.write_setup (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.write_done 
+NFS client response to a write RPC task
+.IP
+ See 
+.IR probe::nfs.proc.write_done (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.commit_setup 
+NFS client setting up a commit RPC task
+.IP
+ See 
+.IR probe::nfs.proc.commit_setup (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.commit_done 
+NFS client response to a commit RPC task
+.IP
+ See 
+.IR probe::nfs.proc.commit_done (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.rename_setup 
+NFS client setting up a rename RPC task
+.IP
+ See 
+.IR probe::nfs.proc.rename_setup (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.rename_done 
+NFS client response to a rename RPC task
+.IP
+ See 
+.IR probe::nfs.proc.rename_done (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.open 
+NFS client allocates file read/write context information
+.IP
+ See 
+.IR probe::nfs.proc.open (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.release 
+ NFS client releases file read/write context information
+.IP
+ See 
+.IR probe::nfs.proc.release (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.handle_exception 
+NFS client handling an NFSv4 exception
+.IP
+ See 
+.IR probe::nfs.proc.handle_exception (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.create 
+NFS client creating file on server
+.IP
+ See 
+.IR probe::nfs.proc.create (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.remove 
+NFS client removes a file on server
+.IP
+ See 
+.IR probe::nfs.proc.remove (3stap)
+ for details.
+.P
+.TP
+.B nfs.proc.rename 
+NFS client renames a file on server
+.IP
+ See 
+.IR probe::nfs.proc.rename (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::nfs.proc.lookup (3stap),
+.BR
+.IR \%probe::nfs.proc.read (3stap),
+.BR
+.IR \%probe::nfs.proc.write (3stap),
+.BR
+.IR \%probe::nfs.proc.commit (3stap),
+.BR
+.IR \%probe::nfs.proc.read_setup (3stap),
+.BR
+.IR \%probe::nfs.proc.read_done (3stap),
+.BR
+.IR \%probe::nfs.proc.write_setup (3stap),
+.BR
+.IR \%probe::nfs.proc.write_done (3stap),
+.BR
+.IR \%probe::nfs.proc.commit_setup (3stap),
+.BR
+.IR \%probe::nfs.proc.commit_done (3stap),
+.BR
+.IR \%probe::nfs.proc.rename_setup (3stap),
+.BR
+.IR \%probe::nfs.proc.rename_done (3stap),
+.BR
+.IR \%probe::nfs.proc.open (3stap),
+.BR
+.IR \%probe::nfs.proc.release (3stap),
+.BR
+.IR \%probe::nfs.proc.handle_exception (3stap),
+.BR
+.IR \%probe::nfs.proc.create (3stap),
+.BR
+.IR \%probe::nfs.proc.remove (3stap),
+.BR
+.IR \%probe::nfs.proc.rename (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

@@ -1,0 +1,6 @@
+title: Report an disk out-of-space condition.
+name: enospc.stp
+keywords: disk filesystem
+description: This script monitors a filesystem implementations for early internal indications of ENOSPC, and reports these to the system logger and the systemtap console.
+test_check: stap -p4 enospc.stp
+test_installcheck: stap enospc.stp -c "sleep 1"

@@ -1,0 +1,295 @@
+.\" -*- nroff -*-
+.TH TAPSET::SOCKET 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::socket \- systemtap socket tapset
+ 
+.SH DESCRIPTION
+
+ This family of probe points is used to probe socket activities.
+
+.TP
+.P
+.TP
+.B socket.send 
+Message sent on a socket.
+.IP
+ See 
+.IR probe::socket.send (3stap)
+ for details.
+.P
+.TP
+.B socket.receive 
+Message received on a socket.
+.IP
+ See 
+.IR probe::socket.receive (3stap)
+ for details.
+.P
+.TP
+.B socket.sendmsg 
+Message is currently being sent on a socket.
+.IP
+ See 
+.IR probe::socket.sendmsg (3stap)
+ for details.
+.P
+.TP
+.B socket.sendmsg.return 
+Return from socket.sendmsg.
+.IP
+ See 
+.IR probe::socket.sendmsg.return (3stap)
+ for details.
+.P
+.TP
+.B socket.recvmsg 
+Message being received on socket
+.IP
+ See 
+.IR probe::socket.recvmsg (3stap)
+ for details.
+.P
+.TP
+.B socket.recvmsg.return 
+Return from Message being received on socket
+.IP
+ See 
+.IR probe::socket.recvmsg.return (3stap)
+ for details.
+.P
+.TP
+.B socket.aio_write 
+Message send via sock_aio_write()
+.IP
+ See 
+.IR probe::socket.aio_write (3stap)
+ for details.
+.P
+.TP
+.B socket.aio_write.return 
+Conclusion of message send via sock_aio_write()
+.IP
+ See 
+.IR probe::socket.aio_write.return (3stap)
+ for details.
+.P
+.TP
+.B socket.aio_read 
+Receiving message via sock_aio_read()
+.IP
+ See 
+.IR probe::socket.aio_read (3stap)
+ for details.
+.P
+.TP
+.B socket.aio_read.return 
+Conclusion of message received via sock_aio_read()
+.IP
+ See 
+.IR probe::socket.aio_read.return (3stap)
+ for details.
+.P
+.TP
+.B socket.write_iter 
+Message send via sock_write_iter()
+.IP
+ See 
+.IR probe::socket.write_iter (3stap)
+ for details.
+.P
+.TP
+.B socket.write_iter.return 
+Conclusion of message send via sock_write_iter()
+.IP
+ See 
+.IR probe::socket.write_iter.return (3stap)
+ for details.
+.P
+.TP
+.B socket.read_iter 
+Receiving message via sock_read_iter()
+.IP
+ See 
+.IR probe::socket.read_iter (3stap)
+ for details.
+.P
+.TP
+.B socket.read_iter.return 
+Conclusion of message received via sock_read_iter()
+.IP
+ See 
+.IR probe::socket.read_iter.return (3stap)
+ for details.
+.P
+.TP
+.B socket.writev 
+Message sent via socket_writev()
+.IP
+ See 
+.IR probe::socket.writev (3stap)
+ for details.
+.P
+.TP
+.B socket.writev.return 
+Conclusion of message sent via socket_writev()
+.IP
+ See 
+.IR probe::socket.writev.return (3stap)
+ for details.
+.P
+.TP
+.B socket.readv 
+Receiving a message via sock_readv()
+.IP
+ See 
+.IR probe::socket.readv (3stap)
+ for details.
+.P
+.TP
+.B socket.readv.return 
+Conclusion of receiving a message via sock_readv()
+.IP
+ See 
+.IR probe::socket.readv.return (3stap)
+ for details.
+.P
+.TP
+.B socket.create 
+Creation of a socket
+.IP
+ See 
+.IR probe::socket.create (3stap)
+ for details.
+.P
+.TP
+.B socket.create.return 
+Return from Creation of a socket
+.IP
+ See 
+.IR probe::socket.create.return (3stap)
+ for details.
+.P
+.TP
+.B socket.close 
+Close a socket
+.IP
+ See 
+.IR probe::socket.close (3stap)
+ for details.
+.P
+.TP
+.B socket.close.return 
+Return from closing a socket
+.IP
+ See 
+.IR probe::socket.close.return (3stap)
+ for details.
+.P
+.TP
+.B sock_prot_num2str 
+Given a protocol number, return a string representation
+.IP
+See 
+.IR function::sock_prot_num2str (3stap)
+ for details.
+.P
+.TP
+.B sock_prot_str2num 
+Given a protocol name (string), return the corresponding protocol number
+.IP
+See 
+.IR function::sock_prot_str2num (3stap)
+ for details.
+.P
+.TP
+.B sock_fam_num2str 
+Given a protocol family number, return a string representation
+.IP
+See 
+.IR function::sock_fam_num2str (3stap)
+ for details.
+.P
+.TP
+.B sock_fam_str2num 
+Given a protocol family name (string), return the corresponding protocol family number
+.IP
+See 
+.IR function::sock_fam_str2num (3stap)
+ for details.
+.P
+.TP
+.B sock_state_num2str 
+Given a socket state number, return a string representation
+.IP
+See 
+.IR function::sock_state_num2str (3stap)
+ for details.
+.P
+.TP
+.B sock_state_str2num 
+Given a socket state string, return the corresponding state number
+.IP
+See 
+.IR function::sock_state_str2num (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::sock_prot_num2str (3stap),
+.BR
+.IR \%function::sock_prot_str2num (3stap),
+.BR
+.IR \%function::sock_fam_num2str (3stap),
+.BR
+.IR \%function::sock_fam_str2num (3stap),
+.BR
+.IR \%function::sock_state_num2str (3stap),
+.BR
+.IR \%function::sock_state_str2num (3stap),
+.BR
+.IR \%probe::socket.send (3stap),
+.BR
+.IR \%probe::socket.receive (3stap),
+.BR
+.IR \%probe::socket.sendmsg (3stap),
+.BR
+.IR \%probe::socket.sendmsg.return (3stap),
+.BR
+.IR \%probe::socket.recvmsg (3stap),
+.BR
+.IR \%probe::socket.recvmsg.return (3stap),
+.BR
+.IR \%probe::socket.aio_write (3stap),
+.BR
+.IR \%probe::socket.aio_write.return (3stap),
+.BR
+.IR \%probe::socket.aio_read (3stap),
+.BR
+.IR \%probe::socket.aio_read.return (3stap),
+.BR
+.IR \%probe::socket.write_iter (3stap),
+.BR
+.IR \%probe::socket.write_iter.return (3stap),
+.BR
+.IR \%probe::socket.read_iter (3stap),
+.BR
+.IR \%probe::socket.read_iter.return (3stap),
+.BR
+.IR \%probe::socket.writev (3stap),
+.BR
+.IR \%probe::socket.writev.return (3stap),
+.BR
+.IR \%probe::socket.readv (3stap),
+.BR
+.IR \%probe::socket.readv.return (3stap),
+.BR
+.IR \%probe::socket.create (3stap),
+.BR
+.IR \%probe::socket.create.return (3stap),
+.BR
+.IR \%probe::socket.close (3stap),
+.BR
+.IR \%probe::socket.close.return (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

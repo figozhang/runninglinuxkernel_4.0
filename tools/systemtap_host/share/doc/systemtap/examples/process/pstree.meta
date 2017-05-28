@@ -1,0 +1,13 @@
+title: Generates a process diagram in DOT form.
+name: pstree.stp
+version: 1.0
+author: Josh Stone
+keywords: process diagram
+subsystem: process
+status: production
+exit: user-controlled
+output: graph
+scope: process
+description: The pstree.stp script generates a process diagram in DOT form.  For instance, it may be useful on a 'make' command to see all the processes that are started.
+test_check: stap -p4 pstree.stp
+test_installcheck: stap pstree.stp -c "sleep 1"

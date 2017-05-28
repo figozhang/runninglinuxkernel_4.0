@@ -1,0 +1,75 @@
+.\" -*- nroff -*-
+.TH TAPSET::UDP 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::udp \- systemtap udp tapset
+ 
+.SH DESCRIPTION
+
+ This family of probe points is used to probe events that occur in the UDP layer. 
+
+.TP
+.P
+.TP
+.B udp.sendmsg 
+Fires whenever a process sends a UDP message  
+.IP
+ See 
+.IR probe::udp.sendmsg (3stap)
+ for details.
+.P
+.TP
+.B udp.sendmsg.return 
+Fires whenever an attempt to send a UDP message is completed
+.IP
+ See 
+.IR probe::udp.sendmsg.return (3stap)
+ for details.
+.P
+.TP
+.B udp.recvmsg 
+Fires whenever a UDP message is received
+.IP
+ See 
+.IR probe::udp.recvmsg (3stap)
+ for details.
+.P
+.TP
+.B udp.recvmsg.return 
+Fires whenever an attempt to receive a UDP message received is completed
+.IP
+ See 
+.IR probe::udp.recvmsg.return (3stap)
+ for details.
+.P
+.TP
+.B udp.disconnect 
+Fires when a process requests for a UDP disconnection
+.IP
+ See 
+.IR probe::udp.disconnect (3stap)
+ for details.
+.P
+.TP
+.B udp.disconnect.return 
+UDP has been disconnected successfully
+.IP
+ See 
+.IR probe::udp.disconnect.return (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::udp.sendmsg (3stap),
+.BR
+.IR \%probe::udp.sendmsg.return (3stap),
+.BR
+.IR \%probe::udp.recvmsg (3stap),
+.BR
+.IR \%probe::udp.recvmsg.return (3stap),
+.BR
+.IR \%probe::udp.disconnect (3stap),
+.BR
+.IR \%probe::udp.disconnect.return (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

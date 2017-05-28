@@ -1,0 +1,92 @@
+'\" t
+.\"     Title: probe::nfs.aop.readpage
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Network File Storage Tapsets
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NFS\&.AOP\&.R" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::nfs.aop.readpage \- NFS client synchronously reading a page
+.SH "SYNOPSIS"
+.sp
+.nf
+nfs\&.aop\&.readpage 
+.fi
+.SH "VALUES"
+.PP
+\fIsb_flag\fR
+.RS 4
+super block flags
+.RE
+.PP
+\fIrsize\fR
+.RS 4
+read size (in bytes)
+.RE
+.PP
+\fIsize\fR
+.RS 4
+number of pages to be read in this execution
+.RE
+.PP
+\fIpage_index\fR
+.RS 4
+offset within mapping, can used a page identifier and position identifier in the page frame
+.RE
+.PP
+\fIfile\fR
+.RS 4
+file argument
+.RE
+.PP
+\fIi_size\fR
+.RS 4
+file length in bytes
+.RE
+.PP
+\fI__page\fR
+.RS 4
+the address of page
+.RE
+.PP
+\fIi_flag\fR
+.RS 4
+file flags
+.RE
+.PP
+\fIdev\fR
+.RS 4
+device identifier
+.RE
+.PP
+\fIino\fR
+.RS 4
+inode number
+.RE
+.SH "DESCRIPTION"
+.PP
+Read the page over, only fires when a previous async read operation failed
+.SH SEE ALSO\n 
+.IR tapset::nfs (3stap)

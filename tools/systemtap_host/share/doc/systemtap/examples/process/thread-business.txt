@@ -1,0 +1,48 @@
+thread-business.stp - monitor syscall history
+
+  Prints a periodic tabular report about the counts of syscall activity
+  of all threads on the system, along with a textual
+  recent-syscall-history for each
+
+$ stap thread-business.stp -c "sleep 5"
+
+        execname    tid count recent syscalls                                   
+
+          stapio  20196    50 ppoll read ppoll read ppoll read ppoll read ppoll 
+           sleep  20194    30 nanosleep close mmap2 fstat open brk brk brk munma
+   systemd-udevd    491    23 epoll_wait munmap close read read mmap2 fstat open
+      irqbalance    625    15 nanosleep munmap close read read mmap2 fstat open 
+   systemd-udevd  20193    14 exit_group close close munmap munmap munmap munmap
+          stapio  20192     8 pselect6 fcntl read fcntl kill fcntl read fcntl 
+          stapio  20194     6 execve execve execve rt_sigprocmask rt_sigaction r
+
+The output when the system is not doing anything interesting.
+
+Rerunning the script while SystemTap was being built.
+
+$ stap thread-business.stp -c "sleep 5"
+
+        execname    tid count recent syscalls                                   
+
+              sh  20967 13559 exit_group rt_sigprocmask rt_sigprocmask read lsee
+              sh  20826  5088 exit_group rt_sigprocmask rt_sigprocmask read lsee
+  git-diff-files  21404  2967 exit_group write fstat mmap2 fstat lstat lstat lst
+  git-diff-files  21348  2967 exit_group write fstat mmap2 fstat lstat lstat lst
+            sshd   9634  2394 select clock_gettime write clock_gettime rt_sigpro
+            make  21312  1110 exit_group munmap close write chdir stat rt_sigpro
+            make  21368  1110 exit_group munmap close write chdir stat rt_sigpro
+            make  21411  1011 exit_group munmap close write chdir rt_sigprocmask
+            make  21410   983 exit_group munmap close write chdir rt_sigprocmask
+              sh  21370   978 exit_group read rt_sigprocmask rt_sigprocmask read
+              sh  21314   978 exit_group read rt_sigprocmask rt_sigprocmask read
+    git-describe  21344   759 exit_group write fstat close getdents getdents ope
+    git-describe  21400   759 exit_group write fstat close getdents getdents ope
+              sh  20699   539 exit_group rt_sigprocmask rt_sigprocmask rt_sigact
+            find  20825   461 exit_group close munmap close write close fchdir c
+              sh  21499   403 exit_group rt_sigreturn wait4 rt_sigprocmask close
+            find  20965   381 exit_group close munmap close write close fchdir c
+         install  21505   359 exit_group close close close lseek lsetxattr close
+              sh  21515   340 exit_group rt_sigreturn wait4 rt_sigprocmask close
+            make  21367   334 exit_group munmap close write chdir rt_sigprocmask
+        execname    tid count recent syscalls                                   
+

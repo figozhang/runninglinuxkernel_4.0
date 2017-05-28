@@ -1,0 +1,7 @@
+title: System-Wide Count of Network Packets by IPs
+name: netfilter_summary_json.stp
+keywords: _best network traffic json
+exit: user-controlled
+description: The script watches all IPv4 network traffic on the system. The data is output in JSON format and includes the number of packets sent along source IP address / destination IP address pair encountered, and the total number of bytes sent among the pair.
+test_check: stap -p4 netfilter_summary_json.stp
+test_installcheck: stap netfilter_summary_json.stp -c "sleep 1"

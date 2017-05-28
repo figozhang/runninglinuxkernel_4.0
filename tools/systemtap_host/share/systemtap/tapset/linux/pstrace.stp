@@ -1,0 +1,26 @@
+/*
+ * kernel pstrace tapset
+ * Copyright (C) 2012 Red Hat Corporation.
+ *
+ * This file is part of systemtap, and is free software.  You can
+ * redistribute it and/or modify it under the terms of the GNU General
+ * Public License (GPL); either version 2, or (at your option) any
+ * later version.
+*/
+
+/**
+ * sfunction pstrace - Chain of processes and pids back to init(1)
+ * @task: Pointer to task struct of process
+ *
+ * This function returns a string listing execname and pid for each
+ * process starting from @task back to the process ancestor
+ * that init(1) spawned.
+ */
+function pstrace:string(task:long)
+{
+  while (task_pid(task) > 1) {
+    trace = sprintf("%s %s(%d)", trace, task_execname(task), task_pid(task));
+    task = task_parent(task);
+  }
+  return trace;
+}

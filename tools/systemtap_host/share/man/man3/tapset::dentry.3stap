@@ -1,0 +1,12 @@
+.\" -*- nroff -*-
+.TH TAPSET::DENTRY 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::dentry \- systemtap dentry tapset
+ 
+.SH DESCRIPTION
+.TP
+
+.SH SEE ALSO
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

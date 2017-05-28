@@ -1,0 +1,39 @@
+#! /bin/sh
+
+# note use of guru mode, to enable changing of syscall parameters
+//bin/true && exec stap -g $0 ${1+"$@"}
+
+# see also http://www.flamingspork.com/projects/libeatmydata/
+
+global dummy_fd = -1 # invalid filehandle; to try stdout, run with -G dummy_fd=1
+global guilt, agony, piety
+
+probe syscall.{fsync,fdatasync} {
+  # We can't actually disable the syscall from here, but can try to
+  # weaken it by redirecting the work toward a dummy file descriptor
+  if (pid() == target())
+     try { 
+         $fd = dummy_fd
+         guilt ++
+     } catch {
+         agony ++
+     }
+  else
+     piety ++
+}
+probe syscall.{fsync,fdatasync}.return {
+  # override result code, just in case kernel sent back -EINVAL or somesuch
+  if (pid() == target())
+      try { $return = 0 } catch { }
+}
+
+
+probe begin {
+    printf("Redirecting f*sync by pid %d to fd %d\n",
+        target(), dummy_fd)
+}
+probe error,end {
+    printf("Redirected f*sync by pid %d to fd %d, success %d times, failed %d times.\n",
+        target(), dummy_fd, guilt, agony)
+    printf("Preserved f*sync by other processes %d times.\n", piety)
+}

@@ -1,0 +1,43 @@
+// task information tapset
+// Copyright (C) 2014 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/* We remember the ancestry of a task in __task_ancestry_memo using the task
+ * address as key. Since different task_structs can re-use the same addresses,
+ * we also remember the start_time in __task_ancestry_times to check for expired
+ * memo entries.
+ */
+@__private30 global __task_ancestry_memo, __task_ancestry_times
+
+/**
+ * sfunction task_ancestry - The ancestry of the given task
+ *
+ * @task: task_struct pointer
+ * @with_time: set to 1 to also print the start time of processes (given as a
+ * delta from boot time)
+ *
+ * Description: Return the ancestry of the given task in the form of
+ * "grandparent_process=>parent_process=>process".
+ */
+function task_ancestry:string (task:long, with_time:long) {
+   stime = task_start_time(task_pid(task))
+   if (__task_ancestry_memo[task] == ""
+    || __task_ancestry_times[task] != stime) {
+      ptask = task_parent(task)
+      name = task_execname(task)
+      __task_ancestry_times[task] = stime
+      if (with_time)
+         stamp = sprintf("(%s)", nsecs_to_string(stime))
+      if (ptask == task) /* tree root */
+         __task_ancestry_memo[task] = sprintf("%s%s", name, stamp)
+      else
+         __task_ancestry_memo[task] = task_ancestry(ptask, with_time) . "=>"
+                                    . sprintf("%s%s", name, stamp)
+   }
+   return __task_ancestry_memo[task]
+}
+

@@ -1,0 +1,72 @@
+'\" t
+.\"     Title: probe::signal.sys_tkill
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Signal Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SIGNAL\&.SYS_" "3stap" "March 2016" "SystemTap Tapset Reference" "Signal Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::signal.sys_tkill \- Sending a kill signal to a thread
+.SH "SYNOPSIS"
+.sp
+.nf
+signal\&.sys_tkill 
+.fi
+.SH "VALUES"
+.PP
+\fIsig\fR
+.RS 4
+The specific signal sent to the process
+.RE
+.PP
+\fIsig_name\fR
+.RS 4
+A string representation of the signal
+.RE
+.PP
+\fIname\fR
+.RS 4
+Name of the probe point
+.RE
+.PP
+\fItask\fR
+.RS 4
+A task handle to the signal recipient
+.RE
+.PP
+\fIpid_name\fR
+.RS 4
+The name of the signal recipient
+.RE
+.PP
+\fIsig_pid\fR
+.RS 4
+The PID of the process receiving the kill signal
+.RE
+.SH "DESCRIPTION"
+.PP
+The tkill call is analogous to kill(2), except that it also allows a process within a specific thread group to be targeted\&. Such processes are targeted through their unique thread IDs (TID)\&.
+.SH SEE ALSO\n 
+.IR tapset::signal (3stap)

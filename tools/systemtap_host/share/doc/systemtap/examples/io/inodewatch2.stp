@@ -1,0 +1,16 @@
+#! /usr/bin/env stap
+
+global ATTR_MODE = 1
+
+probe kernel.{function("setattr_copy")!,
+              function("generic_setattr")!,
+              function("inode_setattr")} {
+  dev_nr = $inode->i_sb->s_dev
+  inode_nr = $inode->i_ino
+
+  if (dev_nr == MKDEV($1,$2) # major/minor device
+      && inode_nr == $3
+      && $attr->ia_valid & ATTR_MODE)
+    printf ("%s(%d) %s 0x%x/%u %o %d\n",
+      execname(), pid(), ppfunc(), dev_nr, inode_nr, $attr->ia_mode, uid())
+}

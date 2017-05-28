@@ -1,0 +1,58 @@
+#! /usr/bin/env stap
+
+# This script tries to identify contended user-space locks by hooking
+# into the futex system call.
+
+/* Bits indicating sharing in futex_key.both.offset */
+global FUT_OFF_INODE = 1 /* We set bit 0 if key has a reference on inode */
+global FUT_OFF_MMSHARED = 2 /* We set bit 1 if key has a reference on mm */
+
+global FUTEX_WAIT = 0 /*, FUTEX_WAKE = 1 */
+global FUTEX_PRIVATE_FLAG = 128 /* linux 2.6.22+ */
+global FUTEX_CLOCK_REALTIME = 256 /* linux 2.6.29+ */
+
+global wait_keys # per-thread key strings for waiting futexes
+
+global lock_waits # long-lived stats on (tid,lock) blockage elapsed time
+global process_names # long-lived pid-to-execname mapping
+
+@define KEY %( @cast(key, "union futex_key") %)
+probe kernel.function("futex_wait_setup").return {
+  if ($return != 0) next
+
+  # NB: this is the entry value
+  # Further @KEY dereferences happen at return
+  key = &$q->key
+
+  offset = @KEY->both->offset
+  masked_offset = offset & ~(FUT_OFF_INODE | FUT_OFF_MMSHARED)
+
+  if (offset & FUT_OFF_INODE) {
+    address = @KEY->shared->pgoff * mem_page_size() + masked_offset
+    path = inode_path(@KEY->shared->inode)
+    wait_keys[tid()] = sprintf("INODE:%s+%p", path, address)
+  } else if (offset & FUT_OFF_MMSHARED) {
+    address = @KEY->private->address + masked_offset
+    wait_keys[tid()] = sprintf("MMSHARED:%p", address)
+  }
+}
+
+probe syscall.futex.return {  
+  if (!(tid() in wait_keys)) next
+  key = wait_keys[tid()]
+  delete wait_keys[tid()]
+
+  cmd = $op & ~(FUTEX_PRIVATE_FLAG|FUTEX_CLOCK_REALTIME);
+  if (cmd != FUTEX_WAIT) next
+
+  process_names[pid()] = execname()
+  elapsed = gettimeofday_us() - @entry(gettimeofday_us())
+  lock_waits[pid(), key] <<< elapsed
+}
+
+probe end {
+  foreach ([pid+, lock] in lock_waits) 
+    printf ("%s[%d] lock %s contended %d times, %d avg us\n",
+            process_names[pid], pid, lock, @count(lock_waits[pid,lock]),
+            @avg(lock_waits[pid,lock]))
+}

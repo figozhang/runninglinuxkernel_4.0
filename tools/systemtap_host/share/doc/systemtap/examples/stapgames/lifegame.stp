@@ -1,0 +1,54 @@
+#!/usr/bin/env stap
+# lifegame
+# Copyright (C) 2008 Masami Hiramatsu <masami.hiramatsu@gmail.com>
+#
+# This file is free software and is distributed under the terms of the GNU
+# General Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+global X_MAX=15, Y_MAX=15
+global map, tmp
+global t
+
+function showupdate()
+{
+  print("\033[1;1H\033[J") # clear screen
+  delete map
+  foreach([x,y] in tmp) {
+    printf("\033[%d;%dH", y+1, x+1) # move cursor
+    print("o")
+    map[x,y] = 1
+  }
+  delete tmp
+}
+
+function lookaround(x,y)
+{
+  return map[x-1,y-1] + map[x,y-1] + map[x+1,y-1] +
+         map[x-1,y  ]       +        map[x+1,y  ] +
+         map[x-1,y+1] + map[x,y+1] + map[x+1,y+1]
+}
+
+probe timer.ms(10) {
+  t ++
+  if (t == Y_MAX) {
+    showupdate()
+    t = -1
+    next # skip to the next timer.
+  }
+  # updating just 1 line
+  y = t
+  for (x=0; x < X_MAX; x++) {
+    c = lookaround(x,y)
+    if (c == 3) tmp[x,y] = 1
+    else if (c == 2 && [x,y] in map) tmp[x,y] = map[x,y]
+  }
+}
+
+probe begin {
+   tmp[6,5] = 1; tmp[5,6] = 1; tmp[4,7] = 1; tmp[5,7] = 1
+   tmp[6,7] = 1
+   showupdate()
+   t = -1
+}
+

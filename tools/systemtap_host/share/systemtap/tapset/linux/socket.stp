@@ -1,0 +1,1163 @@
+// Socket tapset
+// Copyright (C) 2006 IBM Corp.
+// Copyright (C) 2010-2013 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// This family of probe points is used to probe socket activities.
+// </tapsetdescription>
+%{
+#include <net/sock.h>
+#include <asm/bitops.h>
+%}
+
+###################
+# INTERNAL MACROS #
+###################
+
+// Note that since these macros are defined in this file, they are
+// local to this file. They are internal only.
+//
+// Note the '&@sock[0]' usage below. This allows calling the macros
+// with either a dwarf variable (like '$sock') or casts (like
+// '@cast(_sock, "socket", "kernel") without needing additional casts
+// inside the macros (which would then lose type information when
+// called with a dwarf variable).
+
+// Return whether the operation was successful.
+@define _sock_success_check(ret)
+%(
+	( @ret >= 0 ? 1 : 0 )
+%)
+
+// Return the socket protocol number.
+@define _sock_prot_num(sock)
+%(
+	( &@sock[0] ? ( @sock->sk ? @sock->sk->sk_protocol : -1 ) : -1 )
+%)
+
+// Return the socket family number.
+@define _sock_fam_num(sock)
+%(
+	( &@sock[0] ? ( @sock->ops ? @sock->ops->family : -1 ) : -1 )
+%)
+
+// Return the socket state number.
+@define _sock_state_num(sock)
+%(
+	( &@sock[0] ? @sock->state : -1 )
+%)
+
+// Return the socket type number.
+@define _sock_type_num(sock)
+%(
+	( &@sock[0] ? @sock->type : -1 )
+%)
+
+// Return the socket flags number.
+@define _sock_flags_num(sock)
+%(
+	( &@sock[0] ? @sock->flags : -1 )
+%)
+
+#################
+# PROBE ALIASES #
+#################
+
+### GENERAL SEND/RECEIVE PROBES ###
+
+/**
+ * probe socket.send - Message sent on a socket.
+ * @name:     Name of this probe
+ * @size:     Size of message sent (in bytes) or error code if success = 0
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ * @success:  Was send successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message sender
+ */
+probe socket.send = socket.sendmsg.return,
+                    socket.writev.return ?,
+                    socket.aio_write.return ?,
+                    socket.write_iter.return ?
+{
+	name = "socket.send"
+}
+
+/**
+ * probe socket.receive - Message received on a socket.
+ * @name:     Name of this probe
+ * @size:     Size of message received (in bytes) or error code if success = 0
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ * @success:  Was send successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message receiver
+ */
+probe socket.receive = socket.recvmsg.return,
+                       socket.readv.return ?,
+                       socket.aio_read.return ?,
+                       socket.read_iter.return ?
+{
+	name = "socket.receive"
+}
+
+### FUNCTION SPECIFIC SEND/RECEIVE PROBES ###
+
+/**
+ * probe socket.sendmsg - Message is currently being sent on a socket.
+ * @name:     Name of this probe
+ * @size:     Message size in bytes
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ *
+ * Context:
+ *  The message sender
+ *
+ * Fires at the beginning of sending a message on a socket
+ * via the sock_sendmsg() function
+ */
+//
+// 4.1-rc1:
+//     int sock_sendmsg(struct socket *sock, struct msghdr *msg);
+// before 4.1-rc1:
+//     int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t size);
+// 
+probe socket.sendmsg = kernel.function ("sock_sendmsg")
+{
+	name = "socket.sendmsg"
+	if (@defined($size))
+		size = $size
+	else
+		size = $msg->msg_iter->count
+	protocol = @_sock_prot_num($sock)
+	family = @_sock_fam_num($sock)
+	state = @_sock_state_num($sock)
+	flags = @_sock_flags_num($sock)
+	type = @_sock_type_num($sock)
+}
+
+/**
+ * probe socket.sendmsg.return - Return from socket.sendmsg.
+ * @name:     Name of this probe
+ * @size:     Size of message sent (in bytes) or error code if success = 0
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ * @success:  Was send successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message sender.
+ *
+ * Fires at the conclusion of sending a message on a socket
+ * via the sock_sendmsg() function
+ */
+probe socket.sendmsg.return = kernel.function("sock_sendmsg").return
+{
+	name = "socket.sendmsg.return"
+	size = $return
+	protocol = @_sock_prot_num($sock)
+	family = @_sock_fam_num($sock)
+	state = @_sock_state_num($sock)
+	flags = @_sock_flags_num($sock)
+	type = @_sock_type_num($sock)
+	success = @_sock_success_check($return)
+}
+
+/**
+ * probe socket.recvmsg - Message being received on socket
+ * @name:     Name of this probe
+ * @size:     Message size in bytes
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ *
+ * Context:
+ *  The message receiver.
+ *
+ * Fires at the beginning of receiving a message on a socket
+ * via the sock_recvmsg() function
+ *
+ */
+probe socket.recvmsg = kernel.function("sock_recvmsg")
+{
+	name = "socket.recvmsg"
+	size = $size
+	protocol = @_sock_prot_num($sock)
+	family = @_sock_fam_num($sock)
+	state = @_sock_state_num($sock)
+	flags = @_sock_flags_num($sock)
+	type = @_sock_type_num($sock)
+}
+
+/**
+ * probe socket.recvmsg.return - Return from Message being received on socket
+ * @name:     Name of this probe
+ * @size:     Size of message received (in bytes) or error code if success = 0
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ * @success:  Was receive successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message receiver.
+ *
+ * Fires at the conclusion of receiving a message on a socket
+ * via the sock_recvmsg() function.
+ *
+ *
+ */
+probe socket.recvmsg.return = kernel.function("sock_recvmsg").return
+{
+	name = "socket.recvmsg.return"
+	size = $return
+	protocol = @_sock_prot_num($sock)
+	family = @_sock_fam_num($sock)
+	state = @_sock_state_num($sock)
+	flags = @_sock_flags_num($sock)
+	type = @_sock_type_num($sock)
+	success = @_sock_success_check($return)
+}
+
+/**
+ * probe socket.aio_write - Message send via sock_aio_write()
+ * @name:     Name of this probe
+ * @size:     Message size in bytes
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ *
+ * Context:
+ *  The message sender
+ *
+ * Fires at the beginning of sending a message on a socket
+ * via the sock_aio_write() function
+ */
+//
+// 2.6.9~2.6.15:
+//     static ssize_t sock_aio_write(struct kiocb *iocb,
+//		const char __user *ubuf, size_t size, loff_t pos);
+// 2.6.16~2.6.18:
+//     static ssize_t sock_aio_write(struct kiocb *iocb,
+//		const char __user *ubuf, size_t count, loff_t pos);
+// 2.6.19~2.6.26:
+//     static ssize_t sock_aio_write(struct kiocb *iocb,
+//		const struct iovec *iov, unsigned long nr_segs, loff_t pos);
+// 4.0:
+//	sock_aio_write() was removed in kernel 4.0 in favor of
+//	sock_write_iter().
+
+probe socket.aio_write = kernel.function("sock_aio_write") ?
+{
+	name = "socket.aio_write"
+	_sock = _get_sock_addr($iocb->ki_filp)
+	size = (@defined($iov) ? _get_sock_size($iov, $nr_segs)
+		: @choose_defined($count, $size))
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+}
+
+/**
+ * probe socket.aio_write.return - Conclusion of message send via sock_aio_write()
+ * @name: Name of this probe
+ * @size:     Size of message received (in bytes) or error code if success = 0
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ * @success:  Was receive successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message receiver.
+ * 
+ * Fires at the conclusion of sending a message on a socket
+ * via the sock_aio_write() function
+ */
+probe socket.aio_write.return = kernel.function("sock_aio_write").return ?
+{
+	name = "socket.aio_write.return"
+	size = $return
+	_sock = _get_sock_addr($iocb->ki_filp)
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+	success = @_sock_success_check($return)
+}
+
+/**
+ * probe socket.aio_read - Receiving message via sock_aio_read()
+ * @name:     Name of this probe
+ * @size:     Message size in bytes
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ *
+ * Context:
+ *  The message sender
+ *
+ * Fires at the beginning of receiving a message on a socket
+ * via the sock_aio_read() function
+ */
+//
+// 2.6.9~2.6.15:
+//     static ssize_t sock_aio_read(struct kiocb *iocb, char __user *ubuf,
+//		size_t size, loff_t pos);
+// 2.6.16~2.6.18:
+//     static ssize_t sock_aio_read(struct kiocb *iocb, char __user *ubuf,
+//		size_t count, loff_t pos);
+// 2.6.19~2.6.26:
+//     static ssize_t sock_aio_read(struct kiocb *iocb,
+//		const struct iovec *iov, unsigned long nr_segs, loff_t pos);
+// 4.0:
+//	sock_aio_read() was removed in kernel 4.0 in favor of
+//	sock_read_iter().
+
+probe socket.aio_read = kernel.function("sock_aio_read") ?
+{
+	name = "socket.aio_read"
+	_sock = _get_sock_addr($iocb->ki_filp)
+	size = (@defined($iov) ? _get_sock_size($iov, $nr_segs)
+		: @choose_defined($count, $size))
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+}
+
+/**
+ * probe socket.aio_read.return - Conclusion of message received via sock_aio_read()
+ * @name:     Name of this probe
+ * @size:     Size of message received (in bytes) or error code if success = 0
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ * @success:  Was receive successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message receiver.
+ * 
+ * Fires at the conclusion of receiving a message on a socket
+ * via the sock_aio_read() function
+ */
+probe socket.aio_read.return = kernel.function("sock_aio_read").return ?
+{
+	name = "socket.aio_read.return"
+	size = $return
+	_sock = _get_sock_addr($iocb->ki_filp)
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+	success = @_sock_success_check($return)
+}
+
+/**
+ * probe socket.write_iter - Message send via sock_write_iter()
+ * @name:     Name of this probe
+ * @size:     Message size in bytes
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ *
+ * Context:
+ *  The message sender
+ *
+ * Fires at the beginning of sending a message on a socket
+ * via the sock_write_iter() function
+ */
+//
+// 4.0:
+//     static ssize_t sock_write_iter(struct kiocb *iocb,
+//		struct iov_iter *from);
+
+probe socket.write_iter = kernel.function("sock_write_iter") ?
+{
+	name = "socket.write_iter"
+	_sock = _get_sock_addr($iocb->ki_filp)
+	if ($from->type & %{ /* pure */ ITER_IOVEC %})	
+		size = __iov_length($from->iov, $from->nr_segs, 1,
+				    %{ /* pure */ VERIFY_READ %})
+	else
+		size = 0
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+}
+
+/**
+ * probe socket.write_iter.return - Conclusion of message send via sock_write_iter()
+ * @name: Name of this probe
+ * @size:     Size of message received (in bytes) or error code if success = 0
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ * @success:  Was receive successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message receiver.
+ * 
+ * Fires at the conclusion of sending a message on a socket
+ * via the sock_write_iter() function
+ */
+probe socket.write_iter.return = kernel.function("sock_write_iter").return ?
+{
+	name = "socket.write_iter.return"
+	size = $return
+	_sock = _get_sock_addr($iocb->ki_filp)
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+	success = @_sock_success_check($return)
+}
+
+/**
+ * probe socket.read_iter - Receiving message via sock_read_iter()
+ * @name:     Name of this probe
+ * @size:     Message size in bytes
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ *
+ * Context:
+ *  The message sender
+ *
+ * Fires at the beginning of receiving a message on a socket
+ * via the sock_read_iter() function
+ */
+//
+// 4.0:
+//     static ssize_t sock_read_iter(struct kiocb *iocb, struct iov_iter *to);
+
+probe socket.read_iter = kernel.function("sock_read_iter") ?
+{
+	name = "socket.read_iter"
+	_sock = _get_sock_addr($iocb->ki_filp)
+	if ($to->type & %{ /* pure */ ITER_IOVEC %})
+		size = __iov_length($to->iov, $to->nr_segs, 1,
+				    %{ /* pure */ VERIFY_WRITE %})
+ 	else
+		size = 0
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+}
+
+/**
+ * probe socket.read_iter.return - Conclusion of message received via sock_read_iter()
+ * @name:     Name of this probe
+ * @size:     Size of message received (in bytes) or error code if success = 0
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ * @success:  Was receive successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message receiver.
+ * 
+ * Fires at the conclusion of receiving a message on a socket
+ * via the sock_read_iter() function
+ */
+probe socket.read_iter.return = kernel.function("sock_read_iter").return ?
+{
+	name = "socket.read_iter.return"
+	size = $return
+	_sock = _get_sock_addr($iocb->ki_filp)
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+	success = @_sock_success_check($return)
+}
+
+/**
+ * probe socket.writev - Message sent via socket_writev()
+ * @name:     Name of this probe
+ * @size:     Message size in bytes
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ *
+ * Context:
+ *  The message sender
+ *
+ * Fires at the beginning of sending a message on a socket
+ * via the sock_writev() function
+ */
+probe socket.writev = kernel.function("sock_writev") ?
+{
+	name = "socket.writev"
+	_sock = _get_sock_addr($file)
+	size = (@defined($iov) ? _get_sock_size($iov, $nr_segs)
+		: _get_sock_size($vector, $count))
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+}
+
+/**
+ * probe socket.writev.return - Conclusion of message sent via socket_writev()
+ * @name:     Name of this probe
+ * @size:     Size of message sent (in bytes) or error code if success = 0
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ * @success:  Was send successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message receiver.
+ *
+ * Fires at the conclusion of sending a message on a socket
+ * via the sock_writev() function
+ */
+probe socket.writev.return = kernel.function("sock_writev").return ?
+{
+	name = "socket.writev.return"
+	size = $return
+	_sock = _get_sock_addr($file)
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+	success = @_sock_success_check($return)
+}
+
+/**
+ * probe socket.readv - Receiving a message via sock_readv()
+ * @name:     Name of this probe
+ * @size:     Message size in bytes
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ *
+ * Context:
+ *  The message sender
+ *
+ * Fires at the beginning of receiving a message on a socket
+ * via the sock_readv() function
+ */
+probe socket.readv = kernel.function("sock_readv") ?
+{
+	name = "socket.readv"
+	_sock = _get_sock_addr($file)
+	size = (@defined($iov) ? _get_sock_size($iov, $nr_segs)
+		: _get_sock_size($vector, $count))
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+}
+
+/**
+ * probe socket.readv.return - Conclusion of receiving a message via sock_readv()
+ *  @name:     Name of this probe
+ *  @size:     Size of message received (in bytes) or error code if success = 0
+ *  @protocol: Protocol value
+ *  @family:   Protocol family value
+ *  @state:    Socket state value
+ *  @flags:    Socket flags value
+ *  @type:     Socket type value
+ *  @success:  Was receive successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message receiver.
+ *
+ * Fires at the conclusion of receiving a message on a socket
+ * via the sock_readv() function
+ */
+probe socket.readv.return = kernel.function("sock_readv").return ?
+{
+	name = "socket.readv.return"
+	size = $return
+	_sock = _get_sock_addr($file)
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+	success = @_sock_success_check($return)
+}
+
+/**
+ * probe socket.create - Creation of a socket
+ * @name:      Name of this probe
+ * @protocol:  Protocol value
+ * @family:    Protocol family value
+ * @type:      Socket type value
+ * @requester: Requested by user process or the kernel (1 = kernel, 0 = user)
+ *
+ * Context:
+ *  The requester (see requester variable)
+ *
+ * Fires at the beginning of creating a socket.
+ */
+probe socket.create = kernel.function("__sock_create")
+{
+	name = "socket.create"
+	protocol = $protocol
+	family = $family
+	type = $type
+	requester = $kern
+}
+
+/**
+ * probe socket.create.return - Return from Creation of a socket
+ * @name:      Name of this probe
+ * @protocol:  Protocol value
+ * @family:    Protocol family value
+ * @type:      Socket type value
+ * @requester: Requested by user process or the kernel (1 = kernel, 0 = user)
+ * @err:       Error code if success == 0
+ * @success:   Was socket creation successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The requester (user process or kernel)
+ *
+ * Fires at the conclusion of creating a socket.
+ */
+probe socket.create.return = kernel.function("__sock_create").return
+{
+	name = "socket.create.return"
+	protocol = $protocol
+	family = $family
+	type = $type
+	requester = $kern
+	err = $return
+	success = @_sock_success_check($return)
+}
+
+/**
+ * probe socket.close - Close a socket
+ * @name:      Name of this probe
+ * @protocol:  Protocol value
+ * @family:    Protocol family value
+ * @state:     Socket state value
+ * @flags:     Socket flags value
+ * @type:      Socket type value
+ *
+ * Context:
+ *  The requester (user process or kernel)
+ *
+ * Fires at the beginning of closing a socket.
+ */
+probe socket.close = kernel.function("sock_release")
+{
+	name = "socket.close"
+	protocol = @_sock_prot_num($sock)
+	family = @_sock_fam_num($sock)
+	state = @_sock_state_num($sock)
+	flags = @_sock_flags_num($sock)
+	type = @_sock_type_num($sock)
+}
+
+/**
+ * probe socket.close.return - Return from closing a socket
+ * @name:      Name of this probe
+ *
+ * Context:
+ *  The requester (user process or kernel)
+ *
+ * Fires at the conclusion of closing a socket.
+ */
+probe socket.close.return = kernel.function("sock_release").return
+{
+	name = "socket.close.return"
+	/* void return */
+}
+
+
+##################
+# USER FUNCTIONS #
+##################
+
+####### PROTOCOL HELPER FUNCTIONS ########
+
+/**
+ * sfunction sock_prot_num2str - Given a protocol number, return a string representation
+ * @proto: The protocol number
+ */
+function sock_prot_num2str:string(proto:long)
+{
+	return (proto in _prot_num2str ? _prot_num2str[proto] : "UNDEF")
+}
+
+/**
+ * sfunction sock_prot_str2num - Given a protocol name (string), return the corresponding protocol number
+ * @proto: The protocol name
+ */
+function sock_prot_str2num:long(proto:string)
+{
+	return (proto in _prot_str2num ? _prot_str2num[proto] : -1)
+}
+
+######### PROTOCOL FAMILY HELPER FUNCTIONS ###########
+
+/**
+ * sfunction sock_fam_num2str - Given a protocol family number, return a string representation
+ * @family: The family number
+ */
+function sock_fam_num2str:string(family:long)
+{
+	return (family in _fam_num2str ? _fam_num2str[family] : "UNDEF")
+}
+
+/**
+ * sfunction sock_fam_str2num - Given a protocol family name (string), return the corresponding protocol family number
+ * @family: The family name
+ */
+function sock_fam_str2num:long(family:string)
+{
+	return (family in _fam_str2num ? _fam_str2num[family] : -1)
+}
+
+######### SOCKET STATE HELPER FUNCTIONS ##########
+
+/**
+ * sfunction sock_state_num2str - Given a socket state number, return a string representation
+ * @state: The state number
+ */
+function sock_state_num2str:string(state:long)
+{
+	return (state in _state_num2str ? _state_num2str[state] : "UNDEF")
+}
+
+/**
+ * sfunction sock_state_str2num - Given a socket state string, return the corresponding state number
+ * @state: The state name
+ */
+function sock_state_str2num:long(state:string)
+{
+	return (state in _state_str2num ? _state_str2num[state] : -1)
+}
+
+######## SOCKET TYPE HELPER FUNCTIONS ########
+
+function sock_type_num2str:string(type:long)
+{
+	return (type in _type_num2str ? _type_num2str[type] : "UNDEF")
+}
+
+function sock_type_str2num:long(type:string)
+{
+	return (type in _type_str2num ? _type_str2num[type] : -1)
+}
+
+######### SOCKET FLAGS HELPER FUNCTIONS #########
+
+function sock_flags_num2str:string(flags:long)
+%{ /* pure */
+#ifndef SOCK_PASSCRED
+#define SOCK_PASSCRED 3  /* introduced in 2.6.12? */
+#endif
+#ifndef SOCK_PASSSEC
+#define SOCK_PASSSEC 4   /* introduced in 2.6.18 */
+#endif
+#ifndef SOCKWQ_ASYNC_NOSPACE /* renamed in 4.4 */
+#define SOCKWQ_ASYNC_NOSPACE SOCK_ASYNC_NOSPACE
+#endif
+#ifndef SOCKWQ_ASYNC_WAITDATA /* renamed in 4.4 */
+#define SOCKWQ_ASYNC_WAITDATA SOCK_ASYNC_WAITDATA
+#endif
+	unsigned long flags = STAP_ARG_flags;
+
+	STAP_RETVALUE[0] = '\0';
+	if (test_bit(SOCKWQ_ASYNC_NOSPACE, &flags))
+		strlcat(STAP_RETVALUE, "ASYNC_NOSPACE|", MAXSTRINGLEN);
+	if (test_bit(SOCKWQ_ASYNC_WAITDATA, &flags))
+		strlcat(STAP_RETVALUE, "ASYNC_WAITDATA|", MAXSTRINGLEN);
+	if (test_bit(SOCK_NOSPACE, &flags))
+		strlcat(STAP_RETVALUE, "NOSPACE|", MAXSTRINGLEN);
+	if (test_bit(SOCK_PASSCRED, &flags))
+		strlcat(STAP_RETVALUE, "PASSCRED|", MAXSTRINGLEN);
+	if (test_bit(SOCK_PASSSEC, &flags))
+		strlcat(STAP_RETVALUE, "PASSSEC|", MAXSTRINGLEN);
+	if (STAP_RETVALUE[0] != '\0')
+		STAP_RETVALUE[strlen(STAP_RETVALUE)-1] = '\0';
+%}
+
+######### MESSAGE FLAGS HELPER FUNCTIONS #########
+
+function msg_flags_num2str:string(flags:long)
+%{ /* pure */
+	STAP_RETVALUE[0] = '\0';
+
+	if (STAP_ARG_flags & MSG_OOB)
+		strlcat(STAP_RETVALUE, "OOB|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_PEEK)
+		strlcat(STAP_RETVALUE, "PEEK|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_DONTROUTE)
+		strlcat(STAP_RETVALUE, "DONTROUTE|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_TRYHARD)
+		strlcat(STAP_RETVALUE, "TRYHARD|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_CTRUNC)
+		strlcat(STAP_RETVALUE, "CTRUNC|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_PROBE)
+		strlcat(STAP_RETVALUE, "PROBE|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_TRUNC)
+		strlcat(STAP_RETVALUE, "TRUNC|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_DONTWAIT)
+		strlcat(STAP_RETVALUE, "DONTWAIT|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_EOR)
+		strlcat(STAP_RETVALUE, "EOR|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_WAITALL)
+		strlcat(STAP_RETVALUE, "WAITALL|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_FIN)
+		strlcat(STAP_RETVALUE, "FIN|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_SYN)
+		strlcat(STAP_RETVALUE, "SYN|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_CONFIRM)
+		strlcat(STAP_RETVALUE, "CONFIRM|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_RST)
+		strlcat(STAP_RETVALUE, "RST|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_ERRQUEUE)
+		strlcat(STAP_RETVALUE, "ERRQUEUE|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_NOSIGNAL)
+		strlcat(STAP_RETVALUE, "NOSIGNAL|", MAXSTRINGLEN);
+	if (STAP_ARG_flags & MSG_MORE)
+		strlcat(STAP_RETVALUE, "MORE|", MAXSTRINGLEN);
+
+	if (STAP_RETVALUE[0] != '\0')
+		STAP_RETVALUE[strlen(STAP_RETVALUE)-1] = '\0';
+%}
+
+###########################
+# INTERNAL MAPPING ARRAYS #
+###########################
+
+@__private30 global _prot_num2str[138], _prot_str2num[138]
+@__private30 global _fam_num2str[34],   _fam_str2num[34]
+@__private30 global _state_num2str[5],  _state_str2num[5]
+@__private30 global _type_num2str[11],  _type_str2num[11]
+
+probe init
+{
+	/* From /etc/protocols.
+	 * Many of these protocols aren't currently used over
+	 * sockets, but are included for completeness 
+	 */
+	_prot_num2str[0] = "IP"
+	_prot_num2str[1] = "ICMP"
+	_prot_num2str[2] = "IGMP"
+	_prot_num2str[3] = "GGP"
+	_prot_num2str[4] = "IPENCAP"
+	_prot_num2str[5] = "ST"
+	_prot_num2str[6] = "TCP"
+	_prot_num2str[7] = "CBT"
+	_prot_num2str[8] = "EGP"
+	_prot_num2str[9] = "IGP"
+	_prot_num2str[10] = "BBN-RCC"
+	_prot_num2str[11] = "NVP"
+	_prot_num2str[12] = "PUP"
+	_prot_num2str[13] = "ARGUS"
+	_prot_num2str[14] = "EMCON"
+	_prot_num2str[15] = "XNET"
+	_prot_num2str[16] = "CHAOS"
+	_prot_num2str[17] = "UDP"
+	_prot_num2str[18] = "MUX"
+	_prot_num2str[19] = "DCN"
+	_prot_num2str[20] = "HMP"
+	_prot_num2str[21] = "PRM"
+	_prot_num2str[22] = "XNS-IDP"
+	_prot_num2str[23] = "TRUNK-1"
+	_prot_num2str[24] = "TRUNK-2"
+	_prot_num2str[25] = "LEAF-1"
+	_prot_num2str[26] = "LEAF-2"
+	_prot_num2str[27] = "RDP"
+	_prot_num2str[28] = "IRTP"
+	_prot_num2str[29] = "ISO-TP4"
+	_prot_num2str[30] = "NETBLT"
+	_prot_num2str[31] = "MFE-NSP"
+	_prot_num2str[32] = "MERIT-INP"
+	_prot_num2str[33] = "SEP"
+	_prot_num2str[34] = "3PC"
+	_prot_num2str[35] = "IDPR"
+	_prot_num2str[36] = "XTP"
+	_prot_num2str[37] = "DDP"
+	_prot_num2str[38] = "IDPR-CMTP"
+	_prot_num2str[39] = "TP++"
+	_prot_num2str[40] = "IL"
+	_prot_num2str[41] = "IPV6"
+	_prot_num2str[42] = "SDRP"
+	_prot_num2str[43] = "IPV6-ROUTE"
+	_prot_num2str[44] = "IPV6-FRAG"
+	_prot_num2str[45] = "IDRP"
+	_prot_num2str[46] = "RSVP"
+	_prot_num2str[47] = "GRE"
+	_prot_num2str[48] = "MHRP"
+	_prot_num2str[49] = "BNA"
+	_prot_num2str[50] = "IPV6-CRYPT"
+	_prot_num2str[51] = "IPV6-AUTH"
+	_prot_num2str[52] = "I-NLSP"
+	_prot_num2str[53] = "SWIPE"
+	_prot_num2str[54] = "NARP"
+	_prot_num2str[55] = "MOBILE"
+	_prot_num2str[56] = "TLSP"
+	_prot_num2str[57] = "SKIP"
+	_prot_num2str[58] = "IPV6-ICMP"
+	_prot_num2str[59] = "IPV6-NONXT"
+	_prot_num2str[60] = "IPV6-OPTS"
+	_prot_num2str[62] = "CFTP"
+	_prot_num2str[64] = "SAT-EXPAK"
+	_prot_num2str[65] = "KRYPTOLAN"
+	_prot_num2str[66] = "RVD"
+	_prot_num2str[67] = "IPPC"
+	_prot_num2str[69] = "SAT-MON"
+	_prot_num2str[70] = "VISA"
+	_prot_num2str[71] = "IPCV"
+	_prot_num2str[72] = "CPNX"
+	_prot_num2str[73] = "CPHB"
+	_prot_num2str[74] = "WSN"
+	_prot_num2str[75] = "PVP"
+	_prot_num2str[76] = "BR-SAT-MON"
+	_prot_num2str[77] = "SUN-ND"
+	_prot_num2str[78] = "WB-MON"
+	_prot_num2str[79] = "WB-EXPAK"
+	_prot_num2str[80] = "ISO-IP"
+	_prot_num2str[81] = "VMTP"
+	_prot_num2str[82] = "SECURE-VMTP"
+	_prot_num2str[83] = "VINES"
+	_prot_num2str[84] = "TTP"
+	_prot_num2str[85] = "NSFNET-IGP"
+	_prot_num2str[86] = "DGP"
+	_prot_num2str[87] = "TCF"
+	_prot_num2str[88] = "EIGRP"
+	_prot_num2str[89] = "OSPF"
+	_prot_num2str[90] = "SPRITE-RPC"
+	_prot_num2str[91] = "LARP"
+	_prot_num2str[92] = "MTP"
+	_prot_num2str[93] = "AX.25"
+	_prot_num2str[94] = "IPIP"
+	_prot_num2str[95] = "MICP"
+	_prot_num2str[96] = "SCC-SP"
+	_prot_num2str[97] = "ETHERIP"
+	_prot_num2str[98] = "ENCAP"
+	_prot_num2str[100] = "GMTP"
+	_prot_num2str[101] = "IFMP"
+	_prot_num2str[102] = "PNNI"
+	_prot_num2str[103] = "PIM"
+	_prot_num2str[104] = "ARIS"
+	_prot_num2str[105] = "SCPS"
+	_prot_num2str[106] = "QNX"
+	_prot_num2str[107] = "A/N"
+	_prot_num2str[108] = "IPCOMP"
+	_prot_num2str[109] = "SNP"
+	_prot_num2str[110] = "COMPAQ-PEER"
+	_prot_num2str[111] = "IPX-IN-IP"
+	_prot_num2str[112] = "VRRP"
+	_prot_num2str[113] = "PGM"
+	_prot_num2str[115] = "L2TP"
+	_prot_num2str[116] = "DDX"
+	_prot_num2str[117] = "IATP"
+	_prot_num2str[118] = "STP"
+	_prot_num2str[119] = "SRP"
+	_prot_num2str[120] = "UTI"
+	_prot_num2str[121] = "SMP"
+	_prot_num2str[122] = "SM"
+	_prot_num2str[123] = "PTP"
+	_prot_num2str[124] = "ISIS"
+	_prot_num2str[125] = "FIRE"
+	_prot_num2str[126] = "CRTP"
+	_prot_num2str[127] = "CRDUP"
+	_prot_num2str[128] = "SSCOPMCE"
+	_prot_num2str[129] = "IPLT"
+	_prot_num2str[130] = "SPS"
+	_prot_num2str[131] = "PIPE"
+	_prot_num2str[132] = "SCTP"
+	_prot_num2str[133] = "FC"
+        _prot_num2str[134] = "RSVP-E2E-IGNORE"
+        _prot_num2str[135] = "Mobility-Header"
+        _prot_num2str[136] = "UDPLite"
+        _prot_num2str[137] = "MPLS-IN-IP"
+
+	foreach (num in _prot_num2str)
+		_prot_str2num[_prot_num2str[num]] = num 
+
+	/* from include/linux/socket.h */
+	_fam_num2str[0]  = "UNSPEC"
+	_fam_num2str[1]  = "LOCAL"
+	_fam_num2str[2]  = "INET"
+	_fam_num2str[3]  = "AX25"
+	_fam_num2str[4]  = "IPX"
+	_fam_num2str[5]  = "APPLETALK"
+	_fam_num2str[6]  = "NETROM"
+	_fam_num2str[7]  = "BRIDGE"
+	_fam_num2str[8]  = "ATMPVC"
+	_fam_num2str[9]  = "X25"
+	_fam_num2str[10] = "INET6"
+	_fam_num2str[11] = "ROSE"
+	_fam_num2str[12] = "DECNET"
+	_fam_num2str[13] = "NETBEUI"
+	_fam_num2str[14] = "SECURITY"
+	_fam_num2str[15] = "KEY"
+	_fam_num2str[16] = "NETLINK"
+	_fam_num2str[17] = "PACKET"
+	_fam_num2str[18] = "ASH"
+	_fam_num2str[19] = "ECONET"
+	_fam_num2str[20] = "ATMSVC"
+	_fam_num2str[22] = "SNA"
+	_fam_num2str[23] = "IRDA"
+	_fam_num2str[24] = "PPPOX"
+	_fam_num2str[25] = "WANPIPE"
+	_fam_num2str[26] = "LLC"
+	_fam_num2str[30] = "TIPC"
+	_fam_num2str[31] = "BLUETOOTH"
+	_fam_num2str[32] = "IUCV"
+	_fam_num2str[33] = "RXRPC"
+
+	foreach (num in _fam_num2str)
+		_fam_str2num[_fam_num2str[num]] = num 
+
+	/* from include/linux/net.h */
+	_state_num2str[0] = "FREE"
+	_state_num2str[1] = "UNCONNECTED"
+	_state_num2str[2] = "CONNECTING"
+	_state_num2str[3] = "CONNECTED" 
+	_state_num2str[4] = "DISCONNECTING"
+
+	foreach (num in _state_num2str)
+		_state_str2num[_state_num2str[num]] = num 
+
+	/* from include/linux/net.h */
+	_type_num2str[1]  = "STREAM"
+	_type_num2str[2]  = "DGRAM"
+	_type_num2str[3]  = "RAW"
+	_type_num2str[4]  = "RDM"
+	_type_num2str[5]  = "SEQPACKET"
+	_type_num2str[6]  = "DCCP"
+	_type_num2str[10] = "PACKET"
+
+	foreach (num in _type_num2str)
+		_type_str2num[_type_num2str[num]] = num 
+}
+
+######################
+# INTERNAL FUNCTIONS #
+######################
+
+@__private30 function _get_sock_addr:long(file:long)
+%{ /* pure */
+	struct file *filep = (struct file *)(long)(STAP_ARG_file);
+	struct socket *sockp;
+	if (filep) {
+#ifdef STAPCONF_DPATH_PATH
+		struct dentry *dentry = kread(&(filep->f_path.dentry));
+#else
+		struct dentry *dentry = kread(&(filep->f_dentry));
+#endif
+		struct inode *inode = kread(&(dentry->d_inode));
+		sockp = &container_of(inode, struct socket_alloc,
+				      vfs_inode)->socket;
+	}
+	else {
+		sockp = NULL;
+	}
+	if (sockp == NULL)
+		STAP_RETVALUE = -1;
+	else
+		STAP_RETVALUE = (long) sockp;
+	CATCH_DEREF_FAULT();
+%}
+
+@__private30 function _get_sock_size:long(iov:long, nr_segs:long)
+%{ /* pure */
+	struct iovec *iovp = (struct iovec *)(long)(STAP_ARG_iov);
+	if (iovp == NULL)
+		STAP_RETVALUE = -1;
+	else {
+		int i;
+		STAP_RETVALUE = 0;
+		for (i = 0 ; i < STAP_ARG_nr_segs ; i++)
+			STAP_RETVALUE += kread(&(iovp[i].iov_len));
+	}
+	CATCH_DEREF_FAULT();
+%}
+
+%( systemtap_v < "2.3" %?
+function _success_check:long(ret:long)
+{
+	return @_sock_success_check(ret)
+}
+
+function _sock_prot_num:long(sock:long)
+{
+	return @_sock_prot_num(@cast(sock, "socket", "kernel"))
+}
+
+function _sock_fam_num:long(sock:long)
+{
+	return @_sock_fam_num(@cast(sock, "socket", "kernel"))
+}
+
+function _sock_state_num:long(sock:long)
+{
+	return @_sock_state_num(@cast(sock, "socket", "kernel"))
+}
+
+function _sock_type_num:long(sock:long)
+{
+	return @_sock_type_num(@cast(sock, "socket", "kernel"))
+}
+
+function _sock_flags_num:long(sock:long)
+{
+	return @_sock_flags_num(@cast(sock, "socket", "kernel"))
+}
+%)

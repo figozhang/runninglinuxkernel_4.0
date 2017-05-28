@@ -1,0 +1,19 @@
+#! /usr/bin/env/ stap
+
+# Usage: stap -o outfile switchfile.stp
+
+probe begin {
+  println("Begin logging")
+}
+
+probe timer.ms(1000) {
+  println("log data")
+}
+
+probe timer.ms(5000) {
+  switch_file()
+}
+
+probe end {
+  println("End logging")
+}

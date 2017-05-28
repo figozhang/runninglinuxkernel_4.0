@@ -1,0 +1,122 @@
+.\" -*- nroff -*-
+.TH TAPSET::TTY 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::tty \- systemtap tty tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B tty.open 
+Called when a tty is opened
+.IP
+ See 
+.IR probe::tty.open (3stap)
+ for details.
+.P
+.TP
+.B tty.release 
+Called when the tty is closed
+.IP
+ See 
+.IR probe::tty.release (3stap)
+ for details.
+.P
+.TP
+.B tty.resize 
+Called when a terminal resize happens
+.IP
+ See 
+.IR probe::tty.resize (3stap)
+ for details.
+.P
+.TP
+.B tty.ioctl 
+called when a ioctl is request to the tty
+.IP
+ See 
+.IR probe::tty.ioctl (3stap)
+ for details.
+.P
+.TP
+.B tty.init 
+Called when a tty is being initalized
+.IP
+ See 
+.IR probe::tty.init (3stap)
+ for details.
+.P
+.TP
+.B tty.register 
+Called when a tty device is registred
+.IP
+ See 
+.IR probe::tty.register (3stap)
+ for details.
+.P
+.TP
+.B tty.unregister 
+Called when a tty device is being unregistered
+.IP
+ See 
+.IR probe::tty.unregister (3stap)
+ for details.
+.P
+.TP
+.B tty.poll 
+Called when a tty device is being polled
+.IP
+ See 
+.IR probe::tty.poll (3stap)
+ for details.
+.P
+.TP
+.B tty.receive 
+called when a tty receives a message
+.IP
+ See 
+.IR probe::tty.receive (3stap)
+ for details.
+.P
+.TP
+.B tty.write 
+write to the tty line
+.IP
+ See 
+.IR probe::tty.write (3stap)
+ for details.
+.P
+.TP
+.B tty.read 
+called when a tty line will be read
+.IP
+ See 
+.IR probe::tty.read (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::tty.open (3stap),
+.BR
+.IR \%probe::tty.release (3stap),
+.BR
+.IR \%probe::tty.resize (3stap),
+.BR
+.IR \%probe::tty.ioctl (3stap),
+.BR
+.IR \%probe::tty.init (3stap),
+.BR
+.IR \%probe::tty.register (3stap),
+.BR
+.IR \%probe::tty.unregister (3stap),
+.BR
+.IR \%probe::tty.poll (3stap),
+.BR
+.IR \%probe::tty.receive (3stap),
+.BR
+.IR \%probe::tty.write (3stap),
+.BR
+.IR \%probe::tty.read (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

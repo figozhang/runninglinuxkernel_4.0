@@ -1,0 +1,350 @@
+#!/bin/bash
+
+# Socktop systemtap script
+# Copyright (C) 2006 IBM Corp.
+#
+# This file is part of systemtap, and is free software.  You can
+# redistribute it and/or modify it under the terms of the GNU General
+# Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+###
+### socktop - Combination shell/systemtap script to track reads and writes
+###           on sockets by process.  Can be filtered by process IDs and
+###           names, protocols, protocol families, users and socket type.
+###
+
+ITER_COUNT=-1		# number of iterations (no iteration limit default)
+MOD_GEN="";		# Generate a instrumentation module option
+
+# Filter options
+F_PROTSTR=""; F_PROT=0  # Filter by protocol
+F_FAMSTR=""; F_FAM=0    # Filter by protocol family
+F_TYPESTR=""; F_TYPE=0  # Filter by socket type
+F_PIDSTR=""; F_PID=0    # Filter by process ID
+F_NAMESTR=""; F_NAME=0  # Filter by process name
+F_UIDSTR=""; F_UID=0    # Filter by user
+FILTER=0                # Any filters specified?
+
+# Print options
+P_INTERVAL=5 # default interval between output
+P_DEVICES=0  # default is don't display network device traffic
+P_NUMTOP=10  # default number of processes and network devices to print
+
+DELIM=","
+
+function usage {
+	echo "USAGE: socktop [-d] [-i interval] [-N num] [-P protocol]... [-f family]..."
+	echo "               [-t stype]... [-n pname]... [-p pid]... [-u username]... [-h]"
+	echo "    -d           # print network device traffic (default: off)"
+	echo "    -i interval  # interval in seconds between printing (default: $P_INTERVAL)"
+	echo "    -N num       # number of top processes and devices to print (default: $P_NUMTOP)"
+	echo "    -f family    # this protocol family only (default: all)"
+	echo "    -P protocol  # this protocol only (default: all)"
+	echo "    -t stype     # this socket type only (default: all)"
+	echo "    -n pname     # this process name only (default: all)"
+	echo "    -p pid       # this process ID only (default: all)"
+	echo "    -u username  # this user only (default: all)"
+	echo "    -c count     # number of iteration"
+	echo "    -m mod_name  # generate instrumentation (but do not run)"
+	echo "    -h           # print this help text"
+	echo ""
+	echo "Protocol Families:"
+	echo "    LOCAL, INET, INET6, IPX, NETLINK, X25, AX25, ATMPVC, APPLETALK, PACKET"
+	echo ""
+	echo "Protocols:"
+	echo "    TCP, UDP, SCTP, IP, FC, ... (see /etc/protocols for complete list)"
+	echo ""
+	echo "Socket Types:"
+	echo "    STREAM, DGRAM, RAW, RDM, SEQPACKET, DCCP, PACKET"
+}
+
+# Process options
+while getopts df:i:n:N:P:p:t:u:c:m:h option; do
+	case $option in
+	d)      P_DEVICES=1 ;;
+	i)      P_INTERVAL=$OPTARG ;;
+	N)      P_NUMTOP=$OPTARG ;;
+	f)      let "F_FAM++"
+	        F_FAMSTR=$OPTARG$DELIM$F_FAMSTR ;;
+	n)      let "F_NAME++"
+	        F_NAMESTR=$OPTARG$DELIM$F_NAMESTR ;;
+	p)      let "F_PID++"
+	        F_PIDSTR=$OPTARG$DELIM$F_PIDSTR ;;
+	P)      let "F_PROT++"
+	        F_PROTSTR=$OPTARG$DELIM$F_PROTSTR ;;
+	t)      let "F_TYPE++"
+	        F_TYPESTR=$OPTARG$DELIM$F_TYPESTR ;;
+	u)      uid=`awk -F: '$1 == name {print $3}' name=$OPTARG /etc/passwd`
+	        if [[ $uid != "" ]]; then
+	            let "F_UID++"
+	            F_UIDSTR=$uid$DELIM$F_UIDSTR
+	        else
+	            echo "ERROR: Unknown user:" $OPTARG
+	            let "ERROR++"
+	        fi ;;
+	c)      ITER_COUNT=$OPTARG ;;
+	m)      MOD_NAME=$OPTARG
+		MOD_GEN="-p4 -m $MOD_NAME"
+		;;
+	h|?|*)  usage
+	        exit 1 ;;
+	esac
+done
+
+if [[ $ERROR > 0 ]]; then
+	exit 1
+fi
+
+if [[ $F_FAM  > 0 || $F_NAME > 0 || $F_PID > 0 || 
+	  $F_PROT > 0 || $F_TYPE > 0 || $F_UID > 0 ]]; then
+	FILTER=1
+fi
+
+#
+# Pass a timezone adjustment value to the stap script
+#
+TZ=`date "+%z"`
+TZ_SIGN=`echo $TZ | cut -c1`
+TZ_HOURS=`echo $TZ | cut -c2-3`
+TZ_MINS=`echo $TZ | cut -c4-5`
+TZ_ADJUST=$TZ_SIGN$((10#$TZ_HOURS*60*60+10#$TZ_MINS*60))
+
+#
+# Start the systemtap script
+#
+stap $MOD_GEN -w -e '
+global iter
+global execname, user, if_tx, if_rx, if_dev
+global sk_tx, sk_rx, sk_pid
+global f_name_str, f_pid_str, f_prot_str, f_fam_str, f_type_str, f_uid_str
+global f_name, f_pid, f_prot, f_fam, f_type, f_uid
+
+probe never {
+        #workaround to avoid outputing filtering strings
+	log(f_name_str);
+	log(f_pid_str);
+	log(f_prot_str);
+	log(f_fam_str);
+	log(f_type_str);
+	log(f_uid_str);
+
+	#workaround to make sure that systemtap gets correct types for arrays
+	if_rx["junk"] <<< 0
+	if_tx["junk"] <<< 0
+	if_dev["junk"] ++
+	delete if_rx
+	delete if_tx
+	delete if_dev
+}
+
+probe begin
+{
+	# set number of iterations
+	iter = '$ITER_COUNT'
+
+	# If no filters specified, skip filter processing
+	if ('$FILTER' == 0) next
+
+	f_name_str   = "'$F_NAMESTR'"
+	f_pid_str    = "'$F_PIDSTR'"
+	f_prot_str   = "'$F_PROTSTR'"
+	f_fam_str    = "'$F_FAMSTR'"
+	f_type_str   = "'$F_TYPESTR'"
+	f_uid_str    = "'$F_UIDSTR'"
+
+	delim = "'$DELIM'"
+	error = 0
+
+	# Protocols
+	if ('$F_PROT') {
+		prot = tokenize(f_prot_str, delim)
+		while (prot != "") {
+			p = sock_prot_str2num(prot)
+			if (p < 0) {
+				printf("ERROR: Unknown protocol: %s\n", prot)
+				error++
+			} else
+				f_prot[p] = 1
+			prot = tokenize("", delim)
+		}
+	}
+
+	# Protocol families
+	if ('$F_FAM') {
+		fam = tokenize(f_fam_str, delim)
+		while (fam != "") {
+			f = sock_fam_str2num(fam)
+			if (f < 0) {
+				printf("ERROR: Unknown protocol family: %s\n", fam)
+				error++
+			} else
+				f_fam[f] = 1
+			fam = tokenize("", delim)
+		}
+	}
+
+	# Process names
+	if ('$F_NAME') {
+		pname = tokenize(f_name_str, delim)
+		while (pname != "") {
+			f_name[pname] = 1
+			pname = tokenize("", delim)
+		}
+	}
+
+	# Process IDs
+	if ('$F_PID') {
+		pid = tokenize(f_pid_str, delim)
+		while (pid != "") {
+			f_pid[strtol(pid, 10)] = 1
+			pid = tokenize("", delim)
+		}
+	}
+
+	# Socket types
+	if ('$F_TYPE') {
+		stype = tokenize(f_type_str, delim)
+		while (stype != "") {
+			t = sock_type_str2num(stype)
+			if (t < 0) {
+				printf("ERROR: Unknown socket type: %s\n", stype)
+				error++
+			} else
+				f_type[t] = 1
+			stype = tokenize("", delim)
+		}
+	}
+
+	# User IDs
+	if ('$F_UID') {
+		uid = tokenize(f_uid_str, delim)
+		while (uid != "") {
+			f_uid[strtol(uid, 10)] = 1
+			uid = tokenize("", delim)
+		}
+	}
+
+	if (error) exit()
+}
+
+probe netdev.transmit
+{
+	if ('$P_DEVICES') {
+		if_tx[dev_name] <<< length
+		if_dev[dev_name] ++
+	}
+}
+
+probe netdev.receive
+{
+	if ('$P_DEVICES') {
+		if_rx[dev_name] <<< length
+		if_dev[dev_name] ++
+	}
+}
+
+probe socket.send
+{
+	if (!success) next
+
+	# Check filters
+	if ('$FILTER') {
+		if ('$F_PROT' && !(protocol in f_prot)) next
+		if ('$F_FAM'  && !(family   in f_fam))  next
+    if ('$F_PID'  && !(pid()      in f_pid))  next
+    if ('$F_NAME' && !(execname()    in f_name)) next
+    if ('$F_UID'  && !(uid()      in f_uid))  next
+		if ('$F_TYPE' && !(type     in f_type)) next
+	}
+
+  execname[pid()] = execname()
+  user[pid()] = uid()
+  sk_tx[pid(), protocol, family] <<< size
+  sk_pid[pid(), protocol, family] += size
+}
+
+probe socket.receive
+{
+	if (!success) next
+
+	# Check filters
+	if ('$FILTER') {
+		if ('$F_PROT' && !(protocol in f_prot)) next
+		if ('$F_FAM'  && !(family   in f_fam))  next
+    if ('$F_PID'  && !(pid()      in f_pid))  next
+    if ('$F_NAME' && !(execname()    in f_name)) next
+    if ('$F_UID'  && !(uid()      in f_uid))  next
+		if ('$F_TYPE' && !(type     in f_type)) next
+	}
+
+  execname[pid()] = execname()
+  user[pid()] = uid()
+  sk_rx[pid(), protocol, family] <<< size
+  sk_pid[pid(), protocol, family] += size
+}
+
+function print_activity()
+{
+	# Print top processes
+	max = '$P_NUMTOP'
+	time = gettimeofday_s() + '$TZ_ADJUST'
+
+	printf("======================= %s ========================\n", ctime(time))
+	printf("------------------------------- PROCESSES -------------------------------\n")
+	printf("%-5s %-5s %7s %7s %7s %7s %-4s %-8s %-15s\n",
+	       "PID", "UID", "#SEND", "#RECV", "SEND_KB",
+	       "RECV_KB", "PROT", "FAMILY", "COMMAND")
+	foreach ([pid, prot, fam] in sk_pid- limit max) {
+		n_sk_tx = @count(sk_tx[pid, prot, fam])
+		n_sk_rx = @count(sk_rx[pid, prot, fam])
+		printf("%-5d %-5d %7d %7d %7d %7d %-4s %-8s %-15s\n",
+		       pid, user[pid], n_sk_tx, n_sk_rx,
+		       n_sk_tx ? @sum(sk_tx[pid, prot, fam])/1024 : 0,
+		       n_sk_rx ? @sum(sk_rx[pid, prot, fam])/1024 : 0,
+		       sock_prot_num2str(prot), sock_fam_num2str(fam),
+		       execname[pid])
+	}
+
+	# Print top network devices
+	if ('$P_DEVICES') {
+		max = '$P_NUMTOP'
+		printf("-------------------------------- DEVICES --------------------------------\n")
+		printf("%-7s %13s %13s %15s %15s\n",
+		       "DEV", "#XMIT", "#RECV", "XMIT_KB", "RECV_KB")
+		foreach ([dev] in if_dev- limit max) {
+			n_if_tx = @count(if_tx[dev])
+			n_if_rx = @count(if_rx[dev])
+			printf("%-7s %13d %13d %15d %15d\n", dev, n_if_tx, n_if_rx,
+			       n_if_tx ? @sum(if_tx[dev])/1024 : 0,
+			       n_if_rx ? @sum(if_rx[dev])/1024 : 0)
+		}
+	}
+	
+	printf("=========================================================================\n\n")
+
+	delete execname
+	delete user
+	delete sk_tx
+	delete sk_rx
+	delete sk_pid
+	delete if_tx
+	delete if_rx
+	delete if_dev
+}
+
+
+probe timer.s('$P_INTERVAL')
+{
+	print_activity();
+	--iter;
+	if (iter == 0) exit();
+}
+'
+saved_status=$?
+
+# Cleanup
+test -n "$MOD_GEN" && rm -f ${MOD_NAME}.ko
+
+# Exit with the status of 'stap', not the cleanup commands.
+exit $saved_status

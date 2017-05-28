@@ -1,0 +1,13 @@
+title: Show Which Processes and System Calls Return Errors Most Frequently
+name: errno.stp
+version: 1.0
+author: Dominic Duval
+keywords: profiling
+subsystem: any
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: On exit the errno.stp script provides a sorted list showing which combination of PID, system call, and error occur most frequently.
+test_check: stap -p4 errno.stp
+test_installcheck: stap errno.stp -c "sleep 1"

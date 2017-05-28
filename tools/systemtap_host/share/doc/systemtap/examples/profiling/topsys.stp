@@ -1,0 +1,24 @@
+#! /usr/bin/env stap
+#
+# This script continuously lists the top 20 systemcalls in the interval 
+# 5 seconds
+#
+
+global syscalls_count
+
+probe syscall.* {
+  syscalls_count[name] <<< 1
+}
+
+function print_systop () {
+  printf ("%25s %10s\n", "SYSCALL", "COUNT")
+  foreach (syscall in syscalls_count- limit 20) {
+    printf("%25s %10d\n", syscall, @count(syscalls_count[syscall]))
+  }
+  delete syscalls_count
+}
+
+probe timer.s(5) {
+  print_systop ()
+  printf("--------------------------------------------------------------\n")
+}

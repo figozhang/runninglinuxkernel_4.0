@@ -1,0 +1,6 @@
+title: Callgraph Tracing
+name: callgraph.stp
+keywords: simple trace callgraph
+description: Print a timed per-thread microsecond-timed nested callgraph.  The first parameter names the function probe points to trace.
+test_check: stap -p4 callgraph.stp 'kernel.function("*@fs/proc*.c")'
+test_installcheck: stap callgraph.stp 'kernel.function("*@fs/proc*.c")' -c "cat /proc/sys/vm/* || true"

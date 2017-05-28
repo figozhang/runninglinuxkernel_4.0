@@ -1,0 +1,10 @@
+title: Trace open() syscalls showing filenames (non-debuginfo)
+name: opensnoop-nd.stp
+author: Brendan Gregg
+keywords: io
+description: This traces the open() syscall system-wide, to show which files are being opened, and by who.
+scope: system-wide
+usage: ./opensnoop-nd.stp
+test_support: stap -p4 opensnoop-nd.stp
+test_check: stap -p4 opensnoop-nd.stp
+test_installcheck: stap opensnoop-nd.stp -c "sleep 1"

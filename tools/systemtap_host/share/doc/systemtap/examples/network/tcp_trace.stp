@@ -1,0 +1,766 @@
+#! /usr/bin/env stap
+/*
+ *	Copyright (C) 2009 IBM Corp.
+ *	Copyright (C) 2015 Red Hat, Inc.
+ *
+ *	This file is part of systemtap, and is free software.  You can
+ *	redistribute it and/or modify it under the terms of the GNU General
+ *	Public License (GPL); either version 2, or (at your option) any
+ *	later version.
+ *
+ *	Version 0.1     wilder@us.ibm.com	2009-05-13
+ *	Version 0.3     varuncha@in.ibm.com	2009-05-20
+ *	Version 1.0	wilder@us.ibm.com	2009-09-24
+ *	Version 1.1	wilder@us.ibm.com	2009-10-08
+ *
+ *	Tcp connection tracing utility.
+ *
+ *	Description:
+ *	This script traces tcp connections and displays connection parameters.
+ *	The filter option specifies what parameters are to be displayed. Address
+ *	"rules" must be supplied to limit what connections are to be traced.
+ *
+ *	Synopsis:
+ *	tcp_trace.stp	[filter=all|state|txq|rxq|srtt|snd_cwnd|snd_wnd|rexmit\
+ *			|pmtu|ssthresh|timer|rcvwnd|length]\
+ *			[timeout=<N sec>]\
+ *			[update=change|all]\
+ *
+ *	Rule format:
+ *	  <local ip-address>:<local-port>-<remote ip-address>:<remote-port>
+ *
+ *	filter  tcp_trace collects the socket state and other connection
+ *		parameters from various probe points in the tcp stack; however,
+ *		not all this data may needed when debugging a tcp problem.
+ *		Specifying only the required parameters reduces analysis time.
+ *		Multiple parameters can be specified by using
+ *		','.
+ *
+ *	timeout (optional) When a timeout value (in seconds) is specified
+ *		tcp_trace will automatically terminate it's run at the end of
+ *		the specified time.  By default the script will run until the
+ *		user terminates it by typing a ^c.
+ *
+ *	update  (optional) By default the script only displays data if there
+ *		is a value change in a parameters specified in the "filter".
+ *		This can be changed by specifying "update=all", which will
+ *		output parameters of every packet that hits the probe.
+ *		Note: Changes to the packet length will not trigger an update.
+ *
+ *	Rules	Rules limit what connections will be traced. Multiple rules may
+ *		be given separated by a space. A wild-card value can be used
+ *		for any component of the filter. Rules can be used to limit
+ *		tracing to a single socket or allow many sockets to be traced.
+ *		Memory consumed by the tracer will increase with the number
+ *		of connections being traced.
+ *
+ *		The Rule Format is:
+ *		<local-address>:<local-port>-<remote address>:<remote-port>
+ *
+ *		-Address are specified as ipv4 dot notation address.
+ *		-Ports are specified as decimal numbers.
+ *
+ *		"*" character can be used in any field to indicate a wild-card
+ *		value.
+ *
+ *		Note: The number of active sockets that can be traced is
+ *		limited by MAXMAPENTRIES.
+ *
+ *	Examples:
+ *		Here are some examples of using tcp_trace:
+ *
+ *		Trace TCP connection from 172.16.15.160 to 172.16.15.1 on
+ *		port 22 with state,txq,rxq,pmtu filter.
+ *
+ *		tcp_trace.stp filter=state,txq,rxq,pmtu timeout=100\
+ *					172.16.15.160:*-172.16.15.1:22
+ *
+ *		Trace TCP connection from any address to the local http server.
+ *		all parameters are displayed for every packet.
+ *
+ *		tcp_trace.stp filter=all update=all *.*.*.*:*-*.*.*.*:80
+ */
+
+global tcp_state;
+global timer_info;
+
+global filter;
+global key_list;
+global lastkey;
+global number_of_rules;
+
+global timeout = -1;
+global always_update;
+
+global snd_cwnd_flg;
+global snd_cwnd;
+
+global snd_wnd_flg;
+global snd_wnd;
+
+global srtt_flg;
+global srtt;
+
+global state_flg;
+global state;
+
+global txq_flg;
+global txq;
+
+global rxq_flg;
+global rxq;
+
+global rexmit_flg;
+global rexmit;
+
+global pmtu_flg;
+global pmtu;
+
+global ssthresh_flg;
+global ssthresh;
+
+global timer_flg;
+global tx_timer;
+global find_timer;
+
+global rcvwnd_flg;
+global rcvwnd;
+
+global length_flg;
+global length;
+
+probe begin
+{
+	number_of_rules = process_cmdline()
+
+	if ( number_of_rules < 1)
+		usage("One or more connection rules must be specified!")
+	if ( number_of_rules < 0 )
+		usage("Incorrect connection rule format!")
+
+	init_tcp_state()
+	init_timer_info()
+
+	printf("Start TCP Probing.....\n\n");
+	print_header();
+}
+
+function init_tcp_state ()
+{
+	tcp_state[1] = "ESTABLISHED"
+	tcp_state[2] = "SYN_SENT"
+	tcp_state[3] = "SYN_RECV"
+	tcp_state[4] = "FIN_WAIT1"
+	tcp_state[5] = "FIN_WAIT2"
+	tcp_state[6] = "TIME_WAIT"
+	tcp_state[7] = "CLOSE"
+	tcp_state[8] = "CLOSE_WAIT"
+	tcp_state[9] = "LAST_ACK"
+	tcp_state[10] = "LISTEN"
+	tcp_state[11] = "CLOSING"
+}
+
+function state_num2str:string ( state:long )
+{
+	return (state in tcp_state ? tcp_state[state] : "UNDEF")
+}
+
+function init_timer_info ()
+{
+	timer_info[0] = ""
+	timer_info[1] = "Rxmit"
+	timer_info[2] = "Delack"
+	timer_info[3] = "Probe"
+	timer_info[4] = "Keepalv"
+}
+
+function timer_info_num2str:string ( timer:long )
+{
+	return (timer in timer_info ? timer_info[timer] : "UNDEF")
+}
+
+probe kernel.{function("tcp_rcv_established"),
+              function("tcp_rcv_state_process")}
+{
+	sk = $sk
+	key = filter_key(sk)
+	if ( !key ) next;
+
+	if ( is_packet_updated(key,sk) ) {
+		length[key] = $skb->len;
+		print_packet_info(key, 0)
+	}
+}
+
+probe kernel.function("tcp_transmit_skb")
+{
+	sk = $sk
+	key = filter_key(sk)
+	if ( !key ) next;
+
+	if ( is_packet_updated(key,sk) ) {
+		length[key] = $skb->len;
+		print_packet_info(key, 1)
+	}
+}
+
+probe kernel.function("tcp_keepalive_timer")
+{
+	if ( !timer_flg ) next;
+
+	sk = $data;
+	key = filter_key(sk)
+	if ( !key ) next;
+
+	is_packet_updated(key,sk)
+	length[key] = 0
+	tx_timer[key] = 4;
+	print_packet_info(key, 1)
+	tx_timer[key] = 0;
+}
+
+probe kernel.function("tcp_delack_timer")
+{
+	if ( !timer_flg ) next;
+
+	sk = $data;
+	key = filter_key(sk)
+	if ( !key ) next;
+
+	is_packet_updated(key,sk)
+	length[key] = 0
+	tx_timer[key] = 2;
+	print_packet_info(key, 1)
+	tx_timer[key] = 0;
+}
+
+probe kernel.function("tcp_send_probe0")
+{
+	if ( !timer_flg ) next;
+
+	sk = $sk
+	key = filter_key(sk)
+	if ( !key ) next;
+
+	if ( find_timer[key] == 3 ) {
+		find_timer[key] = 0
+		tx_timer[key] = 3;
+		is_packet_updated(key,sk)
+		length[key] = 0
+		print_packet_info(key, 1)
+		tx_timer[key] = 0;
+	}
+}
+
+probe kernel.function("tcp_retransmit_skb")
+{
+	if ( !timer_flg ) next;
+
+	sk = $sk;
+	key = filter_key(sk)
+	if ( !key ) next;
+
+	if ( find_timer[key] == 1 ) {
+		find_timer[key] = 0
+		tx_timer[key] = 1;
+		is_packet_updated(key,sk)
+		length[key] = $skb->len
+		print_packet_info(key,1)
+		tx_timer[key] = 0;
+	}
+}
+
+probe kernel.function("tcp_write_timer")
+{
+	if ( !timer_flg ) next;
+
+	sk = $data
+	key = filter_key(sk)
+	if ( !key ) next;
+
+	/* Don't trace calls to tcp_retransmit_skb()
+	 * or tcp_send_probe0 that were not the result of a
+	 * write timer expiration.
+	 */
+	find_timer[key] = @cast(sk, "inet_connection_sock")->icsk_pending
+}
+
+%( kernel_v > "2.6.24" %?
+probe kernel.function("tcp_set_state")
+{
+	sk = $sk
+	new_state = $state
+	TCP_CLOSE = 7
+	TCP_CLOSE_WAIT = 8
+	key = filter_key(sk)
+	if ( key && ((new_state == TCP_CLOSE)||(new_state == TCP_CLOSE_WAIT))){
+		if (state_flg && state[key]) print_close(key,new_state);
+		clean_up(key);
+	}
+}
+%)
+
+function print_header()
+{
+	printf("%-22s","Source Address")
+	printf("%-22s","Dest Address")
+	if (state_flg) printf("%-12s","State")
+	if (timer_flg) printf("%-8s","Timer")
+	if (txq_flg) printf("%8s","Tx-Q")
+	if (rxq_flg) printf("%8s","Rx-Q")
+	if (pmtu_flg) printf("%8s","PMTU")
+	if (snd_cwnd_flg) printf("%8s","SndCwnd")
+	if (snd_wnd_flg) printf("%8s","SndWnd")
+	if (rcvwnd_flg) printf("%8s","RcvWnd")
+	if (srtt_flg) printf("%8s","SSRT")
+	if (ssthresh_flg) printf("%14s","Ssthreshold")
+	if (rexmit_flg) printf("%8s","Rexmit")
+	if (length_flg) printf("%8s","Length")
+	printf("\n");
+}
+
+function print_packet_info:long ( key:long, SourceIsLocal:long)
+{
+	foreach ( [laddr, raddr, lport, rport] in key_list ){
+			if ( key_list[laddr, raddr, lport, rport] == key )
+				break
+	}
+
+	local_addr = sprintf("%s:%d",ip_ntop(htonl(laddr)), lport)
+	remote_addr = sprintf("%s:%d",ip_ntop(htonl(raddr)) ,rport)
+
+	SourceIsLocal ? printf("%-22s%-22s",local_addr,remote_addr):
+			printf("%-22s%-22s",remote_addr,local_addr)
+
+	if (state_flg) printf("%-12s",state_num2str(state[key]))
+	if (timer_flg) printf("%-8s",timer_info_num2str(tx_timer[key]))
+	if (txq_flg) printf("%8d",txq[key])
+	if (rxq_flg) printf("%8d",rxq[key])
+	if (pmtu_flg) printf("%8d",pmtu[key])
+	if (snd_cwnd_flg) printf("%8d",snd_cwnd[key])
+	if (snd_wnd_flg) printf("%8d",snd_wnd[key])
+	if (rcvwnd_flg) printf("%8d",rcvwnd[key])
+	if (srtt_flg) printf("%8d",srtt[key])
+	if (ssthresh_flg) printf("%14d",ssthresh[key])
+	if (rexmit_flg) printf("%8d",rexmit[key])
+	if (length_flg && length[key]) printf("%8d", length[key])
+	printf("\n");
+}
+
+%( kernel_v > "2.6.24" %?
+function print_close:long (key:long, new_state:long)
+{
+	foreach ( [laddr, raddr, lport, rport] in key_list ){
+			if ( key_list[laddr, raddr, lport, rport] == key )
+				break
+	}
+
+	local_addr = sprintf("%s:%d",ip_ntop(htonl(laddr)), lport)
+	remote_addr = sprintf("%s:%d",ip_ntop(htonl(raddr)) ,rport)
+
+	printf("%-22s%-22s",local_addr,remote_addr)
+	printf("%-12s",state_num2str(new_state))
+	printf("\n");
+}
+%)
+
+/*
+ * Update the values in the data collection arrays, returns 1 if one or more
+ * values have changed.
+ */
+function is_packet_updated:long ( key:long, sk:long )
+{
+	packet_updated = 0
+
+	if ( !key ) return 0
+
+	if ( state_flg ) {
+		new_state = @cast(sk, "sock_common")->skc_state
+		if( always_update || (state[key] != new_state) ){
+			state[key]= new_state
+			packet_updated = 1
+		}
+	}
+
+	if ( txq_flg ) {
+		if(@cast(sk, "sock_common")->skc_state == 10)
+			new_txq = @cast(sk, "sock")->sk_max_ack_backlog
+                else
+			new_txq = @cast(sk, "tcp_sock")->write_seq -
+					@cast(sk, "tcp_sock")->snd_una
+		if( always_update || (txq[key] != new_txq) ){
+			txq[key] = new_txq
+			packet_updated = 1
+		}
+	}
+
+	if ( rxq_flg ) {
+		if(@cast(sk, "sock_common")->skc_state == 10)
+			new_rxq = @cast(sk, "sock")->sk_ack_backlog
+		else
+			new_rxq = @cast(sk, "tcp_sock")->rcv_nxt -
+					@cast(sk, "tcp_sock")->copied_seq
+
+		if( always_update || (rxq[key] != new_rxq) ){
+			rxq[key] = new_rxq
+			packet_updated = 1
+		}
+	}
+
+	if( rexmit_flg ) {
+		new_rexmit = @cast(sk, "inet_connection_sock")->icsk_retransmits
+		if( always_update || (rexmit[key] != new_rexmit ) ){
+			rexmit[key] = new_rexmit
+			packet_updated = 1
+		}
+	}
+
+	if ( pmtu_flg ) {
+		new_pmtu = @cast(sk, "inet_connection_sock")->icsk_pmtu_cookie
+		if( always_update || (pmtu[key] != new_pmtu) ){
+			pmtu[key] = new_pmtu
+			packet_updated = 1
+		}
+	}
+
+	if ( snd_cwnd_flg ) {
+		new_snd_cwnd = @cast(sk, "tcp_sock")->snd_cwnd
+		if( always_update || (snd_cwnd[key] != new_snd_cwnd) ){
+			snd_cwnd[key] = new_snd_cwnd
+			packet_updated = 1
+		}
+	}
+
+
+	if ( snd_wnd_flg ) {
+		new_snd_wnd = @cast(sk, "tcp_sock")->snd_wnd
+		if( always_update || (snd_wnd[key] != new_snd_wnd) ){
+			snd_wnd[key] = new_snd_wnd
+			packet_updated = 1
+		}
+	}
+
+	if ( srtt_flg ) {
+		new_srtt = @choose_defined(@cast(sk, "tcp_sock")->srtt_us,
+					   @cast(sk, "tcp_sock")->srtt)
+		if( always_update || (srtt[key] != new_srtt) ){
+			srtt[key] = new_srtt
+			packet_updated = 1
+		}
+	}
+
+	if( ssthresh_flg ) {
+		new_ssthresh = tcp_current_ssthresh(sk)
+		if( always_update || (ssthresh[key] != new_ssthresh) ){
+			ssthresh[key] = new_ssthresh
+			packet_updated = 1
+		}
+	}
+
+	if ( rcvwnd_flg ) {
+		new_rcvwnd = @cast(sk, "tcp_sock")->rcv_wnd
+		if( always_update || (rcvwnd[key] != new_rcvwnd) ){
+			rcvwnd[key] = new_rcvwnd
+			packet_updated = 1
+		}
+	}
+
+	return packet_updated
+}
+
+/*
+ * copied from:
+ * include/net/tcp.h:tcp_current_ssthresh()
+ */
+function tcp_current_ssthresh(sk:long)
+{
+	if ((1 << @cast(sk, "inet_connection_sock")->icsk_ca_state) &
+						((1 << 2) | (1 << 3))){
+		return @cast(sk, "tcp_sock")->snd_ssthresh
+	}else{
+		return netmax(@cast(sk, "tcp_sock")->snd_ssthresh,
+				((@cast(sk, "tcp_sock")->snd_cwnd >>1)+
+				(@cast(sk, "tcp_sock")->snd_cwnd >> 2)))
+	}
+}
+
+function netmax:long (val1:long, val2:long)
+{
+	if(val1 > val2)
+		return val1
+	else
+		return val2
+}
+
+/* All command line arguments other than the address rules are processed
+ * first and must be placed on the command line prior to any address rules.
+ */
+function process_cmdline:long ()
+{
+        filter_number = 0
+        for (i=1; i <= argc; i++) {
+                argument = tokenize(argv[i], "=")
+
+		if (argument == "help")
+			usage("")
+
+                if (argument == "filter") {
+			filter_given=1;
+                        argv[i]=""
+                        while(strlen(byte = tokenize(argv[i], ",")) != 0) {
+                                argv[i] = ""
+				if ( byte == "snd_cwnd" ) {
+					snd_cwnd_flg = 1; continue };
+				if ( byte == "snd_wnd" ) {
+					snd_wnd_flg = 1;  continue };
+				if ( byte == "srtt" ) {
+					srtt_flg = 1;  continue };
+%( kernel_v > "2.6.24" %?
+				if ( byte == "state" ) {
+					state_flg = 1;  continue };
+%:
+				state_flg = 0;
+%)
+				if ( byte == "txq" ) {
+					txq_flg = 1;  continue };
+				if ( byte == "rxq" ) {
+					rxq_flg = 1;  continue };
+				if ( byte == "rexmit" ) {
+					rexmit_flg = 1;  continue };
+				if ( byte == "pmtu" ) {
+					pmtu_flg = 1;  continue };
+				if ( byte == "ssthresh" ) {
+					ssthresh_flg = 1;  continue };
+				if ( byte == "timer" ) {
+					timer_flg = 1;  continue };
+				if ( byte == "rcvwnd" ) {
+					rcvwnd_flg = 1;  continue };
+				if ( byte == "length" ) {
+					length_flg = 1; continue };
+				if ( byte == "all" ) {
+					snd_cwnd_flg = snd_wnd_flg = srtt_flg =
+					txq_flg = rxq_flg =
+					rexmit_flg = pmtu_flg = ssthresh_flg =
+					timer_flg = rcvwnd_flg = length_flg = 1;
+%( kernel_v > "2.6.24" %?
+					state_flg = 1;
+%)
+					continue
+				};
+				usage("Unknown filter value given!")
+                        }
+                        continue;
+                }
+
+                if ( argument == "timeout" ){
+                        argv[i]=""
+                        timeout=strtol(tokenize(argv[i], "="),10)
+                        continue;
+                }
+
+		if ( argument == "update") {
+			argv[i]=""
+			update_disp = tokenize(argv[i], "=")
+			if (update_disp == "all")
+				always_update = 1;
+			continue;
+		}
+
+		/* Anything on the command line after this point must
+		 * be an address rule.
+		 */
+		source = tokenize(argv[i], "-")
+			argv[i] = ""
+		dest = tokenize(argv[i], "-")
+
+		source_addr = tokenize(source, ":")
+			source=""
+		source_port = tokenize(source, ":")
+
+		dest_addr = tokenize(dest, ":")
+			dest=""
+		dest_port = tokenize(dest, ":")
+
+		/* stap bug */
+		if ( dest_port == "fobar") i=i;
+
+		++filter_number;
+		j=filter_number*6;
+		filter[j]   = ipv4_pton(source_addr,0)  // Source address
+		filter[j+1] = ipv4_pton(source_addr,1)  // Source address mask
+		filter[j+2] = ipv4_portton(source_port) // Source port
+		filter[j+3] = ipv4_pton(dest_addr,0)    // Dest address
+		filter[j+4] = ipv4_pton(dest_addr,1)    // Dest address mask
+		filter[j+5] = ipv4_portton(dest_port)   // Dest port
+
+		if (filter[j]< -1 ||
+			filter[j+1] < -1 ||
+			filter[j+2] < -1 ||
+			filter[j+3] < -1 ||
+			filter[j+4] < -1 ||
+			filter[j+5] < -1 ) return -1;
+
+	}
+
+	/* default filter is all */
+	if ( !filter_given )
+		snd_cwnd_flg = snd_wnd_flg = srtt_flg =
+		txq_flg = rxq_flg =
+		rexmit_flg = pmtu_flg = ssthresh_flg =
+		timer_flg = rcvwnd_flg = length_flg = 1;
+%( kernel_v > "2.6.24" %?
+		state_flg = 1;
+%)
+	return filter_number;
+}
+
+/*
+ * Convert an ascii integer values between 0 and 65534 to a u16 port number.
+ * "*" are treated as wildcards and will be converted to -1.
+ */
+function ipv4_portton:long (port:string)
+{
+	if ( port == "*" )
+		return -1;
+
+	pport=strtol(port,10);
+
+	if ( pport > 0xffff ){
+		printf("Bad port number %s\n",port)
+		return -22;
+	}
+
+	return pport
+}
+
+/*
+ * Convert ipv4 dot notation address into longs.
+ * Supports "*" in any field treating it as a wildcard by making the byte=0.
+ * If make_mask is set it creates a mask based on the "*" fields. All non='*'
+ * bytes are set to 0xff all * fields are set to 0x0;.
+ */
+function ipv4_pton:long (addr:string, make_mask:long)
+{
+	i=32;
+	ip=0;
+	ips=addr;
+	while(strlen(byte = tokenize(ips, ".")) != 0) {
+		i-=8;
+		ips="";
+
+		if ( byte == "*" ){
+			byte = "0"
+		} else {
+			if ( make_mask ) byte = "255";
+		}
+
+		j=strtol(byte,10);
+		if ( j > 255 ){
+			printf("bad address %s\n",addr)
+			return -22;
+		}
+			ip=ip+(j<<i) // left shift the byte into the address
+	}
+	if ( i != 0 ){
+		printf("bad address %s\n",addr)
+		return -22;
+	}
+	return ip;
+}
+
+/*
+ * Returns a unique value (stored in the global key_list) based on the socket
+ * address tuple. A new value is created if one does not already exist.
+ */
+function build_key:long (laddr:long, raddr:long, lport:long, rport:long)
+{
+	if ( key_list[laddr, raddr, lport, rport] )
+		return  key_list[laddr, raddr, lport, rport]
+	else
+		return key_list[laddr, raddr, lport, rport] = ++lastkey
+}
+
+/*
+ * Checks the tuple against the rule list. If we pass through the rule
+ * then return a unique key value, otherwise return zero.
+ */
+function filter_key:long (sk:long)
+{
+	laddr = tcpmib_local_addr(sk);
+	raddr = tcpmib_remote_addr(sk);
+	lport = tcpmib_local_port(sk);
+	rport = tcpmib_remote_port(sk);
+
+	for (i=1; i <= number_of_rules; i++){
+		j=i*6;
+
+		// Local filter
+		local_filter=remote_filter=0;
+		if ( (laddr&filter[j+1]) == filter[j] ) {
+			if ( (filter[j+2] == -1 ) || (lport == filter[j+2]))
+				local_filter = 1;
+		}
+		// Remote filter
+		if ( (raddr&filter[j+4]) == filter[j+3] ) {
+			if ( (filter[j+5] == -1 ) || (rport == filter[j+5]))
+				remote_filter = 1;
+		}
+		if(local_filter && remote_filter){
+			return build_key(laddr, raddr, lport, rport);
+		}
+	}
+	return 0;
+}
+
+/* Free up a slot in the data arrays */
+%( kernel_v > "2.6.24" %?
+function clean_up (key:long)
+{
+	foreach ( [laddr, raddr, lport, rport] in key_list ){
+		if ( key_list[laddr, raddr, lport, rport] == key ){
+			break
+		}
+	}
+
+	delete key_list[laddr, raddr, lport, rport]
+
+	if (snd_cwnd_flg) delete snd_cwnd[key];
+	if (snd_wnd_flg) delete snd_wnd[key];
+	if (srtt_flg) delete srtt[key];
+	if (state_flg) delete state[key];
+	if (txq_flg) delete txq[key];
+	if (rxq_flg) delete rxq[key];
+	if (rexmit_flg) delete rexmit[key];
+	if (pmtu_flg) delete pmtu[key];
+	if (ssthresh_flg) delete ssthresh[key];
+	if ( timer_flg ) {
+		delete tx_timer[key];
+		delete find_timer[key];
+	}
+	if (rcvwnd_flg) delete rcvwnd[key];
+	delete length[key];
+}
+%)
+
+/* Terminates the run in timeout seconds, using global timeout value */
+probe timer.s(1) {
+	if ( timeout == -1 ) next
+	if ( !--timeout ) exit()
+}
+
+function usage (msg:string)
+{
+	printf("\nUsage:\n");
+	printf("\ttcp_trace.stp  filter=<list of filters>[timeout=<sec>] \n");
+	printf("\t\t\t[update=change|all] Rule\n\n");
+	printf("\tRule format:");
+	printf("<local address>:<local-port>-<remote address>:<remote-port>\n");
+%( kernel_v > "2.6.24" %?
+	printf("\tFilter values: all|state|txq|rxq|srtt|snd_cwnd|snd_wnd|\n");
+%:
+	printf("\tFilter values: all|txq|rxq|srtt|snd_cwnd|snd_wnd|\n");
+%)
+	printf("\t\t\trexmit|pmtu|ssthresh|timer|rcvwnd\n\n");
+	printf("%s\n\n",msg);
+	error(msg);
+}

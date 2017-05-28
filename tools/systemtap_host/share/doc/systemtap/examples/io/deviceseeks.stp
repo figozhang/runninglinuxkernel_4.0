@@ -1,0 +1,34 @@
+#! /usr/bin/env stap
+#
+# Copyright (C) 2010 Red Hat, Inc.
+# By Dominic Duval, Red Hat Inc.
+# dduval@redhat.com
+#
+# Keeps track of seeks on devices.
+# Shows how to use hist_log.
+#  
+# USAGE: stap deviceseeks.stp
+#
+
+global seeks, oldsec
+
+probe ioblock_trace.request {
+  if (size == 0) next
+  sectorsize = (@defined($q->limits->logical_block_size)
+		? $q->limits->logical_block_size
+		: (@defined($q->logical_block_size) ? $q->logical_block_size
+		   : $q->hardsect_size))
+  # printf("%s %s\n", devname, rw ? "w" : "r")
+  sec = sector
+  seeks[devname] <<< sec - oldsec[devname]
+  oldsec[devname] = sector + (size/sectorsize)
+}
+
+probe end {
+  printf("\n")
+  foreach ([devname] in seeks- limit 5) {
+    printf("Device: %s\n", devname)
+    println(@hist_log(seeks[devname]))
+  }
+}
+

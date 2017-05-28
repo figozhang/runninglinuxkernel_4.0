@@ -1,0 +1,70 @@
+/* emulate the built-in unread-global auto-printer for statistics variable */
+
+@define prints(s) %(
+  printf("@count=%d @min=%d @max=%d @sum=%d @avg=%d\n",
+         @count(@s), @min(@s), @max(@s), @sum(@s), @avg(@s))
+%)
+
+@define prints1(s)
+%(
+  foreach ([__a] in @s -) {
+    print("[",__a,"] ")
+    @prints(@s[__a])
+  }
+%)
+@define prints2(s)
+%(
+  foreach ([__a,__b] in @s -) {
+    print("[",__a,",",__b,"] ")
+    @prints(@s[__a,__b])
+  }
+%)
+@define prints3(s)
+%(
+  foreach ([__a,__b,__c] in @s -) {
+    print("[",__a,",",__b,",",__c,"] ")
+    @prints(@s[__a,__b,__c])
+  }
+%)
+@define prints4(s)
+%(
+  foreach ([__a,__b,__c,__d] in @s -) {
+    print("[",__a,",",__b,",",__c,",",__d,"] ")
+    @prints(@s[__a,__b,__c,__d])
+  }
+%)
+@define prints5(s)
+%(
+  foreach ([__a,__b,__c,__d,__e] in @s -) {
+    print("[",__a,",",__b,",",__c,",",__d,",",__e,"] ")
+    @prints(@s[__a,__b,__c,__d,__e])
+  }
+%)
+@define prints6(s)
+%(
+  foreach ([__a,__b,__c,__d,__e,__f] in @s -) {
+    print("[",__a,",",__b,",",__c,",",__d,",",__e,",",__f,"] ")
+    @prints(@s[__a,__b,__c,__d,__e,__f])
+  }
+%)
+@define prints7(s)
+%(
+  foreach ([__a,__b,__c,__d,__e,__f,__g] in @s -) {
+    print("[",__a,",",__b,",",__c,",",__d,",",__e,",",__f,",",__g,",","] ")
+    @prints(@s[__a,__b,__c,__d,__e,__f,__g])
+  }
+%)
+@define prints8(s)
+%(
+  foreach ([__a,__b,__c,__d,__e,__f,__g,__h] in @s -) {
+    print("[",__a,",",__b,",",__c,",",__d,",",__e,",",__f,",",__g,",",__h,"] ")
+    @prints(@s[__a,__b,__c,__d,__e,__f,__g,__h])
+  }
+%)
+@define prints9(s)
+%(
+  foreach ([__a,__b,__c,__d,__e,__f,__g,__h,__i] in @s -) {
+    print("[",__a,",",__b,",",__c,",",__d,",",__e,",",__f,",",__g,",",__h,",",__i,"] ")
+    @prints(@s[__a,__b,__c,__d,__e,__f,__g,__h,__i])
+  }
+%)

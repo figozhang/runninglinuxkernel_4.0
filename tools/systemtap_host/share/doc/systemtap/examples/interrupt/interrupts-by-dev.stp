@@ -1,0 +1,34 @@
+#! /usr/bin/env stap
+/*
+ *      Copyright (C) 2009 IBM Corp.
+ *      This file is part of systemtap, and is free software.  You can
+ *      redistribute it and/or modify it under the terms of the GNU General
+ *      Public License (GPL); either version 2, or (at your option) any
+ *      later version.
+ *
+ *      Version 1.0     prerna@linux.vnet.ibm.com     2009-10-28
+ *
+ *     Name:
+ *     interrupts-by-dev.stp
+ *
+ *     Description:
+ *     Script to profile interrupts received by each device per 100 ms.
+ *
+ *
+ */
+
+global devices
+
+probe begin {
+        printf("\t  DEVICE \t NUMBER OF INTERRUPTS \n");
+}
+
+probe irq_handler.entry {
+        devices[dev_name]++;
+}
+
+probe timer.ms(100) {
+        foreach ( devname in devices )
+                printf(" %20s :  %5d\n",kernel_string(devname),devices[devname]);
+        delete devices
+}

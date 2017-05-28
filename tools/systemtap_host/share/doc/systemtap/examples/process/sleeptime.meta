@@ -1,0 +1,13 @@
+title: Trace Time Spent in Nanosleep Syscalls
+name: sleeptime.stp
+version: 1.0
+author: Daniel Berrange and Will Cohen
+keywords: syscall nanosleep
+subsystem: syscall
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The script watches each nanosleep syscall on the system. At the end of each nanosleep syscall the script prints out a line with a timestamp in microseconds, the pid, the executable name in parentheses, the "nanosleep:" key, and the duration of the sleep in microseconds.
+test_check: stap -p4 sleeptime.stp
+test_installcheck: stap sleeptime.stp -c "sleep 1"

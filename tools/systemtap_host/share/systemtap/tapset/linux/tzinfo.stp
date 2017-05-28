@@ -1,0 +1,28 @@
+// timezone tapset
+// Copyright (C) 2010 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+
+/**
+ * sfunction tz_gmtoff - Return local time zone offset
+ *
+ * Description: Returns the local time zone offset (seconds west of UTC), as
+ * passed by staprun at script startup only.
+ */
+function tz_gmtoff() {
+   return %{ /* pure */ /* unprivileged */ tz_gmtoff %} 
+}
+
+/**
+ * sfunction tz_name - Return local time zone name
+ *
+ * Description: Returns the local time zone name, as passed by staprun at
+ * script startup only.
+ */
+function tz_name() {
+   return %{ /* pure */ /* unprivileged */ /* string */ tz_name %} 
+}

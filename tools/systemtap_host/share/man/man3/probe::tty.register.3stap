@@ -1,0 +1,59 @@
+'\" t
+.\"     Title: probe::tty.register
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: TTY Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::TTY\&.REGISTE" "3stap" "March 2016" "SystemTap Tapset Reference" "TTY Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::tty.register \- Called when a tty device is registred
+.SH "SYNOPSIS"
+.sp
+.nf
+tty\&.register 
+.fi
+.SH "VALUES"
+.PP
+\fIindex\fR
+.RS 4
+the tty index requested
+.RE
+.PP
+\fImodule\fR
+.RS 4
+the module name
+.RE
+.PP
+\fIname\fR
+.RS 4
+the driver \&.dev_name name
+.RE
+.PP
+\fIdriver_name\fR
+.RS 4
+the driver name
+.RE
+.SH SEE ALSO\n 
+.IR tapset::tty (3stap)

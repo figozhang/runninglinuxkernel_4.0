@@ -1,0 +1,6 @@
+title: monitor syscall history
+name: thread-business.stp
+keywords: _best process syscall
+description: Prints a periodic tabular report about the counts of syscall activity of all threads on the system, along with a textual recent-syscall-history for each
+test_check: stap -p4 thread-business.stp
+test_installcheck: stap thread-business.stp -c "sleep 10"

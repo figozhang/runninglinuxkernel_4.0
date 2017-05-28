@@ -1,0 +1,118 @@
+# systemtap input tapset
+# Copyright (C) 2008,2011 Masami Hiramatsu <masami.hiramatsu@gmail.com>
+#
+# This file is free software and is distributed under the terms of the GNU
+# General Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+
+probe game.input = kernel.function("input_event") {
+  type = $type
+  code = $code
+  value = $value
+}
+
+#TODO: convert keycode to char.
+
+# elemental gamepad keys ;-P
+global GM_KBD_UP   =103
+global GM_KBD_DOWN =108
+global GM_KBD_RIGHT=106
+global GM_KBD_LEFT =105
+global GM_KBD_Z    =44
+global GM_KBD_X    =45
+global GM_KBD_C    =46
+global GM_KBD_ESC  =1
+global GM_KBD_SPACE=57
+
+
+probe game.kbd = game.input {
+  if (type != 1 || code >= 256) next;
+  down = value
+}
+
+probe game.kbd.down = game.kbd {
+  if (!down) next
+}
+
+probe game.kbd.up = game.kbd {
+  if (down) next
+}
+
+# mouse
+
+probe game.mouse = game.input {
+  if (!(type == 2 || 
+        (type == 1 && (code & 0xfe0) != 0x100) ) ) next #EV_KEY
+}
+
+probe game.mouse.rel = game.input {
+  if(type != 2) next #EV_REL
+  if(code == 0) dx = value
+  else if(code == 1) dy = value
+  else if(code == 8) dz = value
+}
+
+global GM_mouse_abs
+global GM_mouse_base_x, GM_mouse_base_y
+
+probe game.mouse.abs = game.input {
+  dx = dy = dz = 0
+  if (type == 1 && code == 0x145 && value == 0) {
+    # Leave a finger -- Reset position
+    GM_mouse_base_x = 0
+    GM_mouse_base_y = 0
+    next
+  } else if (type != 3) next #EV_ABS
+
+  if (code == 0) {
+     x = value
+     if (GM_mouse_base_x != 0)
+       dx = x - GM_mouse_base_x
+     GM_mouse_base_x = x
+     GM_mouse_abs[0] = value
+  } else if (code == 1) {
+     y = value
+     if (GM_mouse_base_y != 0)
+       dy = y - GM_mouse_base_y
+     GM_mouse_base_y = y
+     GM_mouse_abs[1] = value
+  }
+}
+
+global GM_mouse_btn
+
+probe game.mouse.btn = game.input {
+  if (type != 1 || (code & 0xfe0) != 0x100) next #EV_KEY
+  button = code & 0xf
+  down = value
+  if (GM_mouse_btn[button] == down) next
+  GM_mouse_btn[button] = down
+}
+
+global GM_mouse_pos
+
+probe game.mouse.rel, game.mouse.abs {
+  GM_mouse_pos[0] += dx
+  GM_mouse_pos[1] += dy
+  GM_mouse_pos[2] += dz
+}
+
+function game_mouse_reset(x:long, y:long, z:long) {
+  GM_mouse_pos[0] = x
+  GM_mouse_pos[1] = y
+  GM_mouse_pos[2] = z
+}
+
+function game_mouse_x:long() {
+  return GM_mouse_pos[0]
+}
+
+function game_mouse_y:long() {
+  return GM_mouse_pos[1]
+}
+
+function game_mouse_z:long() {
+  return GM_mouse_pos[2]
+}
+

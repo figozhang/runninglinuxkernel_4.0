@@ -1,0 +1,112 @@
+#! /usr/bin/env stap
+
+// Copyright (c) 2009, 2015 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+
+probe kernel.function("autofs4_lookup") !,
+      module("autofs4").function("autofs4_lookup")
+{
+        /*
+         * Don't log automounts travels in its own directory hierarchy, as
+         * they are treated differently, and certainly not something that is
+         * useful for admins to see.
+         */
+        if (!isinstr(execname(), "automount")) {
+                printf("%s process %s[%d] looking up %s%s\n",
+                       ctime(gettimeofday_s()), execname(), pid(),
+		       (@defined($nd) ? fullpath_struct_nameidata($nd)
+			: inode_name($dir)),
+                       d_name($dentry));
+        }
+}
+
+
+probe kernel.function("autofs4_follow_link") !,
+      module("autofs4").function("autofs4_follow_link")
+{
+        if (!isinstr(execname(), "automount")) {
+                /*
+                 * dentry->d_name will be '/' for the mount trigger.  Thus,
+                 * the path that the trigger lives on is one level up the
+                 * directory stack, and the root of that is yet another level
+                 * up.
+                 */
+                printf("%s process %s[%d] following mount trigger %s\n",
+                       ctime(gettimeofday_s()), execname(), pid(),
+                       (@defined($nd) ? d_path($nd)
+			: reverse_path_walk($dentry)))
+        }
+}
+
+
+probe kernel.function("autofs4_expire_direct").return !,
+      module("autofs4").function("autofs4_expire_direct").return ?
+{
+        if ($return != 0) {
+	    if (@defined($mnt->mnt_mountpoint)) {
+                	relative_path = reverse_path_walk($mnt->mnt_mountpoint)
+	                root_path = sprintf("/%s", reverse_path_walk($mnt->mnt_parent->mnt_mountpoint))
+		}
+		else {
+			relative_path = ""
+			root_path = task_dentry_path(task_current(), $mnt->mnt_root, $mnt)
+		}
+                printf("%s process %s[%d] expiring direct mount %s/%s\n",
+                       ctime(gettimeofday_s()), execname(), pid(),
+                       root_path, relative_path)
+        }
+}
+
+/*
+probe
+module("autofs4").statement("autofs4_expire_direct@fs/autofs4/expire.c+17").nearest ?
+{
+        relative_path = reverse_path_walk($mnt->mnt_mountpoint)
+        root_path = reverse_path_walk($mnt->mnt_parent->mnt_mountpoint)
+        printf("%s process %s[%d] expiring direct mount /%s/%s\n",
+               ctime(gettimeofday_s()), execname(), pid(),
+               root_path, relative_path)
+}
+*/
+
+probe kernel.function("autofs4_expire_indirect").return !,
+      module("autofs4").function("autofs4_expire_indirect").return
+{
+        if ($return != 0) {
+                relative_path = reverse_path_walk($return)
+
+                root_path = (@defined($mnt->mnt_root)
+			     ? task_dentry_path(task_current(),
+						$mnt->mnt_root, $mnt)
+			     : reverse_path_walk($mnt->mnt_mountpoint))
+                printf("%s process %s[%d] expiring indirect mount %s/%s\n",
+                       ctime(gettimeofday_s()), execname(), pid(),
+                       root_path, relative_path)
+        }
+}
+
+
+/*
+ * The struct dentry's name may be '/' if this is a mount trigger, which
+ * is not really something that is useful to print out.  Instead, we just
+ * indicate whether a mount or umount succeeded or failed.  Coupled with the
+ * messages printed out when looking up a directory and traversing a symlink,
+ * this should be relatively easy to correlate to the appropriate directory.
+ */
+probe kernel.function("autofs4_wait").return !,
+      module("autofs4").function("autofs4_wait").return
+{
+        if ($notify > 0) {
+                dname = d_name($dentry)
+                printf("%s %s of %s %s\n",
+                       ctime(gettimeofday_s()),
+                       ($notify==1?"mount":"unmount"),
+                       dname,
+                       $return == 0?"succeeded":"failed")
+        }
+}

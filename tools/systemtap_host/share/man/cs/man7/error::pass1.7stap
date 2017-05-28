@@ -1,0 +1,57 @@
+.\" t
+.TH ERROR::PASS1 7stap 
+.SH JMÉNO
+error::pass1 \- chyby procesní fáze 1
+
+.SH POPIS
+Chyby, které se vyskytnou během procesní fáze 1 (Pass 1) jsou obvykle
+syntaktického charakteru.  Lze je rozdělit do následujících tříd:
+
+.TP
+prostá syntaktická chyba
+Lexikální analyzátor systemtapu dokáže detekovat širokou škálu chyb jako např.
+chybějící operandy, nebo oddělovače.  Snaží se vypsat seznam vstupů, které
+očekával, ale nedostal.  Zároveň označuje oblast kódu ve které se chyba vyskytla.
+Manuálová stránka
+.IR stap (1)
+a/nebo systemtap tutoriál jsou vhodné reference pro studium syntaxe
+skriptovacího jazyka.
+
+.TP
+nejednoznačnosti gramatiky
+Gramatika skriptovacího jazyka obsahuje nejméně jednu nejednoznačnost.  Vztahuje
+se k volitelnému oddělovači
+.IR ;
+(středník) a operátory inkrementu a dekrementu
+.IR ++ " a " -- " ."
+Pokud parser detekuje tento typ chyby, zvažte vložení oddělovače
+.IR ;
+mezi sousedící příkazy.
+
+.TP
+chybějící argumenty příkazové řádky
+Systemtap skript, který používá syntaktické konstrukce
+.IR $N " a " @N
+pro substituci parametrů příkazové řádky, nemusí fungovat správně, pokud
+některé parametry na příkazové řádce chybí.
+
+.TP
+změny v kompatibilitě mezi verzemi systemtapu
+Některé verze systemtapu přinesly nekompatibilní změny skriptovacího jazyka,
+jako například přidání klíčových slov "try" a "catch" pro obsluhu výjimek.
+V takových případech lze systemtap spustit v režimu zpětné kompatibility pomocí
+přepínače
+.IR \-\-compatibility=VERSION
+kde VERSION je poslední známá verze systemtapu, se kterou skript fungoval.
+Významné změny se zaznamenávají v souboru NEWS.
+
+.SH VÍCE INFORMACÍ
+Zvýšením upovídanosti pro procesní fázi 1 (
+.IR "--vp 1"
+) lze získat podrobnější informace o chybě.
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR error::reporting (7stap)

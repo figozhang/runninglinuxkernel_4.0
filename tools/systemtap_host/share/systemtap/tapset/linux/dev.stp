@@ -1,0 +1,76 @@
+// Device tapset
+// Copyright (C) 2008, 2010 Red Hat Corp.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+%{
+#include <linux/kdev_t.h>
+%}
+
+/**
+ * sfunction MAJOR - Extract major device number from a kernel device number (kdev_t)
+ *
+ * @dev: Kernel device number to query.
+ */
+function MAJOR:long(dev:long)
+%{ /* pure */
+    STAP_RETVALUE = MAJOR(STAP_ARG_dev);
+%}
+
+
+/**
+ * sfunction MINOR - Extract minor device number from a kernel device number (kdev_t)
+ *
+ * @dev: Kernel device number to query.
+ */
+function MINOR:long(dev:long)
+%{ /* pure */
+    STAP_RETVALUE = MINOR(STAP_ARG_dev);
+%}
+
+
+/**
+ * sfunction MKDEF - Creates a value that can be compared to a kernel device number (kdev_t)
+ *
+ * @major: Intended major device number.
+ * @minor: Intended minor device number.
+ */
+function MKDEV:long(major:long, minor:long)
+%{ /* pure */
+    STAP_RETVALUE = MKDEV(STAP_ARG_major,STAP_ARG_minor);
+%}
+
+/**
+ * sfunction usrdev2kerndev - Converts a user-space device number into the format used in the kernel
+ *
+ * @dev: Device number in user-space format.
+ */
+function usrdev2kerndev:long(dev:long)
+%{ /* pure */
+    STAP_RETVALUE = new_decode_dev(STAP_ARG_dev);
+%}
+
+function bdevname:string(bdev:long)
+{
+	bdev = & @cast(bdev, "block_device")
+	if (bdev == 0)
+		return "N/A"
+
+	hd = bdev->bd_disk
+
+	if (bdev->bd_part)
+		partno = bdev->bd_part->partno
+	else
+		partno = MINOR(bdev->bd_dev) - hd->first_minor;
+
+	if (!partno)
+		return kernel_string(hd->disk_name)
+	disk_name = kernel_string(hd->disk_name)
+	if (isdigit(substr(disk_name, strlen(disk_name) - 1, 1)))
+		return sprintf("%sp%d", disk_name, partno)
+	else
+		return sprintf("%s%d", disk_name, partno)
+}

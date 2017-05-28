@@ -1,0 +1,13 @@
+title: Track Start and Stop of Processes Due to Network Buffer Space
+name: sk_stream_wait_memory.stp
+version: 1.0
+author: Fabio Olive Leite at Red Hat
+keywords: network tcp process
+subsystem: network
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The sk_stream-wait_memory.stp prints a time stamp, executable, and pid each time a process blocks due to the send buffer being full. A similar entry is printed each time a process continues because there is room in the buffer.
+test_check: stap -p4 sk_stream_wait_memory.stp
+test_installcheck: stap sk_stream_wait_memory.stp -c "sleep 1"

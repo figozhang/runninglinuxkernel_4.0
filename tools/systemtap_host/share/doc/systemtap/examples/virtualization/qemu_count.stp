@@ -1,0 +1,13 @@
+#!/usr/bin/env stap
+#
+# Copyright (C) 2011 Red Hat, Inc.
+# Written by William Cohen <wcohen@redhat.com>
+#
+# The qemu_count.stp script tallies the number of times each of the
+# user-space qemu probepoints is encountered. When the script exits,
+# it prints a list of the number of times each user-space qemu
+# probepoint is encountered.
+
+global counts
+probe qemu.*.*.*?, qemu.kvm.*? {counts[pn()]++}
+probe end { foreach(n+ in counts) printf ("%s = %d\n", n, counts[n]) }

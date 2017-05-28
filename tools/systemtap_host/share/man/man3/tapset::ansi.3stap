@@ -1,0 +1,118 @@
+.\" -*- nroff -*-
+.TH TAPSET::ANSI 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::ansi \- systemtap ansi tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B ansi_clear_screen 
+Move cursor to top left and clear screen.
+.IP
+See 
+.IR function::ansi_clear_screen (3stap)
+ for details.
+.P
+.TP
+.B ansi_set_color 
+Set the ansi Select Graphic Rendition mode.
+.IP
+See 
+.IR function::ansi_set_color (3stap)
+ for details.
+.P
+.TP
+.B ansi_set_color 
+Set the ansi Select Graphic Rendition mode.
+.IP
+See 
+.IR function::ansi_set_color (3stap)
+ for details.
+.P
+.TP
+.B ansi_set_color 
+Set the ansi Select Graphic Rendition mode.
+.IP
+See 
+.IR function::ansi_set_color (3stap)
+ for details.
+.P
+.TP
+.B ansi_reset_color 
+Resets Select Graphic Rendition mode.
+.IP
+See 
+.IR function::ansi_reset_color (3stap)
+ for details.
+.P
+.TP
+.B ansi_new_line 
+Move cursor to new line.
+.IP
+See 
+.IR function::ansi_new_line (3stap)
+ for details.
+.P
+.TP
+.B ansi_cursor_move 
+Move cursor to new coordinates.
+.IP
+See 
+.IR function::ansi_cursor_move (3stap)
+ for details.
+.P
+.TP
+.B ansi_cursor_hide 
+Hides the cursor.
+.IP
+See 
+.IR function::ansi_cursor_hide (3stap)
+ for details.
+.P
+.TP
+.B ansi_cursor_save 
+Saves the cursor position.
+.IP
+See 
+.IR function::ansi_cursor_save (3stap)
+ for details.
+.P
+.TP
+.B ansi_cursor_restore 
+Restores a previously saved cursor position.
+.IP
+See 
+.IR function::ansi_cursor_restore (3stap)
+ for details.
+.P
+.TP
+.B ansi_cursor_show 
+Shows the cursor.
+.IP
+See 
+.IR function::ansi_cursor_show (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::ansi_clear_screen (3stap),
+.BR
+.IR \%function::ansi_set_color (3stap),
+.BR
+.IR \%function::ansi_reset_color (3stap),
+.BR
+.IR \%function::ansi_new_line (3stap),
+.BR
+.IR \%function::ansi_cursor_move (3stap),
+.BR
+.IR \%function::ansi_cursor_hide (3stap),
+.BR
+.IR \%function::ansi_cursor_save (3stap),
+.BR
+.IR \%function::ansi_cursor_restore (3stap),
+.BR
+.IR \%function::ansi_cursor_show (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

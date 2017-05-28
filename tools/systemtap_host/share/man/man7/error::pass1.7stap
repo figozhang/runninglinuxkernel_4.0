@@ -1,0 +1,58 @@
+.\" t
+.TH ERROR::PASS1 7stap 
+.SH NAME
+error::pass1 \- systemtap pass-1 errors
+
+.SH DESCRIPTION
+Errors that occur during pass 1 (parsing) usually mean
+a basic syntax error of some sort occurred in the systemtap script.
+There are several classes of problems possible:
+
+.TP
+plain syntax error
+The systemtap script parser detects a large variety of errors, such as
+missing operands, bad punctuation.  It tries to list what kinds of tokens
+it was expecting to see, and will show the region of the source code with
+the problem.  Please review the 
+.IR stap (1)
+man page and/or the tutorial, to correct the script's syntax.
+
+.TP
+grammar ambiguities
+There is at least one known ambiguity in the systemtap grammar.  It relates
+to the optionality of 
+.IR ;
+(semicolon) separators between statements, and the
+.IR ++ " and " -- 
+increment/decrement operators.  If the parser indicates an error, consider
+adding some explicit
+.IR ;
+separators between nearby statements and try again.
+
+.TP
+missing command line arguments
+A systemtap script that uses the 
+.IR $N " and " @N
+constructs for substituting in command-line options may fail if not
+enough options were given on the stap command line.
+
+.TP
+compatibility changes
+Some versions of systemtap have changed the language incompatibly,
+for example by adding the try/catch keywords for exception handling.
+In such cases, rerun systemtap with the
+.IR \-\-compatibility=VERSION
+option, substituting the last systemtap version where your script
+was known to work.  You may also check the release-history NEWS file
+for compatibility changes.
+
+.SH GATHERING MORE INFORMATION
+Increasing the verbosity of pass-1 with an option such as
+.IR "--vp 1"
+can help pinpoint the problem.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR error::reporting (7stap)

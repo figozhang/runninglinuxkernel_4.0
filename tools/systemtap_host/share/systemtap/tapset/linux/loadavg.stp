@@ -1,0 +1,62 @@
+// Copyright (C) 2013 Red Hat Inc., Aaron Tomlin <atomlin@redhat.com>
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// <tapsetdescription>
+// Functions in the loadavg tapset allow a probe handler to capture
+// the load average.
+// </tapsetdescription>
+
+
+%{
+#include <linux/sched.h>
+
+#define LOAD_INT(x) ((x) >> FSHIFT)
+#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+%}
+
+/**
+ * sfunction get_loadavg_index - Get the load average for a specified interval
+ * @indx: The load average interval to capture.
+ *
+ * Description: This function returns the load average at a specified interval.
+ * The three load average values 1, 5 and 15 minute average corresponds to
+ * indexes 0, 1 and 2 of the avenrun array - see linux/sched.h.
+ * Please note that the truncated-integer portion of the load average is returned.
+ * If the specified index is out-of-bounds, then an error message and exception is
+ * thrown.
+ */
+function get_loadavg_index:long (indx:long) %{ /* pure */
+	int value;
+
+	if (STAP_ARG_indx < 0 || STAP_ARG_indx > 2)
+		STAP_ERROR("Invalid loadavg index %lld specified.",
+		STAP_ARG_indx);
+
+	value = avenrun[STAP_ARG_indx] + (FIXED_1/200);
+
+	STAP_RETVALUE = LOAD_INT(value);
+%}
+
+/**
+ * sfunction sprint_loadavg - Report a pretty-printed load average
+ *
+ * Description: Returns the a string with three decimal numbers
+ * in the usual format for 1-, 5- and 15-minute load averages.
+ */
+function sprint_loadavg:string () %{ /* pure */ /* stable */
+	int a, b, c;
+
+	a = avenrun[0] + (FIXED_1/200);
+	b = avenrun[1] + (FIXED_1/200);
+	c = avenrun[2] + (FIXED_1/200);
+
+	snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+		"%d.%02d %d.%02d %d.%02d\n",
+		LOAD_INT(a), LOAD_FRAC(a),
+		LOAD_INT(b), LOAD_FRAC(b),
+		LOAD_INT(c), LOAD_FRAC(c));
+%}

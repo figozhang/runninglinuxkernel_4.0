@@ -1,0 +1,7 @@
+title: Overview glibc malloc internal operations
+name: glibc-malloc.stp
+keywords: memory process
+description: This script reports on internal statistics of the glibc malloc implementation, as used by a process restricted by stap -x/-c
+test_support: stap -p4 glibc-malloc.stp
+test_check: stap -p4 glibc-malloc.stp
+test_installcheck: stap glibc-malloc.stp -c 'stap --dump-functions'

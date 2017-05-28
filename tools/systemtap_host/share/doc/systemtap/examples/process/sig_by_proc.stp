@@ -1,0 +1,36 @@
+#! /usr/bin/env stap
+
+# Copyright (C) 2006 IBM Corp.
+#
+# This file is part of systemtap, and is free software.  You can
+# redistribute it and/or modify it under the terms of the GNU General
+# Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+#
+# Print signal counts by process name in descending order.
+#
+
+global sigcnt, sig2name
+
+probe begin {
+	print("Collecting data... Type Ctrl-C to exit and display results\n")
+}
+
+probe signal.send 
+{
+	sigcnt[execname(), pid_name, sig]++
+
+	if (!(sig in sig2name)) sig2name[sig] = sig_name 
+}
+
+probe end
+{
+	printf("%-16s %-16s %-16s %s\n",
+	       "SENDER", "RECEIVER", "SIGNAL", "COUNT")
+
+	foreach ([snd_name, rcv_name, sig_num] in sigcnt-)
+		printf("%-16s %-16s %-16s %d\n", 
+		       snd_name, rcv_name, sig2name[sig_num],
+		       sigcnt[snd_name, rcv_name, sig_num])
+}

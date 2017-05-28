@@ -1,0 +1,49 @@
+.TH killsnoop-nd 8  "2015-01-30" "USER COMMANDS"
+.SH NAME
+killsnoop-nd \- trace process signals. Uses Linux SystemTap (non-debuginfo).
+.SH SYNOPSIS
+.B killsnoop-nd.stp
+.SH DESCRIPTION
+This traces signals system-wide, including those sent by the kill(1) command,
+and shows various details.
+.SH REQUIREMENTS
+SystemTap.
+.SH EXAMPLES
+.TP
+Trace all signals, showing process details, signal number, and result:
+#
+.B killsnoop-nd.stp
+.SH FIELDS
+.TP
+FROM
+Process ID that issued the signal.
+.TP
+COMMAND
+Process name that issued the signal.
+.TP
+SIG
+Signal number. See "kill -l" in bash(1) for a list.
+.TP
+TO
+Signal destination PID.
+.TP
+RESULT
+Signal result. 0 for success.
+.SH OVERHEAD
+This traces signals and prints a line of output for each. The overhead to
+trace each signal should be low/negligible.
+.SH SOURCE
+This is from the SystemTap lwtools collection.
+.IP
+https://github.com/brendangregg/systemtap-lwtools
+.PP
+Also look under the examples directory for a text file containing example
+usage, output, and commentary for this tool.
+.SH OS
+Linux
+.SH STABILITY
+Unstable - in development.
+.SH AUTHOR
+Brendan Gregg
+.SH SEE ALSO
+strace(1)

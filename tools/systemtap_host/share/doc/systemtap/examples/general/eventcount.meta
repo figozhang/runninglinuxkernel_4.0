@@ -1,0 +1,13 @@
+title: Count Specified Events
+name: eventcount.stp
+version: 1.0
+author: Lukas Berk
+keywords: _best statistics thread process
+subsystem: none
+status: production
+exit: user-controlled
+output: batch on-exit
+scope: system-wide
+description: The script periodically prints a count of specified events and their related tid's over the course of execution.  Numerous configuration options exist to control filtering / reporting, see the script source.
+test_check: stap -p4 eventcount.stp
+test_installcheck: stap eventcount.stp syscall.* -c 'sleep 1'

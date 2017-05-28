@@ -1,0 +1,14 @@
+title: Record Interrupts on a Per-Device Basis
+name: interrupts-by-dev.stp
+version: 1.0
+author: Prerna Saxena (prerna@linux.vnet.ibm.com)
+keywords: interrupt
+subsystem: interrupt
+status: production
+exit: user-controlled
+output: timed
+scope: system-wide
+description: The interrupts-by-dev.stp script profiles interrupts received by each device per 100 ms.
+test_support: stap -l 'kernel.trace("irq_handler_entry")'
+test_check: stap -p4 interrupts-by-dev.stp
+test_installcheck: stap interrupts-by-dev.stp -c "sleep 1"

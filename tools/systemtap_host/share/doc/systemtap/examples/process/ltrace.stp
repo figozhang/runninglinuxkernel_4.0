@@ -1,0 +1,138 @@
+#! /usr/bin/env stap
+
+// configuration options
+global follow_fork = 0	// -Gfollow_fork=1 means trace descendant processes too
+global count = 0     	// -Gcount=1 means summarize time and calls for each library call */
+
+global report_line%
+global report_line_returnval%
+global func_time%
+global func_time_total%
+global func_calls%
+
+global calls_nonreturn
+probe begin 
+  {
+    // list of calls that never .return
+    calls_nonreturn["__libc_start_main"]=1
+  }
+
+function filter_p()
+  {
+    // from strace.stp
+    if (target() == 0) return 0;
+    if (!follow_fork && pid() != target()) return 1;
+    if (follow_fork && !target_set_pid(pid())) return 1;
+    return 0;
+  }
+
+function arg:string (arg1:long) {
+  if (arg1 < 255)
+     return sprintf("%d", arg1)
+  else
+     return sprintf("%#lx", arg1)
+  }
+
+
+function report (rl)
+{
+  printf("%s", report_line[rl])
+  rll = strlen(report_line[rl])
+  n_tabs = ((64 - rll) / 8)
+  if (rll % 8 == 0)
+    n_tabs -= 1
+  if (rll <= 64)
+    for (i=0; i < n_tabs; i++)
+      {
+	printf("\t")
+      }
+}
+
+
+probe process.plt, process.library("*").plt
+{
+  if (filter_p()) next;
+  if (strlen($$name) == 0) next;
+  
+  if ($$name in calls_nonreturn)
+    next
+
+  if (count)			  // -Gcount=1
+    {
+      func_calls[$$name] <<< 1
+      func_time[$$name]=gettimeofday_us()
+      next
+    }
+
+  %( arch == "x86_64" %?
+     outline = sprintf("%s (%s, %s, %s, %s)", $$name, arg(register("rdi")), arg(register("rsi")), arg(register("rdx")), arg(register("rcx")))
+  %)
+  %( arch == "i386" %?
+     outline = sprintf("%s[%d] %s (%s, %s, %s, %s)",  execname(), tid(), $$name, arg(register("edi")), arg(register("esi")), arg(register("edx")), arg(register("ecx")))
+  %)
+  
+  report_line[$$name] = outline
+}
+
+
+probe process.plt.return, process.library("*").plt.return
+{
+  if (filter_p()) next;
+  if (strlen($$name) == 0) next;
+
+  // cache cumulative time spent in each call
+  if (count)
+    {
+      now = gettimeofday_us()
+      then = func_time[$$name]
+      func_time_total[$$name] += now-then
+      delete func_time[$$name]
+      next
+    }
+
+  report_line_returnval[$$name] = arg(returnval())
+  foreach (rl in report_line) {
+    first_key = rl
+    break
+  }
+
+  // if we have nested calls then wait for the return of the first call
+  if ($$name == first_key) 
+    {
+      foreach (rl in report_line)
+      {
+	report (rl)
+	printf ("=%s\n", report_line_returnval[rl])
+      }
+      delete report_line
+      delete report_line_returnval
+    }
+}
+
+probe end
+{
+  if (count)
+    {
+      cumulative_time = 0
+      printf ("%% time         seconds     calls\n")
+      printf ( "------        ---------   -------\n")
+
+      foreach (ttt in func_time_total)
+      {
+	cumulative_time += func_time_total[ttt]
+      }
+  
+      foreach (ttt in func_time_total)
+      {
+	percent = (func_time_total[ttt] * 100) / cumulative_time
+	if (percent > 0)
+	  {
+	    printf("%5d%% ", percent)
+	    printf("%14d ", func_time_total[ttt]%1000000)
+	    printf("%10d ", @count(func_calls[ttt]))
+	    printf(" %s\n",ttt)
+	  }
+      }
+    }
+}
+

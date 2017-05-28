@@ -1,0 +1,9 @@
+Systemtap scripts under this directory are NOT meant for
+direct execution.  They are not sample end-user scripts,
+but rather constitute the "standard library" from which
+other scripts can pull in definitions from.
+
+For samples of end-user scripts, see the web
+http://sourceware.org/systemtap/documentation.html
+
+See also http://sourceware.org/systemtap/wiki/TapsetStatus

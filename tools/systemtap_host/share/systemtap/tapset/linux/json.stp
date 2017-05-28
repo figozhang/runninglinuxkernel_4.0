@@ -1,0 +1,271 @@
+// JSON tapset.
+// Copyright (C) 2015 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+//
+// <tapsetdescription>
+// The JSON tapset provides probes, functions, and macros to generate
+// a JSON metadata and data file. The JSON metadata file is located in
+// /proc/systemtap/MODULE/metadata.json. The JSON data file is located
+// in /proc/systemtap/MODULE/data.json. The JSON data file is updated
+// with current data every time the file is read.
+// </tapsetdescription>
+
+
+@__private30 global __json_prefix
+@__private30 global __json_metric_type, __json_metric_desc
+@__private30 global __json_metric_units, __json_metric_pointer
+@__private30 global __json_array_metric_type, __json_array_metric_desc
+@__private30 global __json_array_metric_units, __json_array_metric_pointer
+global __json_metric_output, __json_array_output
+
+probe init
+{
+  // Make sure the systemtap translator knows what types the globals are.
+  __json_prefix = ""
+
+  __json_metric_units[""] = ""
+  delete __json_metric_units
+
+  __json_array_metric_type["", ""] = ""
+  delete __json_array_metric_type
+
+  __json_array_metric_desc["", ""] = ""
+  delete __json_array_metric_desc
+
+  __json_array_metric_units["", ""] = ""
+  delete __json_array_metric_units
+
+  __json_array_metric_pointer["", ""] = ""
+  delete __json_array_metric_pointer
+
+  __json_array_output[""] = 1
+  delete __json_array_output
+}
+
+/**
+ * sfunction json_set_prefix - Set the metric prefix.
+ *
+ * @prefix: The prefix name to be used.
+ *
+ * Description: This function sets the "prefix", which is the name
+ * of the base of the metric hierarchy. Calling this function is
+ * optional, by default the name of the systemtap module is used.
+ */
+function json_set_prefix:long(prefix:string)
+{
+  __json_prefix = prefix
+}
+
+/**
+ * sfunction json_add_numeric_metric - Add a numeric metric
+ *
+ * @name: The name of the numeric metric.
+ * @description: Metric description. An empty string can be used.
+ * @units: Metic units. An empty string can be used.
+ *
+ * Description: This function adds a numeric metric, setting up
+ * everything needed.
+ */
+function json_add_numeric_metric:long(name:string, description:string, units:string)
+{
+  if (name in __json_metric_type)
+    error(sprintf("Metric '%s' already exists", name))
+  __json_metric_type[name] = "integer"
+  __json_metric_desc[name] = description
+  __json_metric_units[name] = units
+  # FIXME: Do we need to validate the name? For instance, what if it
+  # had a double-quote character in it?
+  __json_metric_pointer[name] = "/" . name
+  return 0
+}
+
+/**
+ * sfunction json_add_string_metric - Add a string metric
+ *
+ * @name: The name of the string metric.
+ * @description: Metric description. An empty string can be used.
+ *
+ * Description: This function adds a string metric, setting up
+ * everything needed.
+ */
+function json_add_string_metric:long(name:string, description:string)
+{
+  if (name in __json_metric_type)
+    error(sprintf("Metric '%s' already exists", name))
+  __json_metric_type[name] = "string"
+  __json_metric_desc[name] = description
+  __json_metric_pointer[name] = "/" . name
+  return 0
+}
+
+/**
+ * sfunction json_add_array - Add an array
+ *
+ * @name: The name of the array.
+ * @description: Array description. An empty string can be used.
+ *
+ * Description: This function adds a array, setting up everything
+ * needed. Arrays contain other metrics, added with
+ * json_add_array_numeric_metric() or json_add_array_string_metric().
+ */
+function json_add_array:long(name:string, description:string)
+{
+  if (name in __json_metric_type)
+    error(sprintf("Metric '%s' already exists", name))
+  __json_metric_type[name] = "array"
+  __json_metric_desc[name] = description
+  __json_metric_pointer[name] = "/" . name
+
+  # Go ahead and add "__id", which is the array index.
+  json_add_array_string_metric(name, "__id", "")
+  return 0
+}
+
+/**
+ * sfunction json_add_array_numeric_metric - Add a numeric metric to an array
+ *
+ * @array_name: The name of the array the numeric metric should be
+ * added to.
+ * @metric_name: The name of the numeric metric.
+ * @metric_description: Metric description. An empty string can be used.
+ * @metric_units: Metic units. An empty string can be used.
+ *
+ * Description: This function adds a numeric metric to an array,
+ * setting up everything needed.
+ */
+function json_add_array_numeric_metric:long(array_name:string, metric_name:string, metric_description:string, metric_units:string)
+{
+  if ([array_name, metric_name] in __json_array_metric_type)
+    error(sprintf("Array metric '%s' already exists in array %s", metric_name,
+		  array_name))
+  __json_array_metric_pointer[array_name, metric_name]
+    = sprintf("/%s", metric_name)
+  __json_array_metric_type[array_name, metric_name] = "integer"
+  __json_array_metric_desc[array_name, metric_name] = metric_description
+  __json_array_metric_units[array_name, metric_name] = metric_units
+  return 0
+}
+
+/**
+ * sfunction json_add_array_string_metric - Add a string metric to an array
+ *
+ * @array_name: The name of the array the string metric should be
+ * added to.
+ * @metric_name: The name of the string metric.
+ * @metric_description: Metric description. An empty string can be used.
+ *
+ * Description: This function adds a string metric to an array,
+ * setting up everything needed.
+ */
+function json_add_array_string_metric:long(array_name:string, metric_name:string, metric_description:string)
+{
+  if ([array_name, metric_name] in __json_array_metric_type)
+    error(sprintf("Array metric '%s' already exists in array %s", metric_name,
+		  array_name))
+  __json_array_metric_pointer[array_name, metric_name]
+    = sprintf("/%s", metric_name)
+  __json_array_metric_type[array_name, metric_name] = "string"
+  __json_array_metric_desc[array_name, metric_name] = metric_description
+  return 0
+}
+
+probe procfs("metadata.json").read.maxsize(8192)
+{
+  # Note: This is the "pretty-printed" version, intended to be read by
+  # humans. We could remove the whitespace and newlines if we wanted
+  # to make the output shorter (but less readable).
+  #
+  # Note 2: Note that we have to break this long string into more than
+  # 1 assignment since we're bumping up against MAXSTRINGLEN. Procfs
+  # $value can hold more than MAXSTRINGLEN because of the
+  # '.maxsize(N)' parameter.
+  $value = "{\n"
+
+  if (__json_prefix != "")
+    $value .= sprintf("  \"prefix\": \"%s\",\n", __json_prefix)
+
+  $value .= "  \"metrics\": [\n"
+
+  __comma_needed = 0
+  foreach (__name in __json_metric_type) {
+    if (__comma_needed)
+      $value .= ",\n"
+    __comma_needed = 1    
+
+    if (__json_metric_type[__name] != "array") {
+      @__json_output_metric_metadata("    ", __name,
+				     __json_metric_pointer[__name],
+				     __json_metric_type[__name],
+				     __json_metric_desc[__name],
+				     __json_metric_units[__name])
+    }
+    else {
+      # For an array, we have to output the information about the
+      # array itself, then output each field in the array.
+      $value .= "    \{\n"
+      $value .= sprintf("      \"name\": \"%s\",\n", __name)
+      $value .= sprintf("      \"pointer\": \"%s\",\n",
+			__json_metric_pointer[__name])
+      $value .= "      \"type\": \"array\",\n"
+      if (strlen(__json_metric_desc[__name]) > 0)
+        $value .= sprintf("      \"description\": \"%s\",\n", 
+			  __json_metric_desc[__name])
+      $value .= "      \"index\": \"/__id\",\n"
+      $value .= "      \"metrics\": [\n"
+      __array_comma_needed = 0
+
+      # Output each field in the array.
+      foreach ([__array_name, __metric_name] in __json_array_metric_type) {
+        if (__name == __array_name) {
+          # Skip '__id', the array index.
+          if (__metric_name == "__id")
+            continue
+    
+          if (__array_comma_needed)
+            $value .= ",\n"
+          __array_comma_needed = 1    
+    
+          __subpointer = __json_array_metric_pointer[__array_name, __metric_name]
+          __subtype = __json_array_metric_type[__array_name, __metric_name]
+          __subdesc = __json_array_metric_desc[__array_name, __metric_name]
+	  __subunits = __json_array_metric_units[__array_name, __metric_name]
+    
+          @__json_output_metric_metadata("        ", __metric_name,
+					 __subpointer, __subtype,
+					 __subdesc, __subunits)
+        }
+      }
+      $value .=
+        "\n"
+	"      ]\n"
+	"    }"
+    }
+  }
+
+  $value .=
+    "\n"
+    "  ]\n"
+    "}\n"
+}
+
+/**
+ * probe json_data - Fires whenever JSON data is wanted by a reader.
+ *
+ * Context:
+ *  This probe fires when the JSON data is about to be read. This
+ *  probe must gather up data and then call the following macros to
+ *  output the data in JSON format. First, @json_output_data_start()
+ *  must be called. That call is followed by one or more of the
+ *  following (one call for each data item):
+ *  @json_output_string_value(), @json_output_numeric_value(),
+ *  @json_output_array_string_value(), and
+ *  @json_output_array_numeric_value(). Finally @json_output_data_end()
+ *  must be called. 
+ */
+probe json_data = procfs("data.json").read.maxsize(8192)
+{
+}

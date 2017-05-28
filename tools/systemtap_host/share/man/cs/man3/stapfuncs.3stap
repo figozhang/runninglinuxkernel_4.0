@@ -1,0 +1,24 @@
+.\" t
+.TH STAPFUNCS 3stap
+.SH JMÉNO
+stapfuncs \- systemtap funkce
+
+.SH POPIS
+
+Funkce ve standardním tapsetu systemtapu jsou individuálně zdokumentovány
+v manuálové sekci
+.IR 3stap
+s prefixem
+.IR function:: .
+Některé vestavěné funkce jako např.
+.IR printf
+jsou zdokumentovány v manuálové stránce
+.IR "stap (1)" .
+
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR function::* (3stap),
+.IR tapset::* (3stap)

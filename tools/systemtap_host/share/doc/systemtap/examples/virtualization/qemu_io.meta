@@ -1,0 +1,14 @@
+title: Tally the Number of User-Space QEMU IO on Each IO Port
+name: qemu_io.stp
+version: 1.0
+author: William Cohen
+keywords: virtualization qemu kvm io
+subsystem: virtualization
+status: experimental
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The qemu_io.stp script tallies the number of times each of the IO port on the guest virtual machines is touched by a input or output operation. When the script exits, it prints a count of the number of times each IO port read and written.
+test_support: stap -l 'qemu.*.*.cpu_in?, qemu.kvm.cpu_in?' && stap -l 'qemu.*.*.cpu_out?, qemu.kvm.cpu_out?'
+test_check: stap -p4 qemu_io.stp
+test_installcheck: stap qemu_io.stp -c "sleep 1"

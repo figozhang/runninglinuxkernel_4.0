@@ -1,0 +1,38 @@
+.\" -*- nroff -*-
+.TH TAPSET::GURU-DELAY 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::guru-delay \- systemtap guru-delay tapset
+ 
+.SH DESCRIPTION
+
+ Functions in the guru-delay tapset allow a probe handler to insert
+ deliberate delays.  This is sometimes useful as a fault-injection
+ aid.  Due to its likelihood of interference with the kernel, guru
+ mode is required, and overload-prevention is suppressed.
+
+.TP
+.P
+.TP
+.B mdelay 
+millisecond delay
+.IP
+See 
+.IR function::mdelay (3stap)
+ for details.
+.P
+.TP
+.B udelay 
+microsecond delay
+.IP
+See 
+.IR function::udelay (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::mdelay (3stap),
+.BR
+.IR \%function::udelay (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

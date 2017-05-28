@@ -1,0 +1,18 @@
+#! /usr/bin/env stap
+# Copyright (C) 2012 Red Hat, Inc.
+# by William Cohen <wcohen@redhat.com>
+#
+# pstrace_exec prints out the chain of processes from the current process
+# back to the init process whenever an exec matches the argument.
+#
+# Run the script with:
+#   stap pstrace_exec.stp "command_to_match"
+#
+# control-c to exit data collection
+
+probe kprocess.exec
+{
+  if (isinstr(filename, @1)) {
+    printf("process traceback:\n %s\n", pstrace(task_current()))
+  }
+}

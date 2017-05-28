@@ -1,0 +1,32 @@
+global threads;
+global times;
+
+probe syscall.{semop,semtimedop}
+{
+  sembuf_sz = & @cast(0, "struct sembuf")[1];
+  res = sprintf("set %d sems", semid)
+
+  %( systemtap_v < "2.3" %? 
+     if (tsops_uaddr != 0) sops_uaddr = tsops_uaddr;
+     /* ignore warning for semtimedop's 'tsops_uaddr never-assigned'. */
+  %)
+
+  for(i = 0; i < nsops; i++) {
+    offset = i * sembuf_sz;
+    pointer = sops_uaddr + offset;
+    num_addr = & @cast(pointer, "struct sembuf")->sem_num;
+    num = user_short(num_addr);
+
+    res = sprintf("%s %d", res, num);
+  }
+  res = sprintf("%s\n", res);
+
+  threads[tid()] = res;
+  times[tid()] = gettimeofday_us();
+}
+
+probe syscall.{semop,semtimedop}.return
+{
+  printf("Thread %d took %dus to operate on %s\n", tid(),
+         gettimeofday_us() - times[tid()], threads[tid()]);
+}

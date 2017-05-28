@@ -1,0 +1,121 @@
+#!/usr/bin/env stap
+# block breaker
+# Copyright (C) 2008 Masami Hiramatsu <masami.hiramatsu@gmail.com>
+#
+# This file is free software and is distributed under the terms of the GNU
+# General Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+#TODO
+# - count scores
+# - reflection control
+# - special items
+# - more stages
+
+global b, bx, by, bar, dx, dy, dbar, sbar
+
+probe begin {
+  for (i = 1; i < 6; i++)
+    for (j = 0; j < 10; j++)
+      b[j,i] = 6 - i
+  bx = 20; by = 19;
+  dx = 1; dy = -1; dbar = 0
+  bar = 18
+
+  cursor_cls()
+  for (i = 1; i < 6; i++)
+    printf("|[%02d][%02d][%02d][%02d][%02d][%02d][%02d][%02d][%02d][%02d]|\n", 
+           b[0,i], b[1,i], b[2,i], b[3,i], b[4,i], b[5,i], 
+           b[6,i], b[7,i], b[8,i], b[9,i])
+  for (i = 5; i < 20; i++)
+    printf("|%40s|\n", " ");
+  cursor_move(bx+2, by); print("o")
+  cursor_move(bar+2, 20); print("=====")
+}
+
+probe game.kbd {
+  if (down) {
+    if (code == GM_KBD_RIGHT)
+      dbar = 1
+    else if (code == GM_KBD_LEFT)
+      dbar = -1
+  } else
+    sbar = 1
+}
+
+probe timer.ms(100) {
+   if (dbar*dbar < 9)
+     dbar *= 2
+}
+
+function update_block(x,y) {
+    b[x,y] --;
+    if (b[x,y] == 0) {
+      delete b[x,y]
+      cursor_move(x*4+2,y); print("    ")
+    } else {
+      cursor_move(x*4+2,y); printf("[%02d]", b[x,y])
+    }
+} 
+
+function hit_block() {
+  x = bx/4; y = by
+  if (b[x,y]) {
+    update_block(x,y)
+    dy = -dy
+    dx = -dx
+    bx += dx; by += dy 
+    return 0;
+  }
+  x = bx/4; y = by+dy
+  if (y <= 0 || b[x,y]) {
+    if (b[x,y])
+      update_block(x,y)
+    dy = -dy
+  }
+  y = by; x = (bx+dx)/4
+  if (bx+dx < 0 || x >= 10 || b[x,y]) {
+    if (b[x,y])
+      update_block(x,y)
+    dx = -dx
+  }
+}
+
+function no_blocks() {
+  foreach ([x,y] in b)
+    return 0
+  return 1
+}
+
+probe timer.ms(200) {
+  cursor_move(bx+2, by); print(" ")
+  cursor_move(bar+2, 20); print("     ")
+
+  bar+= dbar;
+  if (sbar) { dbar = 0; sbar = 0 }
+  if (bar <= 0) { bar = 0; dbar = 0}
+  if (bar >= 35) { bar = 35; dbar = 0}
+
+  bx += dx; by += dy
+  hit_block()
+  if (by == 19 && (bx >= bar && bx < bar + 5) ) {
+    dy = -dy;
+  }
+  if (by >= 21)
+    exit()
+
+  if (no_blocks()) {
+    cursor_move(15,19)
+    println("Stage clear!")
+    exit()
+  }
+  cursor_move(bx+2, by); print("o")
+  cursor_move(bar+2, 20); print("=====")
+  cursor_move(43,20)
+}
+
+probe end {
+  cursor_move(16, 10);
+  println("-GAME-OVER-")
+  cursor_move(1, 20);
+}

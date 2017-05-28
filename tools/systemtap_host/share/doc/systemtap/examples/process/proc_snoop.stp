@@ -1,0 +1,55 @@
+#! /usr/bin/env stap
+
+global start_ts
+
+probe begin {
+  start_ts = gettimeofday_us()
+  printf("%12s  %5s  %5s  %-16s  ACTION\n",
+         "TIMESTAMP", "PID", "TID", "EXECNAME")
+}
+
+function report(action:string) {
+  printf("%12d  %5d  %5d  %-16s  %s\n", gettimeofday_us() - start_ts,
+         pid(), tid(), execname(), action)
+}
+
+function id:string(task:long) {
+  return sprintf("p:%d t:%d n:%s", task_pid(task), task_tid(task),
+                 task_execname(task))
+}
+
+probe kprocess.create {
+  report(sprintf("create %s", id(task)))
+}
+
+probe kprocess.start {
+  report("start")
+}
+
+probe kprocess.exec {
+  report(sprintf("exec %s", filename))
+}
+
+probe kprocess.exec_complete {
+  if (success)
+    report("exec success")
+  else
+    report(sprintf("exec failed %d (%s)", errno, errno_str(errno)))
+}
+
+probe kprocess.exit {
+  report(sprintf("exit %d", code))
+}
+
+probe kprocess.release {
+  report(sprintf("remove %s", id(task)))
+}
+
+probe signal.send {
+  report(sprintf("sigsend %d (%s) to %s%s", sig, sig_name, id(task),
+                 shared? " [SHARED]" : ""))
+}
+
+probe signal.handle {
+  report(sprintf("sighandle %d (%s)", sig, sig_name))
+}

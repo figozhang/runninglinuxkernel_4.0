@@ -1,0 +1,2365 @@
+.\" -*- nroff -*-
+.TH STAP 1
+.SH JMÉNO
+stap \- překladač a řadič systemtap skriptů
+
+.\" macros
+.\" do not nest SAMPLEs
+.de SAMPLE
+.br
+
+.nr oldin \\n(.i
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POUŽITÍ
+
+.br
+.B stap
+[
+.I VOLBY
+]
+.I JMÉNO_SOUBORU
+[
+.I ARGUMENTY
+]
+.br
+.B stap
+[
+.I VOLBY
+]
+.B \-
+[
+.I ARGUMENTY
+]
+.br
+.B stap
+[
+.I VOLBY
+]
+.BI \-e " SKRIPT"
+[
+.I ARGUMENTY
+]
+.br
+.B stap
+[
+.I VOLBY
+]
+.BI \-l " PROBE"
+[
+.I ARGUMENTY
+]
+.br
+.B stap
+[
+.I VOLBY
+]
+.BI \-L " PROBE"
+[
+.I ARGUMENTY
+]
+.br
+.B stap
+[
+.I VOLBY
+]
+.B \-\-dump-probe-types
+.br
+.B stap
+[
+.I VOLBY
+]
+.B \-\-dump-probe-aliases
+.br
+.B stap
+[
+.I VOLBY
+]
+.B \-\-dump-functions
+
+
+.SH POPIS
+
+Program
+.IR stap
+je hlavním uživatelským rozhraním nástroje systemtap.  Přijímá požadavky na
+sondování systému (probing) zapsané v jednoduchém skriptovacím jazyce, překládá
+je do jazyka C, výsledný kód zkompiluje a vytvoří jaderný modul, který následně
+zavede do běžícího linuxového jádra nebo dyninst instrumentačního nástroje, aby
+prováděl požadovanou analýzu zkoumaného systému.  Skript může být čten ze
+souboru (JMÉNO_SOUBORU), ze standardního vstupu (v tom případě použijte "\-"
+namísto JMÉNO_SOUBORU), z příkazové řádky (prostřednictvím přepínače -e SKRIPT,
+případně -E SKRIPT).  Program běží dokud není přerušen uživatelem, nebo dokud
+skript nezavolá
+.I exit(),
+nebo dokud nedojde k nastřádání dostatečného množství tzv. měkkých chyb (soft
+errors).
+
+.PP
+Jazyk, který je popsán níže v sekci
+.IR "SKRIPTOVACÍ JAZYK" ,
+je striktně typovaný, imperativní, bez explicitních deklarací, procedurální,
+vhodný k prototypování a inspirovaný
+.IR awk " a " C .
+Umožňuje spojit místo ve zdrojovém kódu linuxového jádra, nebo uživatelské
+aplikace, případně systémovou událost s obslužnými rutinami, což jsou bloky
+kódu vykonávané synchronně.  Koncepčně to připomíná skriptování v
+.IR gdb .
+
+.SH "PŘEHLED DOKUMENTACE"
+
+Pro SystemTap existuje množství vzdělávacích, dokumentačních a referenčních
+materiálů jak v online podobě, tak i v rámci distribučních balíčků.  Online
+dokumentace se nachází na projektovém webu
+.nh
+https://sourceware.org/systemtap/
+.hy
+.
+
+.TS
+tab(%) allbox;
+l l.
+\fBman stránky\fP
+stap (tato stránka)%syntaxe jazyka, koncepty, funkce, volby
+stapprobes%sondážní body a jejich kontextové proměnné
+stapref%rychlá reference pro syntaxi jazyka
+stappaths%T{
+seznam důležitých umístění včetně knih a odkazů
+T}
+stap-prep%T{
+instalátor závislostí jako např. ladicích informací jádra
+T}
+tapset::*%vygenerovaný seznam tapsetů
+probe::*%vygenerovaný seznam tapsetových přezdívek
+function::*%vygenerovaný seznam tapsetových funkcí
+macro::*%vygenerovaný seznam tapsetových maker
+stapvars%vybrané globální proměnné definované v tapsetech
+staprun, stapdyn%programy pro spuštění zkompilovaných systemtap skriptů
+systemtap%systémová služba, analýza startu systému
+stap-server%kompilační server
+stapex%několik velmi jednoduchých příkladů
+\fBknihy\fP%
+Beginner's Guide%učebnice základů s praktickými ukázkami
+Tutorial%hutný úvod, cvičení
+Language Reference%podrobný manuál skriptovacího jazyka
+Tapset Reference%man stránky tapsetů v podobě knihy
+\fBodkazy\fP%
+example scripts%T{
+množství nástrojů pro správu systému, ukázkových skriptů a výukových hraček
+T}
+.TE
+
+.SH VOLBY
+
+Příkaz
+.IR stap
+akceptuje následující volby.  Jakákoliv jiná volba vypíše seznam podporovaných
+voleb.  Volby lze uvést na příkazové řádce, jak je obvyklé.  Pokud existuje
+$SYSTEMTAP_DIR/rc, mohou být volby načteny odtud a interpretovány nejdříve.
+Pokud není $SYSTEMTAP_DIR nastavena, použije se $HOME/.systemtap jako výchozí.
+
+.PP
+V některých případech může výchozí hodnota volby záviset na konkrétní konfiguraci
+systému a proto zde není přímo uvedena.  V takovém případě může pomoci
+"stap \-\-help".
+
+.TP
+.B \-
+Načte skript ze standardního vstupu namísto ze souboru JMÉNO_SOUBORU, pokud
+ovšem není dáno -e SKRIPT.
+.TP
+.B \-h \-\-help
+Zobrazí nápovědu.
+.TP
+.B \-V \-\-version
+Zobrazí verzi.
+.TP
+.BI \-p " NUM"
+Zastaví po dokončení procesní fáze NUM.  Procesní fáze jsou očíslované 1-5
+(parse, elaborate, translate, compile, run).  Viz sekce
+.B ZPRACOVÁNÍ .
+.TP
+.B \-v
+Zvýší upovídanost pro všechny procesní fáze.  Tuto volbu lze opakovat pro zvýšení
+množství informativního (?) výstupu.
+.TP
+.B \-\-vp ABCDE
+Zvýší upovídanost pro jednotlivé procesní fáze.  Například, "\-\-vp\ 002"
+přidá 2 jednotky upovídanosti procesní fázi 3.  Kombinace "\-v\ \-\-vp\ 00004"
+přidá 1 jednotku upovídanosti všem procesním fázím, a další čtyři jednotky fázi 5.
+.TP
+.B \-k
+Zachová dočasný procesní adresář, který se jinak po dokončení skriptu smaže.
+To může být užitečné, chceme-li zkoumat vygenerovaný C kód, nebo jej znovu použít
+pro vytvoření jaderného modulu.
+.TP
+.B \-g
+Guru režim.  Umožní použít potenciálně nebezpečné expertní konstrukce, jako
+například vložený (embedded) C kód v rámci systemtap skriptu.
+.TP
+.B \-P
+Režim prohledávání prologu (prologue-searching).  Ekvivalentem je
+\-\-prologue\-searching=always. Aktivuje heuristiku pro obcházení problémů s
+nekonzistentními ladicími informacemi pro kontextové proměnné parametrů funkcí.
+.TP
+.B \-u
+Vypne optimalizace jako např. odstraňování nepotřebného kódu (a mnoho dalších)
+během 2., či 3. procesní fáze (elaboration, translation).
+.TP
+.B \-w
+Potlačí všechny varovné hlášení.
+.TP
+.B \-W
+Zachází s varováními stejně jako s chybami.
+.TP
+.BI \-b
+Tzv. "bulk" režim pro přenos dat z jádra k uživateli.  V tomto režimu jsou data
+pro jednotlivé CPU přenášena odděleně a zapisována do samostatných souborů.  Pro
+jejich případné sloučení lze použít příkaz
+.IR stap\-merge.
+.TP
+.B \-t
+Sbírá různé časovací informace jako například počet aktivací (probe hits) pro jednotlivé sondy,
+průměrný čas strávený v jednotlivých sondách, atd.
+.TP
+.BI \-s " NUM"
+Nastaví velikost bufferu pro přenos dat ze systemtap modulu k uživateli na
+NUM MB.  Na víceprocesorovém systému v "bulk" režimu bude mít tuto velikost
+každý jednotlivý buffer.
+.TP
+.BI \-I " DIR"
+Přidá DIR mezi cesty ve kterých se vyhledávají tapset skripty.  Více informací
+obsahuje popis procesní fáze 2.
+.TP
+.BI \-D " NAME=VALUE"
+Přidá danou direktivu do Makefile systemtap modulu.  Toho lze využít například
+k předefinování různých omezení popsaných níže.
+.TP
+.BI \-B " NAME=VALUE"
+Předá danou direktivu příkazu make při sestavování systemtap modulu.  Toho lze
+využít k přidání nebo změně "kconfig" voleb.
+.TP
+.BI \-a " ARCH"
+Použije režim křížového překladu (cross compilation) pro danou cílovou
+architekturu.  Tato volba vyžaduje přístup ke kompilačnímu serveru a obvykle se
+používá spolu s volbami
+.BR "\-B CROSS_COMPILE=arch\-tool\-prefix\-" " a " "\-r /build/tree" .
+.TP
+.BI \-\-modinfo " NAME=VALUE"
+Přidá pár klíč/hodnota ve formě makra MODULE_INFO do vygenerovaného modulu.
+Toho lze využít k nastavení nebo úpravě různých jaderných kontrol souvisejících
+s modulem.
+.TP
+.BI \-G " NAME=VALUE"
+Nastavuje hodnotu globální proměnné NAME na VALUE při volání programu staprun.
+Tak lze nastavit hodnotu skalární globální proměnné skriptu.
+.TP
+.BI \-R " DIR"
+Prohledává DIR na systemtap runtime zdroje.  Výchozí hodnotu DIR lze zobrazit
+např. prostřednictvím "stap \-\-help".
+.TP
+.BI \-r " /DIR"
+Použije daný jaderný "build tree".  Lze také nastavit prostřednictvím proměnné
+prostředí
+.I SYSTEMTAP_RELEASE .
+.TP
+.BI \-r " RELEASE"
+Určí "release" jádra v rámci "build tree"
+.BR /lib/modules/RELEASE/build .
+Lze též nastavit prostřednictvím proměnné prostředí
+.I SYSTEMTAP_RELEASE .
+.TP
+.BI \-m " MODULE"
+Použije dané jméno pro vygenerovaný jaderný modul namísto obvyklého náhodně
+vygenerovaného jména.  Takto vygenerovaný modul se pak navíc zkopíruje do
+aktuálního adresáře.
+.TP
+.BI \-d " MODULE"
+Přidá do systemtap modulu ladicí informace o symbolech a informace pro odvíjení
+zásobníku pro daný MODULE.  Tak lze umožnit symbolické tracebacky pro MODULE i
+když do něj není explicitně vložena sonda.
+.TP
+.BI \-\-ldd
+Přidá do systemtap modulu ladicí informace pro všechny uživatelské
+spustitelné soubory nebo DSO knihovny, které ldd podezřívá z užitečnosti pro
+požadovanou analýzu. Totéž bude do systemtap modulu přidáno i pro moduly
+vyjmenované pomocí přepínačů \-d.  Upozornění: \-\-ldd může systemtap modul
+značně zvětšit.
+
+.TP
+.BI \-\-all\-modules
+Ekvivalent pro "\-dkernel" a "\-d" pro každý z momentálně zavedených modulů.
+Upozornění: \-\-all\-modules může systemtap modul značně zvětšit.
+.TP
+.BI \-o " FILE"
+Přesměruje výstup do souboru FILE.  V bulk režimu se použije pro každou CPU
+samostatný soubor s prefixem FILE_ (FILE_cpu s \-F) následovaným číslem CPU.
+Pro FILE je podporován strftime(3) formát.
+.TP
+.BI \-c " CMD"
+Zavede a nastartuje systemtap modul, spustí příkaz CMD, a vše ukončí spolu s
+CMD.  Vedlejším efektem je nastavení target() na pid CMD.
+.TP
+.BI \-x " PID"
+Nastaví target() na PID.  Takto lze psát skripty se zaměřením na daný proces.  V
+tomto případě systemtap skript běží bez ohledu na životní cyklus procesu PID.
+.TP
+.BI \-e " SKRIPT"
+Spustí SKRIPT.  Příklad: stap -e "probe oneshot { log("hello") }"
+.TP
+.BI \-E " SKRIPT"
+Spustí SKRIPT.  Ten běží spolu s hlavním skriptem určeným pomocí -e nebo
+načteným ze souboru.  Tuto volbu lze opakovat pro načtení většího počtu
+skriptů.  Taktéž ji lze použít v kombinaci s \-l/\-L.
+.TP
+.BI \-l " PROBE"
+Namísto obvyklého spuštění systemtap skriptu, tato volba vypíše všechny
+sondy které odpovídají parametru PROBE.  PROBE může obsahovat zástupné symboly
+a přezdívky, ale ne seznam čárkou oddělených sondážních bodů.  Pokud PROBE
+neodpovídá žádné dostupné sondě, bude výsledkem chyba.
+.TP
+.BI \-L " PROBE"
+Podobá se "\-l", ale navíc vypíše dostupné lokální proměnné.
+.TP
+.BI \-F
+Bez \-o tato volba zavede systemtap modul, spustí sondy a odpojí se od běžícího
+modulu.  V kombinaci s volbou \-o spustí staprun na pozadí jako démon a vypíše
+jeho pid.
+.TP
+.BI \-S " size[,N]"
+Nastavuje maximální velikost výstupního souboru a případně také počet
+výstupních souborů.  V případě, že dojde k překročení maximální velikosti
+výstupního souboru
+.B size
+, přepne systemtap svůj výstup do dalšího souboru.  Pakliže počet výstupních
+souborů překročí
+.B N
+, systemtap odstraní nejstarší výstupní soubor.  Druhý z argumentů lze vynechat.
+.TP
+.B \-\-skip\-badvars
+Ignoruje neidentifikovatelné nebo nedostupné kontextové proměnné a, aniž by
+došlo k chybě, nahradí jejich hodnotu nulou.
+.TP
+\fB\-\-prologue\-searching\fR[=\fIWHEN\fR]
+Režim prologue-searching.  Aktivuje heuristiku k vyrovnání se s nekvalitními
+ladicí informacemi pro kontextové proměnné funkčních parametrů.  WHEN může být
+"never" (nikdy), "always" (vždy), nebo "auto" (tj. zapnuto na základě
+heuristiky).  Když WHEN chybí, předpokládá se "always".  Bez explicitní
+specifikace se předpokládá "auto".
+.TP
+.B \-\-suppress\-handler\-errors
+Zabalí všechny obslužné rutiny do obálky podobné následujícímu kódu:
+.SAMPLE
+try { ... } catch { next }
+.ESAMPLE
+blok, který způsobuje chyby v době běhu, bude tiše potlačen.  Potlačené chyby se
+nebudou vyhodnocovat proti limitu
+.BR MAXERRORS .
+V tomto režimu je taktéž potlačeno testování
+.BR MAXSKIPPED
+, takže při běhu skriptu může dojít k libovolnému množství chyb.  Celkové počty
+chyb budou nicméně reportovány při ukončení skriptu.
+
+.TP
+.BI \-\-compatible " VERSION"
+Z uživatelského hlediska se tato volba pokouší napodobit chování systemtapu
+dané verze a umožnit tak běh starším skriptům.  Viz též sekce ZASTARÁVÁNÍ.
+
+.TP
+.BI \-\-check\-version
+Tato volba slouží k ověření, zda aktivní skript obsahuje konstrukce závislé na
+verzi systemtapu.  Viz též sekce ZASTARÁVÁNÍ.
+
+.TP
+.BI \-\-clean\-cache
+Tato volba smaže zastaralé položky v cache adresáři.  To se normálně děje po
+úspěšném ukončení skriptu, ale tato volba vyčistí cache explicitně, a pak ukončí
+systemtap.  Viz sekce CACHE.
+
+.TP
+\fB\-\-color\fR[=\fIWHEN\fR], \fB\-\-colour\fR[=\fIWHEN\fR]
+Tato volba ovládá obarvování výstupu.  WHEN může být "never" (nikdy), "always"
+(vždy), nebo "auto" (zapnuto pokud jde výstup do terminálu).  Pokud WHEN chybí,
+předpokládá se "auto".  Barvy lze měnit prostřednictvím proměnné prostředí
+SYSTEMTAP_COLORS.  Formát je následující:
+.nh
+\fBklíč1=hodnota1:klíč2=hodnota2:klíč3=hodnota3\fR ...atd.
+.hy
+Platné klíče jsou:
+.nh
+"error", "warning", "source", "caret", a "token".
+.hy
+Hodnotami jsou "Select Graphic Rendition" (SGR) parametry.  Viz dokumentace k
+použitému terminálu.  Příklad výchozího nastavení je:
+.nh
+\fBerror=01;31:warning=00;33:source=00;34:caret=01:token=01\fR.
+.hy
+Pokud SYSTEMTAP_COLORS chybí, použije se výchozí nastavení.  Pokud to je prázdné
+nebo chybné, obarvování se vypne.
+
+.TP
+.BI \-\-disable\-cache
+Tato volba vypne veškeré používání cache. Žádné soubory nebudou do cache
+adresáře zapsány, ani z něj čteny.
+
+.TP
+.BI \-\-poison\-cache
+Tato volba zachází se soubory v cache jako s neplatnými. Žádné soubory nebudou
+z cache čteny, ale nové soubory budou do cache zapsány na základě aktuálního
+běhu.  Tato volba má pomoci hledat chybu v případě, kdy se cache systemtapu zdá
+fungovat chybně.
+
+.TP
+\fB\-\-privilege\fR[=\fIstapusr\fR | =\fIstapsys\fR | =\fIstapdev\fR]
+Tato volba zkontroluje skript na přítomnost konstruktů, které nejsou povoleny
+pro zadanou úroveň oprávnění (viz \fINEPRIVILEGOVANÍ UŽIVATELÉ\fR).  Pokud
+skript nepovolené konstrukty obsahuje, kompilace skončí chybou.
+
+Pokud je \fIstapusr\fR nebo \fIstapsys\fR specifikováno při použití
+kompilačního serveru (viz \fI\-\-use\-server\fR), pak server zkontroluje skript
+a, pokud kompilace uspěje, server kryptograficky podepíše výsledný modul, kde
+specifikuje, že daný modul je bezpečný pro použití uživatelem s danou úrovní
+oprávnění.
+
+Pokud se \fI\-\-privilege\fR nespecifikuje, \fI\-pN\fR se také nespecifikuje s
+N < 5 a daný uživatel není \fIroot\fR ani člen skupiny \fIstapdev\fR, pak
+\fIstap\fR automaticky přidá odpovídající \fI\-\-privilege\fR volbu k již
+specifikovaným volbám.
+
+.TP
+.BI \-\-unprivileged
+Ekvivalent pro \fI\-\-privilege=stapusr\fR.
+
+.TP
+\fB\-\-use\-server\fR[=\fIHOSTNAME\fR[\fI:PORT\fR] | =\fIIP_ADDRESS\fR[\fI:PORT\fR] | =\fICERT_SERIAL\fR]
+Specifikuje kompilační server(y) pro kompilaci, a/nebo - v kombinaci s
+.I \-\-list\-servers
+a
+.I \-\-trust\-servers
+(viz níže) pro výpis serverů.  Pokud je tato volba použita bez parametrů v
+neprivilegovaném režimu (viz
+.IR \-\-privilege )
+, pak výchozí server, který bude pro kompilaci použit, bude některý z
+dostupných kompatibilních serverů "online SSL peer", a zároveň "module signer".  Jinak bude
+jako výchozí server použit některý z dostupných kompatibilních serverů "online SSL
+peer".
+.I \-\-use\-server
+lze použít opakovaně a v tomto případě bude seznam použitelných serverů
+postupně rozšiřován v daném pořadí.
+Servery lze specifikovat pomocí hostaname, IP adresy, nebo seriálním číslem
+certifikátu (získaným prostřednictvím
+.IR \-\-list\-servers ).
+Poslední možnost je nejběžnější pro (od)nastavování důvěryhodnosti serveru.  Viz
+.I \-\-trust\-servers
+níže.
+
+Pokud je server specifikován pomocí hostname nebo IP adresy, pak je volitelně
+možné určit i číslo portu.  To je vhodné pro přístup k serverům, které nejsou na
+lokální síti, nebo pro specifikování konkrétního serveru.
+
+IP adresou může být jak IPv4, tak IPv6.
+
+Pokud existuje více než jedno rozhraní s danou link-local IPv6 adresou, pak je
+možné zvolit konkrétní rozhraní připojením znaku "%" a názvu rozhraní k adrese,
+například: "fe80::5eff:35ff:fe07:55ca%eth0".
+
+Pro určení čísla portu IPv6 adresy je nutné uzavřít adresu do hranatých závorek
+, aby došlo k oddělení adresy od čísla portu.  Například:
+"[fe80::5eff:35ff:fe07:55ca]:5000" nebo "[fe80::5eff:35ff:fe07:55ca%eth0]:5000".
+
+Pokud \fI\-\-use\-server\fR nebylo specifikováno,
+\fI\-pN\fR nebylo specifikováno s N < 5,
+a uživatel není \fIroot\fR,
+není člen skupiny \fIstapdev\fR, ale je členem skupiny
+\fIstapusr\fR, pak \fIstap\fR automaticky
+přidá \fI\-\-use\-server\fR k již specifikovaným volbám.
+
+.TP
+\fB\-\-use\-server\-on\-error\fR[=\fByes\fR|=\fBno\fR]
+Požádá stap, aby zkusil kompilaci znovu s použitím kompilačního serveru,
+pokud lokální kompilace selže.  Pokud tato volba není specifikována, pak se za
+výchozí považuje \fB\-\-use\-server\-on\-error\fR=\fBno\fR
+
+\fB\-\-use\-server\-on\-error\fR je ekvivalentem pro
+\fB\-\-use\-server\-on\-error\fR=\fByes\fR.
+
+Kompilace může být přerušena pro určitý typ chyby, jako například nedostatek
+dat nebo zdrojů.  K tomu může dojít i během rekompilace.  Pro rekompilaci budou
+servery voleny automaticky tak, jako by byla použita volba
+\fI\-\-use\-server\fR bez parametrů.
+
+.TP
+.BI \-\-list\-servers "[=SERVERS]"
+Zobrazí stav požadovaných
+.IR SERVERS ,
+kde
+.I SERVERS
+je čárkou oddělený seznam atributů popisujících servery.  Sjednocení atributů
+slouží k vygenerování seznamu serverů.  Dostupné atributy jsou:
+.RS
+.TP
+.BI all
+specifikuje všechny známé servery (důvěryhodné servery "SSL peer", důvěryhodné servery "module
+signer", servery ve stavu "online").
+.TP
+.BI specified
+určuje servery specifikované pomocí
+.IR \-\-use\-server .
+.TP
+.BI online
+vybere ze seznamu jen ty servery, které jsou aktuálně ve stavu "online".
+.TP
+.BI trusted
+vybere ze seznamu jen důvěryhodné servery "SSL peer".
+.TP
+.BI signer
+vybere ze seznamu jen servery "module signer", viz
+.IR \-\-privilege .
+.TP
+.BI compatible
+vybere jen kompatibilní servery ve smyslu kernel release a architektury.
+.RE
+.IP
+Pokud není dán žádný argument, pak výchozí volbou je
+.BR specified .
+Pokud žádné servery nebyly specifikovány pomocí
+.IR \-\-use\-server ,
+pak budou vypsány výchozí servery pro
+.IR \-\-use\-server .
+
+Poznamenejme, že
+.IR \-\-list\-servers
+používá
+.IR avahi\-daemon
+k detekci online serverů.  Pokud tato služba není dostupná, pak
+.IR \-\-list\-servers
+nebude detekovat žádné
+.IR online
+servery.  Aby
+.IR \-\-list\-servers
+detekoval servery poslouchající na IPv6 adresách, musí konfigurační soubor avahi
+démona,
+.IR /etc/avahi/avahi-daemon.conf
+, obsahovat "use-ipv6=yes".  Po případné úpravě konfiguračního souboru je
+třeba službu restartovat.
+
+.TP
+.BI \-\-trust\-servers "[=TRUST_SPEC]"
+Nastavit nebo odvolat natavení důvěryhodnosti kompilačního serveru
+specifikovaného pomocí
+.IR \-\-use\-server
+podle TRUST_SPEC, kde TRUST_SPEC je čárkou oddělený seznam typů důvěryhodnosti.
+Podporované typy jsou:
+.RS
+.TP
+.BI ssl
+důvěřovat specifikovaným serverům jako "SSL peer".
+.TP
+.BI signer
+důvěřovat specifikovaným serverům jako "module signer" (viz
+.IR \-\-privilege ).
+Jen root může nastavit
+.BR signer.
+.TP
+.BI all\-users
+důvěřovat specifikovaným serverům jako "SSL peer" pro všechny uživatele na
+localhostu.  Výchozí chování je nastavit tento typ důvěřování jen pro aktuálního
+uživatele.  Důvěra typu "module signer" se vždy vztahuje na všechny uživatele.
+Jen root může nastavit
+.BR all\-users .
+.TP
+.BI revoke
+ruší určenou relaci důvěry.  Výchozí chování je zapnutí relace důvěry.
+.TP
+.BI no\-prompt
+nežádat uživatele o potvrzení před provedením akce.  Výchozí chování je požádat
+o potvrzení před provedením akce.
+.RE
+.IP
+Pokud žádný argument není nastaven, použije se výchozí hodnota
+.BR ssl .
+Pokud pomocí
+.IR \-\-use\-server ,
+nebyly určené žádné servery, žádná relace důvěry nebude nastavena ani zrušena.
+.IP
+Dokud se nespecifikuje \fBno\-prompt\fR, uživatel bude požádán o potvrzení
+požadované akce.
+
+.TP
+.BI \-\-dump-probe-types
+Vypíše všechny podporované typy sond a skončí.  Pokud je též nastaveno
+.IR \-\-privilege=stapusr
+, pak tento seznam bude omezen tak, aby vidět byly pouze sondy, které má
+daný uživatel právo použít.
+
+.TP
+.BI \-\-dump-probe-aliases
+Vypíše všechny přezdívky nalezené v tapset skriptech a skončí.
+
+.TP
+.BI \-\-dump-functions
+Vypíše všechny veřejné funkce nalezené v tapset skriptech a skončí.  Také
+vypíše jejich parametry a typy.  Návratový typ "unknown" značí, že daná funkce
+nevrací hodnotu.  Poznamenejme, že ne všechny návratové typy / typy parametrů je
+vždy možné při syntaktické analýze stanovit.  Nestanovené typy budou též
+označeny jako "unknown".  Funkce \-\-dump-functions je náročná na paměť a proto
+nemusí správně fungovat s \fI\-\-use-server\fR pokud na cílovém systému narazí
+na rlimit pro paměť procesu, například prostřednictvím konfiguračního souboru
+\fI~stap-server/.systemtap/rc\fR, viz \fIstap-server\fR(8).
+
+
+.TP
+.BI \-\-remote " URL"
+Provede skript na vzdáleném stroji.  Tuto volbu je možné opakovat pro provedení
+skriptu na více strojích.  Procesní fáze 1-4 se provedou lokálně, jak je běžné,
+a pak během fáze 5, se modul zkopíruje na specifikované stroje a na nich
+provede.  Přijatelné URL jsou:
+
+.RS
+.TP
+\fB[USER@]HOSTNAME\fR, \fBssh://[USER@]HOSTNAME\fR
+Tento režim využívá SSH, volitelně s využitím specifického uživatelského jména
+username. Pokud je použit uživatelský ssh_config, je třeba do něj přidat
+\fBSendEnv LANG\fR pro zachování nastavení lokalizace.
+
+.TP
+\fBlibvirt://DOMAIN\fR, \fBlibvirt://DOMAIN/LIBVIRT_URI\fR
+Tento režim využívá ke spuštění skriptu \fIstapvirt\fR v doméně obsluhované
+libvirt démonem.  Volitelně je možno specifikovat LIBVIRT_URI pro připojení ke
+specifickému driveru nebo vzdálenému stroji.  Například pro připojení k místnímu
+privilegovanému QEMU driveru použijte:
+
+.SAMPLE
+\-\-remote libvirt://MyDomain/qemu:///system
+.ESAMPLE
+Viz
+.nh
+<http://libvirt.org/uri.html>
+.hy
+pro podrobnosti ohledně podporovaných formátů URI.  Viz též
+\fIstapvirt\fR(1).
+
+.TP
+\fBunix:PATH\fR
+V tomto režimu dojde k připojení přes UNIX soket.  Toho lze využít pro připojení
+přes QEMU virtio-serial port pro spuštění skriptu uvnitř běžícího virtuálního
+stroje.
+
+.TP
+\fBdirect://\fR
+Loopback režim pro spouštění na localhostu.
+.RE
+.IP
+
+.TP
+.BI \-\-remote\-prefix
+Oprefixuje každou řádku výstupu "N: ", kde N je index vzdáleného stroje ze
+kterého daný výstup pochází.
+
+.TP
+.BI \-\-download\-ladicíinfo "[=OPTION]"
+Podle OPTION zapne, vypne, nebo nastaví timeout pro funkci automatického
+stahování balíčků s ladicími informacemi, kterou nabízí ABRT.  Přípustné
+hodnoty pro OPTION jsou:
+.RS
+.TP
+.BI yes
+povolí automatické stahování bez časového omezení.  Totéž jako
+.IR \-\-download\-debuginfo
+bez parametru.
+.TP
+.BI no
+explicitně vypne automatické stahování Totéž jako nepoužití
+\-\-download\-debuginfo vůbec.
+.TP
+.BI ask
+ukáže výstup ABRTu a dotáže se uživatele, zda se má pokračovat v downloadu.
+Žádný timeout nebude nastaven.
+.TP
+.BI <timeout>
+specifikuje timeout jako pozitivní celé číslo vyjadřující maximální počet
+sekund pro download.
+.RE
+.IP
+
+.TP
+.BI \-\-rlimit-as "=NUM"
+Určí maximální velikost virtuální paměti procesu v bajtech.  Bez
+specifikace NUM nebude žádný limit nastaven.
+
+.TP
+.BI \-\-rlimit-cpu "=NUM"
+Určí limit pro čas CPU v sekundách.  Bez specifikace NUM není žádný limit
+nastaven.
+
+.TP
+.BI \-\-rlimit-nproc "=NUM"
+Určí maximální počet procesů které může systemtap vytvořit.  Bez
+specifikace NUM není žádný limit nastaven.
+
+.TP
+.BI \-\-rlimit-stack "=NUM"
+Nastaví maximální velikost zásobníku v bajtech.  Bez specifikace NUM není žádný
+limit nastaven.
+
+.TP
+.BI \-\-rlimit-fsize "=NUM"
+Nastaví maximální velikost souboru, který je možno vytvořit, v bajtech.  Bez
+specifikace NUM není žádný limit nastaven.
+
+.TP
+.BI \-\-sysroot "=DIR"
+Nastaví "sysroot" adresář, kde budou umístěny cílové soubory (programy, knihovny
+atd.)  Po nastavení \fI\-r RELEASE\fR bude v adresáři "sysroot" hledán "build"
+adresář jádra, ovšem po nastavení \fI\-r /DIR\fR nebude "sysroot" prohledáván na
+"build" adresář jádra.
+
+.TP
+.BI \-\-sysenv "=VAR=VALUE"
+Nastaví alternativní hodnotu proměnné prostředí pokud se tato hodnota na
+vzdáleném systému liší.  Předpokládá se, že proměnné vyjadřující cesty budou
+uvedeny jako relativní cesty vzhledem k \fI\-\-sysroot\fR (pokud je nastaven).
+
+.TP
+.BI \-\-suppress\-time\-limits
+Potlačí \-DSTP_OVERLOAD*, \-DMAXACTION a \-DMAXTRYLOCK.  Vyžaduje guru režim (-g).
+
+.TP
+.BI \-\-runtime "=MODE"
+Nastaví runtime režim pro procesní fázi 5.  Validní hodnoty jsou \fIkernel\fR
+(výchozí) a \fIdyninst\fR.  Viz sekce
+.BR ALTERNATIVNÍ\ RUNTIME .
+
+.TP
+.BI \-\-dyninst
+Zkratka pro \fI\-\-runtime=dyninst\fR.
+
+.TP
+.BI \-\-save-uprobes
+Na strojích, kde si SystemTap musí sestavit svůj vlastní modul "uprobes" (jádra
+před 3.5), tato volba instruuje SystemTap, aby po sestavení tento pomocný modul
+zachoval v aktuálním adresáři.
+
+.TP
+.BI \-\-target-namespaces "=PID"
+Nastavuje cílový "namespace" (jmenný prostor procesů) na "namespace" do kterého
+patří PID.  Volba souvisí s "namespace\-aware" tapset funkcemi.  Pokud cílový "namespace"
+není specifikován, použije se "namespace" v kterém běží stap.
+
+.TP
+.BI \-\-monitor "=INTERVAL"
+Umožňuje zobrazovat informace o stavu modulu (čas běhu, jméno modulu, id
+uživatele, který modul aktivoval, informace o paměti, globální proměnné,
+seznam sond včetně jejich statistik).  Je možno nastavit volitelný parametr
+INTERVAL, který určuje obnovovací frekvenci stavového okna v sekundách. Činnost
+modulu lze ovládat následujícími klávesami:
+
+.RS
+.TP
+.BI r
+přenastaví všechny globální proměnné na jejich výchozí hodnoty nebo na nulu,
+pokud výchozí hodnota nebyla určena.
+.TP
+.BI s
+cyklicky mění hodnoty daného atributu za účelem změny třídění seznamu sond.
+.TP
+.BI t
+umožňuje aktivovat/deaktivovat sondu indexem.
+.TP
+.BI navigační-klávesy
+Klávesami j/k/Up/Down lze posouvat seznam sond.  Klávesami d/u/PgDn/PgUp
+lze rolovat v statistice modulu.
+.RE
+
+.SH ARGUMENTY
+
+Všechny další argumenty z příkazové řádky se předají kompilátoru ke
+zpracování.  Viz níže.
+
+.SH SKRIPTOVACÍ JAZYK
+
+Skriptovací jazyk systemtapu připomíná
+.IR awk " a " C .
+Existují v něm dva hlavní konstrukty: sondy a funkce.  V jejich rámci se používají
+příkazy a výrazy se syntaxí podobnou syntaxi jazyka C.
+
+.SS OBECNÁ SYNTAXE
+Bílé místo se ignoruje.  Podporovány jsou komentáře tří typů:
+.RS
+.br
+.BR # " ... shell styl, do konce řádku, mimo $# a @#"
+.br
+.BR // " ...  C++ styl, do konce řádku"
+.br
+.BR /* " ...  C styl ... " */
+.RE
+Literály jsou buďto řetězce uzavřené v uvozovkách (dovolují obvyklé C escape
+sekvence se zpětnými lomítky, které lze řetězit podobně jako v C), nebo celá
+čísla (dekadická, hexadecimální, nebo oktalová, zapsaná stejně jako v C).
+Maximální délka řetězce je rozumně omezená na několik set bajtů.  Celá čísla
+jsou 64-bitová se znaménkem.  Parser formálně přijímá i kladná čísla nad 2**63,
+pro které pak používá modulo aritmetiku z důvodu přetečení (wrap around).
+
+.PP
+Na konci příkazové řádky lze skriptům předat parametry.  V rámci
+skriptu k nim pak lze přistupovat prostřednictvím
+.B $1 ... $<NN>
+pokud jde literály neuzavřené do uvozovek, nebo
+.B @1 ... @<NN>
+pokud jde o řetězcové literály uzavřené do uvozovek.  Počet argumentů je
+přístupný prostřednictvím
+.B $#
+(jakožto číslo neuzavřené do uvozovek) nebo prostřednictvím
+.B @#
+(jakožto číslo do uvozovek uzavřené).  Tyto symboly lze použit na místě
+libovolné lexikální jednotky skriptu, a k jejich vyhodnocení dojde již v
+počáteční fázi překladu (preprocessing).
+
+.SS FÁZE PŘEDZPRACOVÁNÍ (PREPROCESSING)
+Součástí lexikální analýzy je jednoduchá fáze předzpracování.  V ní lze
+(ne)vyhodnocovat části kódu na základě podmínky.  Příslušná syntaxe se obecně
+podobá ternárnímu operátoru:
+.RB podmínka " ? " výraz1 " : " výraz2
+.SAMPLE
+.BR %( " PODMÍNKA " %? " VÝRAZ-1 " %)
+.BR %( " PODMÍNKA " %? " VÝRAZ-1 " %: " VÝRAZ-2 " %)
+.ESAMPLE
+PODMÍNKA je buďto výraz, jehož formát je určen prvním klíčovým slovem, nebo
+porovnání řetězcových či numerických literálů, nebo výraz složený z takových
+podmínek s využitím operátorů || a &&.  Nicméně, závorky zde zatím nejsou
+podporovány, takže je důležité mít na zřeteli, že && má při vyhodnocení
+přednost před ||.
+
+.PP
+Pokud první částí podmínky je identifikátor
+.BR kernel_vr " nebo " kernel_v
+odkazující se k verzi jádra s příponou ("2.6.13\-1.322FC3smp"), nebo bez
+přípony ("2.6.13"), pak následovat musí jeden z operátorů porovnání:
+.BR < ", " <= ", " == ", " != ", " > ", a " >= ,
+a třetí částí podmínky je řetězcový literál vyjadřující verzi jádra v RPM-stylu.
+
+Podmínka se považuje za splněnou, pokud verze běžícího jádra (volitelně
+předefinovaná volbou
+.BR \-r
+) se srovnává se zadanou hodnotou.  Srovnání provádí glibc funkce
+.BR strverscmp() .
+
+Pokud operátorem je jednoduchá rovnost
+.RB ( == ),
+nebo nerovnost
+.RB ( != ),
+a pravý operand obsahuje zástupné symboly
+.RB ( * " nebo " ? " nebo " [ "),"
+, pak celý výraz bude interpretován jako "wildcard (mis)match" a bude
+vyhodnocen glibc funkcí
+.BR fnmatch() .
+
+
+.PP
+Pokud první částí podmínky je
+.BR arch
+odkazující se k architektuře procesoru (pojmenované podle ARCH/SUBARCH v
+terminologii jádra), pak druhou částí podmínky je jeden z operátorů:
+.BR == " nebo " != ,
+a třetí částí podmínky je požadovaný řetězcový literál, který může obsahovat
+zástupné symboly ("wildcard (mis)match").
+.PP
+
+Podobně, pokud první složkou podmínky je identifikátor jako
+.BR CONFIG_*
+odkazující se ke konfigurační volbě jádra, pak druhou částí podmínky je
+.BR == " nebo " != ,
+a třetí částí podmínky je řetězcový literál odpovídající volby (obvykle "y",
+nebo "m").  Neexistující, nebo nenastavené konfigurační volby v tomto kontextu
+odpovídají prázdnému řetězci.  Vyhodnocení opět probíhá jako "wildcard
+(mis)match" s využitím
+.BR fnmatch() .
+
+.PP
+Pokud první částí je identifikátor
+.BR systemtap_v ,
+pak se test odkazuje k verzi systemtapu, kterou lze volitelně pro staré skripty
+nastavit prostřednictvím volby
+.BI \-\-compatible .
+Operátor porovnání je jako u
+.BR kernel_v
+, a pravým operandem je řetězec vyjadřující verzi jádra.  Viz též sekce
+ZASTARÁVÁNÍ níže.
+.PP
+
+Pokud první částí podmínky je
+.BR systemtap_privilege ,
+pak se test odkazuje k úrovni oprávnění se kterou je systemtap skript překládán.
+V tomto případě je podmínkou jeden z operátorů
+.BR == " nebo " != ,
+a třetí částí podmínky je jeden z řetězcových literálů "stapusr", "stapsys",
+nebo "stapdev".
+
+.PP
+Pokud první částí podmínky je identifikátor
+.BR guru_mode ,
+pak test ověřuje, zda je systemtap skript překládán v "guru" režimu (-g).
+Operátorem pro tento případ může být
+.BR == " nebo " != ,
+a třetí částí podmínky je číslo.  Buďto 1, nebo 0.
+.PP
+
+Pokud prvním indetifikátorem je
+.BR runtime ,
+testuje se runtime režim (--runtime).  Viz sekce
+.BR ALTERNATIVNÍ\ RUNTIME
+níže pro informaci o dostupných runtime backendech.
+Porovnávací operátor v tomto případě je
+.BR == " nebo " != ,
+a třetí částí podmínky je řetězcový literál odpovídající runtime.  Porovnání je
+typu "wildcard (mis)match" s využitím
+.BR fnmatch()
+
+.PP
+Poslední možností je situace, kdy PODMÍNKA srovnává prosté číselné, nebo
+řetězcové literály.
+
+.PP
+VÝRAZ-1 a VÝRAZ-2 představují výskyt nuly nebo více obecných lexikálních
+jednotek (které mohou obsahovat další vložené podmínky preprocesoru), a
+jsou preprocesorem předány na vstup parseru v závislosti na vyhodnocení uvedené
+podmínky.  Například následující kód vyvolá kompilační chybu v případě že verze
+běžícího jádra na cílovém systému je novější, než 2.6.5:
+.SAMPLE
+%( kernel_v <= "2.6.5" %? **ERROR** %) # "invalid token sequence"
+.ESAMPLE
+
+Naproti tomu následující kód umožní elegantně se vyrovnat s různými verzemi jádra:
+.SAMPLE
+probe kernel.function (
+  %( kernel_v <= "2.6.12" %? "__mm_do_fault" %:
+     %( kernel_vr == "2.6.13*smp" %? "do_page_fault" %:
+        UNSUPPORTED %) %)
+) { /* ... */ }
+
+%( arch == "ia64" %?
+   probe syscall.vliw = kernel.function("vliw_widget") {}
+%)
+.ESAMPLE
+
+.SS MAKRA PREPROCESORU
+Preprocesor přijímá jednoduchá makra a vyhodnocuje je v rámci samostatné
+procesní fáze před vyhodnocením podmínek.
+
+.PP
+Makra se definují následující konstrukcí:
+.SAMPLE
+@define NAME %( BODY %)
+@define NAME(PARAM_1, PARAM_2, ...) %( BODY %)
+.ESAMPLE
+
+Makra (a také parametry uvnitř těla maker) jsou přístupná přidáním prefixu "@"
+před jejich jméno"
+.SAMPLE
+@define foo %( x %)
+@define add(a,b) %( ((@a)+(@b)) %)
+
+   @foo = @add(2,2)
+.ESAMPLE
+.PP
+
+K expanzi maker v současnosti dochází v samostatné preprocesní fázi před
+zpracováním podmínek.  Proto dojde k vyhodnocení všech maker v rámci
+kondicionálu bez ohledu na konkrétní podmínku.  To může vést k nezamýšleným
+chybám:
+
+.SAMPLE
+// Následující kód způsobí chybu:
+%( CONFIG_UTRACE == "y" %?
+    @define foo %( process.syscall %)
+%:
+    @define foo %( **ERROR** %)
+%)
+
+// Následující kód bude fungovat správně:
+@define foo %(
+  %( CONFIG_UTRACE == "y" %? process.syscall %: **ERROR** %)
+%)
+.ESAMPLE
+
+První příklad je chybný, protože vyvolá duplicitní definici makra "foo".
+
+Za normálních okolností je definice platná lokálně - pouze v souboru kde se
+vyskytuje.  Makro definované v tapset skriptu tedy není veřejně použitelné v
+rámci uživatelského skriptu.  Makra, která mají být veřejně dostupná, lze
+sdružovat do knihoven s příponou ".stpm" nacházející se v "tapset search path".
+Tyto soubory mohou obsahovat @define konstrukty, které budou dostupné nejen ve
+všech tapsetech, ale i v uživatelských skriptech.  Volitelně mohou být definice
+maker v rámci ".stpm" souborů zabaleny v kondicionálech preprocesoru.
+
+.SS PROMĚNNÉ
+Identifikátory pro proměnné a funkce jsou alfanumerické sekvence, které mohou
+obsahovat \fB_\fR a \fB$\fR.  Nesmí začínat číslicí (stejně jako v C).  Proměnné
+jsou lokální vzhledem ke svému bloku (funkce nebo sondy) a jejich životnost je
+spojena s tímto blokem.
+
+.PP
+Skalární proměnné jsou implicitně řetězcového, nebo celočíselného typu.
+Asociativní pole mohou také obsahovat řetězcové nebo celočíselné hodnoty a jako
+klíč jim slouží n-tice řetězců nebo celých čísel.  Zde je několik příkladů:
+
+.SAMPLE
+var1 = 5
+var2 = "bar"
+array1 [pid()] = "name"     # jednoduchý číselný klíč pole
+array2 ["foo",4,i++] += 5   # n-tice jako klíč pole
+if (["hello",5,4] in array2) println ("yes")  # test na členství
+.ESAMPLE
+.PP
+
+Překladač provádí
+.I typové odvození (type inference)
+na všech identifikátorech včetně indexů polí a parametrů funkcí.
+Nekonzistentní zacházení s typy způsobí chybu překladu.
+
+.PP
+Proměnné lze definovat jako globální, takže mohou být sdíleny mezi sondami a
+funkcemi, a žijí stejně dlouho jako celé systemtap sezení.  Pro globální
+proměnné existuje jediný jmenný prostor.  Přístup ke globálním proměnným je
+chráněn zámky, viz
+.B BEZPEČNOST A OCHRANA SOUKROMÍ.
+Globální proměnnou lze deklarovat kdekoli ve vnější úrovni zdrojového kódu,
+tedy mimo bloky sond a funkcí.  Globální proměnné, kterým byla přiřazena
+hodnota, ale nikdy nebyla čtena, budou automaticky zobrazeny na konci systemtap
+sezení.  Překladač se pokusí odvodit datový typ z hodnot a případně, pokud jde
+o pole, i z klíčů.  Volitelně lze globální proměnnou inicializovat řetězcovým,
+nebo číselným literálem.  Zde jsou příklady deklarace globálních proměnných:
+
+.SAMPLE
+.BR global " var1" , " var2" , " var3=4"
+.ESAMPLE
+.PP
+
+Globální proměnné lze také použít jako parametry systemtap modulu.  Toho lze
+dosáhnout buďto použitím přepínače stap \-G, nebo modul připravit předem pomocí
+stap \-p4 a parametry mu předat později při jeho zavádění na příkazové řádce
+programu staprun.  Viz
+.IR staprun (8) .
+
+.PP
+Rozsah platnosti globální proměnné lze omezit na tapset soubor, nebo na
+uživatelský skript prostřednictvím klíčového slova "private".  V tom případě je
+klíčové slovo "global" volitelné.  Následující deklarace označuje var1 a var2 jako
+privátní globální proměnné:
+
+.SAMPLE
+.BR private " global" " var1=2"
+.BR private " var2"
+.ESAMPLE
+.PP
+
+Pole mají omezenou velikost parametrem MAXMAPENTRIES.  Viz
+.B BEZPEČNOST A OCHRANA SOUKROMÍ
+
+Volitelně lze polím (která jsou vždy globální) nastavit maximální velikost v
+hranatých závorkách, čímž se předefinuje MAXMAPENTRIES pro dané pole.
+Poznamenejme, že velikost se vztahuje jen k počtu prvků, nikoliv k celkové
+velikosti pole v paměti.  Příklad:
+.SAMPLE
+.BR global " tiny_array[10]" , " normal_array" , " big_array[50000]"
+.ESAMPLE
+.PP
+
+Polím lze nastavit příznak "%".  To způsobí, že pokud do pole přidáme více
+prvků, než pro kolik je dimenzováno, začnou staré prvky mizet (LIFO).  To platí
+jak pro asociativní, tak pro statistická pole, viz níže.  Příklad:
+
+.SAMPLE
+.BR global " wrapped_array1%[10]", " wrapped_array2%"
+.ESAMPLE
+
+.PP
+Mnohé sondy poskytují kontextové proměnné, což jsou hodnoty získané za běhu z
+jádra, nebo zkoumané uživatelské aplikace.  Jejich identifikátory začínají
+znakem \fB$\fR.  Sekce KONTEXTOVÉ PROMĚNNÉ v manuálové stránce
+.IR stapprobes (3stap)
+obsahuje jejich seznamy pro jednotlivé typy sond.  Tyto kontextové proměnné se
+stanou normálními řetězcovými nebo numerickými proměnnými použitelnými ve
+skriptu, jakmile provedeme příslušné přiřazení (např. foo=$foo).  Podívejte se
+níže na sekci PŘETYPOVÁNÍ, kde je popsáno jak takovou proměnnou přetypovat zpět
+na ukazatel je-li to třeba.
+
+.SS PŘÍKAZY
+Příkazy umožňují procedurální řízení běhu skriptu.  Mohou se vyskytovat uvnitř
+funkcí a obslužných rutin sond.  Celkový počet příkazů, které je v reakci na
+nějakou událost možno spustit, je omezen na hodnotu definovanou makry
+MAXACTION_* ve vygenerovaném C-kódu a pohybuje se kolem 1000.
+
+.TP
+EXP
+Vyhodnotit řetězcový, nebo číselný výraz a zahodit hodnotu.
+
+.TP
+.BR { " STMT1 STMT2 ... " }
+Vykonat každý příkaz v sekvenci v tomto bloku.  Poznamenejme, že oddělovače a
+znaky pro ukončení příkazu nejsou mezi jednotlivými příkazy nezbytné.
+
+.TP
+.BR ;
+Prázdný příkaz, nedělat nic.  Je užitečný jako volitelný oddělovač mezi příkazy
+ke zlepšení detekce syntaktických chyb a k upřesnění některých syntaktických
+nejednoznačností gramatiky.
+
+.TP
+.BR if " (EXP) STMT1 [ " else " STMT2 ]"
+Porovnat číselný výraz EXP s nulou.  Pak vykonat příkaz STMT1 (EXP není nula),
+nebo příkaz STMT2 (EXP je nula).
+
+.TP
+.BR while " (EXP) STMT"
+Dokud má číselný výraz EXP nenulovou hodnotu, spouštěj STMT.
+
+.TP
+.BR for " (EXP1; EXP2; EXP3) STMT"
+Vykoná EXP1 jako inicializaci.  Dokud EXP2 má nenulovou hodnotu, bude vykonávat
+STMT a iterační výraz EXP3.
+
+.TP
+.BR foreach " (VAR " in " ARRAY [ "limit " EXP ]) STMT"
+Cyklení přes každý prvek globálního pole ARRAY s přiřazením aktuálního prvku
+proměnné VAR.  Pole není v rámci STMT dovoleno měnit.  Přidáním operátoru
+.BR + " nebo " \-
+za identifikátor VAR nebo ARRAY, se zajistí iterování přes
+setříděné pole jedním, nebo druhým směrem.  Pokud pole obsahuje statistické
+agregátory, pak přidáním požadovaného operátoru
+.BR @operator
+mezi ARRAY a symbol
+.BR + " nebo " \-
+určíme třídicí agregační funkci.  Viz příklad níže v sekci STATISTIKA.  Výchozí je
+.BR @count .
+S využitím volitelného klíčového slova
+.BR limit
+lze maximální počet iterací omezit na EXP.  Poznamenejme, že EXP se vyhodnocuje
+na začátku smyčky.
+
+.TP
+.BR foreach " ([VAR1, VAR2, ...] " in " ARRAY [ "limit " EXP ]) STMT"
+Podobně jako výše, ovšem v tomto případě je klíčem pole n-tice hodnot.  Třídicí
+příponu lze použít maximálně na jednom z prvků n-tice.
+
+.TP
+.BR foreach " ([VAR1, VAR2, ...] " in " ARRAY [INDEX1, INDEX2, ...] [ "limit " EXP ]) STMT"
+Podobně jako výše, ovšem iterovat se bude pouze přes prvky, kde klíč vyhovuje
+dané hodnotě.  Pro určení indexu lze použít znak *, se kterým bude zacházeno jako
+se zástupným symbolem.
+
+.TP
+.BR foreach " (VAR0 = VAR " in " ARRAY [ "limit " EXP ]) STMT"
+Tato varianta foreach uchová aktuální hodnotu při každé iteraci ve VAR0, takže
+bude odpovídat ARRAY[VAR].  Tohle analogicky funguje s n-ticí klíčů.  Třídicí
+přípony na VAR0 mají stejný význam jako na ARRAY.
+
+.TP
+.BR foreach " (VAR0 = VAR " in " ARRAY [INDEX1, INDEX2, ...] [ "limit " EXP ]) STMT"
+Podobné jako výše, ovšem iteruje se pouze přes prvky, kde klíče vyhovují daným
+hodnotám.  Pro určení indexu lze použít znak * se kterým bude zacházeno jako se
+zástupným symbolem.
+
+.TP
+.BR break ", " continue
+Ukončit, nebo znovu iterovat vnitřní smyčku. Aplikovatelné na
+.RB while " nebo " for " nebo " foreach.
+
+.TP
+.BR return " EXP"
+Vrátit hodnotu EXP z funkce.  Příkaz return není ve funkci povinný.  Pokud se
+vynechá, bude funkce mít speciální návratový datový typ "unknown".
+
+.TP
+.BR next
+Ihned ukončí obslužnou rutinu sondy.  To je obzvlášť užitečné u přezdívek,
+které používají filtrovací podmínky.
+
+.TP
+.BR try " { STMT1 } " catch " { STMT2 }"
+Vykonej příkazy v prvním bloku STMT1.  Pokud při tom dojde k chybě běhu,
+ukonči STMT1 a začni provádět STMT2.  Případné chyby v STMT2 se budou propagovat
+do vnějšího catch bloku, pokud tam takový je.
+
+.TP
+.BR try " { STMT1 } " catch "(VAR) { STMT2 }"
+Podobně jako v předchozím případě, ale navíc se chybová hláška, jakožto řetězec,
+uchová v proměnné VAR.
+
+.TP
+.BR delete " ARRAY[INDEX1, INDEX2, ...]"
+Odstraní z pole prvky určené n-ticí klíčů.  Pokud n-tice klíčů obsahuje
+symbol * na místě indexu, bude s * zacházeno jako jako se zástupným symbolem.
+
+Není chybou pokusit se smazat prvek, který neexistuje.
+
+.TP
+.BR delete " ARRAY"
+Smazat všechny prvky pole ARRAY.
+
+.TP
+.BR delete " SCALAR"
+Maže hodnotu SCALAR.  Celočíselné proměnné budou vynulovány, řetězcové proměnné
+nastaveny na "", a statistické proměnné budou nastaveny do výchozího prázdného
+stavu.
+
+.SS VÝRAZY
+SystemTap podporuje množství operátorů, které mají syntaxi a sémantiku velmi
+podobnou jejich C a awk protějškům.  Aritmetické operace se provádějí v souladu
+s pravidly jazyka C pro celá čísla se znaménkem.  Dělení nulou nebo přetečení
+rozsahu se detekuje a způsobí chybu.
+
+.TP
+binární numerické operátory
+.B * / % + \- >> << & ^ | && ||
+.TP
+binární operátory nad řetězci
+.B .
+(spojení řetězců)
+.TP
+číselné přiřazovací operátory
+.B = *= /= %= += \-= >>= <<= &= ^= |=
+.TP
+řetězcové přiřazovací operátory
+.B = .=
+.TP
+unární číselné operátory
+.B + \- ! ~ ++ \-\-
+.TP
+operátory pro srovnávání čísel, řetězců a práci s regulárními výrazy
+.B < > <= >= == != =~ !~
+.TP
+ternární operátor
+.RB podmínka " ? " exp1 " : " exp2
+.TP
+seskupovací operátor
+.BR ( " exp " )
+.TP
+volání funkce
+.RB "fn " ( "[ arg1, arg2, ... ]" )
+.TP
+operátor testující členství v poli
+.RB exp " in " array
+.br
+.BR "[" exp1 ", " exp2 ", " ... "] in " array
+.br
+.BR "[" "*" ", " "*" ", ... "] in " array
+
+.SS REGULÁRNÍ VÝRAZY
+Skriptovací jazyk systemtapu podporuje práci s regulárními výrazy.
+Základní operace testující (ne)shodu řetězce s regulárním výrazem:
+.SAMPLE
+.BR exp " =~ " regex
+.BR exp " !~ " regex
+.ESAMPLE
+První operand musí být výraz vyhodnotitelný na řetězec; druhý operand musí být
+řetězcový literál obsahující platný regulární výraz.
+
+.PP
+Syntaxe regulárních výrazů podporuje většinu rozšířených regulárních výrazů POSIX
+standardu.  Výjimkou je znovupoužití částí regulárního výrazu ("\\1") - tato
+část ještě nebyla implementována.
+
+.SS SONDY
+Hlavním syntaktickým konstruktem skriptovacího jazyka jsou sondy (probes).  Sondy
+spojují abstraktní události s bloky příkazů a vytvářejí tak obslužné rutiny
+událostí.  Obecná syntaxe je následující:
+.SAMPLE
+.BR probe " PROBEPOINT [" , " PROBEPOINT] " { " [STMT ...] " }
+.BR probe " PROBEPOINT [" , " PROBEPOINT] " "if (" CONDITION ") { " "[STMT ...]" " }"
+.ESAMPLE
+.PP
+
+Události jsou určeny syntaxí nazývanou sondážní body (probe points).  Existuje množství
+variant sondážních bodů.  Některé jsou definovány překladačem a mnohé další jsou
+definovány v tapset skriptech jako přezdívky.  Sondážní body mohou využívat
+zástupné znaky, být seskupovány, může být určováno jejich pořadí, či
+mohou být deklarovány jako volitelné.  Více podrobností o syntaxi a sémantice
+sondážních bodů viz
+
+.IR stapprobes (3stap).
+
+.PP
+Obslužná rutina sondy se interpretuje relativně ke kontextu dané události.  Pro
+události související s kernel kódem může tento kontext obsahovat
+.I proměnné
+definované ve
+.I zdrojovém kódu
+jádra.  Takové "kontextové" proměnné jsou pak přístupné ve skriptu z prefixem "$".
+Jsou přístupné pouze pokud byly kompilátorem jádra zachovány navzdory
+optimalizacím.  To je stejné omezení s jakým se potýká debugger když pracuje s
+optimalizovaným kódem.  Navíc musí tyto objekty být v momentě vykonávání obslužné rutiny 
+sondy přítomny přímo v nastránkované (in-paged) paměti, protože systemtap
+nesmí zapříčinit žádné dodatečné stránkování.  Některé sondy mají velmi málo
+kontextových proměnných.  Viz
+.IR stapprobes (3stap).
+.PP
+Proby mohou být doplněny
+.IR "podmínkou pro uzamčení" ,
+sestávající z jednoduchého booleovského výrazu.  Sonda je "odemčená" (tedy
+neaktivní) vyhodnocuje-li se zamykací podmínka na false.  V tomto stavu některé
+sondy snižují nebo zcela eliminují svoji režii, tedy nekonzumují systémové
+prostředky.  Jakmile se zamykací podmínka vyhodnotí na true bude sonda 
+.I brzy
+znovu uzamčena a její obslužná rutina začne brzy být opět volána když nastane
+příslušná událost.  Přestože je zamykání rychlé, trvá nenulový čas, a některé
+události nemusejí být zachyceny.  V případech kdy toto může představovat
+problém, je lepší zamykání sond nepoužívat.
+.PP
+Nové sondážní body lze definovat pomocí přezdívek (probe aliases).  Definice
+přezdívky vypadá podobně jako definice sondy samotné, ale namísto aktivování
+sondy v daném místě pouze definují nové jméno - přezdívku pro již existující
+sondážní bod. Existují dva typy přezdívek: "prologue" a "epilogue", které jsou
+definovány pomocí "=" nebo resp. "+=".
+.PP
+Přezdívka typu "prologue" vznikne tak, že se blok příkazů, který následuje
+definici této přezdívky, přidá před sondu ke které se váže jako její prolog.
+Naproti tomu přezdíka typu "epilogue" vznikne tak, že blok příkazů, který
+následuje definici této přezdívky, se přidá za sondu ke které se váže jako její
+epilog. Například:
+
+.SAMPLE
+probe syscall.read = kernel.function("sys_read") {
+  fildes = $fd
+  if (execname() == "init") next  # přeskočit zbytek sondy
+}
+.ESAMPLE
+definuje nový sondážní bod. 
+.nh
+.IR syscall.read ,
+.hy
+který se rozšiřuje na
+.nh
+.IR kernel.function("sys_read") ,
+.hy
+s daným příkazem jako prologem, což je výhodné k předdefinování některých
+proměnných pro danou přezdívku a/nebo pro přeskočení dané sondy v závislosti na
+podmínce.  Naproti tomu
+.SAMPLE
+probe syscall.read += kernel.function("sys_read") {
+  if (tracethis) println ($fd)
+}
+.ESAMPLE
+definuje nový sondážní bod s daným příkazem jako epilogem, což může být užitečné
+k provedení činností v závislosti na hodnotách proměnných nastavených
+uživatelem přezdívky.  Poznamenejme, že v každém případě jsou příkazy v
+obslužné rutině přezdívky vykonávány za běhu, takže v danou chvíli zejména
+nedochází k vyhodnocování/substituci maker.
+
+Přezdívku lze použít stejně jako vestavěnou sondu překladače.
+.SAMPLE
+probe syscall.read {
+  printf("reading fd=%d\\n", fildes)
+  if (fildes > 10) tracethis = 1
+}
+.ESAMPLE
+
+.SS FUNKCE
+Systemtap skripty mohou definovat funkce.  Ty mohou přijímat libovolný počet
+skalárních (celočíselných nebo řetězcových) parametrů, a vrací jednu skalární
+funkční hodnotu.  Příklad funkce:
+.SAMPLE
+function thisfn (arg1, arg2) {
+   return arg1 + arg2
+}
+.ESAMPLE
+Povšimněme si absence explicitních deklarací typů. Typy, jsou odvozeny
+(inferred) překladačem.  Nicméně, pokud je to potřeba, může definice funkce
+zahrnovat explicitní deklarace návratového typu a/nebo typů argumentů.  To je
+užitečné zejména pro vložené C funkce.  V následujícím příkladě je automatické
+odvození typu nutné jen pro arg2 (řetězec):
+
+.SAMPLE
+function thatfn:string (arg1:long, arg2) {
+   return sprint(arg1) . arg2
+}
+.ESAMPLE
+
+Funkce se mohou volat navzájem až do určitého limitu zanoření.  Tento limit je
+definován makrem MAXNESTING ve vygenerovaném zdrojovém kódu modulu a pohybuje se
+okolo 10.
+
+Funkce lze označit za privátní použitím klíčového slova "private".  Tím se omezí
+jejich platnost soubor (tapset nebo uživatelský skript) ve kterém jsou
+definovány.  Příklad:
+.SAMPLE
+private function three:long () { return 3 }
+.ESAMPLE
+
+.SS TISK
+Existuje několik funkcí, se kterými překladač zachází neobvykle. Poznamenejme,
+že data jsou generována v jaderném modulu a před tiskem musí být přenesena do
+uživatelského prostoru. Tyto funkce formátují hodnoty pro pohodlný tisk do
+výstupního proudu systemtapu.  Varianty funkce
+
+.IR sprint*
+vracejí formátovaný řetězec namísto aby ho přímo vypisovaly.
+.TP
+.BR print ", " sprint
+Výpis jedné nebo více hodnot libovolného typu spojených dohromady.
+.TP
+.BR println ", " sprintln
+vypisují hodnoty stejně jako
+.IR print " a " sprint ,
+ale navíc připojují znak nového řádku.
+.TP
+.BR printd ", " sprintd
+Přijímají řetězcový oddělovač a dvě nebo více hodnot libovolného typu, a
+vytisknou je proložené tímto oddělovačem.  Oddělovačem musí být řetězcový
+literál - konstanta.
+.TP
+.BR printdln ", " sprintdln
+Vytisknou hodnoty proložené oddělovačem podobně jako
+.IR printd " a " sprintd ,
+ale zároveň připojí znak konce řádku.
+.TP
+.BR printf ", " sprintf
+přijímají formátovací řetězec s množinou hodnot odpovídajících typů a všechny
+je vytisknou.  Formátovacím řetězcem musí být řetězcový literál - konstanta.
+.PP
+Formátovací řetězec příkazu
+.IR printf
+je podobný jako v jazyce C s tím, že zde probíhá typová kontrola.
+.RS
+.TP
+%b
+Vypisuje binární blob dané hodnoty namísto ASCII textu.  Specifikátor "width"
+určuje počet bajtů k vypsání.  Validní specifikace jsou: %b %1b %2b %4b %8b.
+Výchozí je (%b), t.j. 8 bajtů.
+.TP
+%c
+Znak.
+.TP
+%d,%i
+Celé číslo se znaménkem.
+.TP
+%m
+Bezpečně čte paměť jádra na dané adrese, vrací její obsah.  Volitelný
+specifikátor přesnosti (ne šířky pole) určuje počet bajtů k přečtení.  Výchozí
+hodnota je 1 bajt. %10.4m vytiskne 4 bajty paměti v rámci 10 znaků širokého pole.
+.TP
+%M
+Stejné jako %m, ale výstup je hexadecimální.  Minimální šířka výstupu je
+určitelná volitelným specifikátorem r - výchozí hodnota je 1 bajt (2
+hexadecimální znaky). %10.4M vytiskne 4 bajty paměti jako 8 hexadecimálních
+znaků v rámci 10 znaků širokého pole.
+.TP
+%o
+Oktalové číslo bez znaménka.
+.TP
+%p
+Ukazatel bez znaménka.
+.TP
+%s
+Řetězec.
+.TP
+%u
+Desítkové číslo bez znaménka.
+.TP
+%x
+Hexadecimální hodnota bez znaménka, malá písmena.
+.TP
+%X
+Hexadecimální hodnota bez znaménka, velká písmena.
+.TP
+%%
+Vypíše znak %.
+.RE
+.PP
+Znak
+.IR #
+zapíná alternativní formátování: Oktalovým číslům přidá prefix "0",
+hexadecimálním "0x", nebo "0X", a netisknutelným znakům v řetězci přidá prefix
+"escape" sekvence.
+.PP
+Příklady:
+.SAMPLE
+a = "alice", b = "bob", p = 0x1234abcd, i = 123, j = \-1, id[a] = 1234, id[b] = 4567
+print("hello")
+	Vypíše: hello
+println(b)
+	Vypíše: bob\\n
+println(a . " is " . sprint(16))
+	Vypíše: alice is 16
+foreach (name in id)  printdln("|", strlen(name), name, id[name])
+	Vypíše: 5|alice|1234\\n3|bob|4567
+printf("%c is %s; %x or %X or %p; %d or %u\\n",97,a,p,p,p,j,j)
+	Vypíše: a is alice; 1234abcd or 1234ABCD or 0x1234abcd; \-1 or 18446744073709551615\\n
+printf("2 bytes of kernel buffer at address %p: %2m", p, p)
+	Vypíše: 2 byte of kernel buffer at address 0x1234abcd: <binary data>
+printf("%4b", p)
+	Vypíše (these values as binary data): 0x1234abcd
+printf("%#o %#x %#X\\n", 1, 2, 3)
+	Vypíše: 01 0x2 0X3
+printf("%#c %#c %#c\\n", 0, 9, 42)
+	Vypíše: \\000 \\t *
+.ESAMPLE
+
+.SS STATISTIKA
+Často je výhodné sbírat statistická data způsobem, který netrpí problémy s
+exkluzivním zamykáním globálních proměnných, kde se data udržují.  Systemtap
+nabízí řešení ve formě speciálního operátoru pro uchovávání statistických dat a
+sady agregačních pseudofunkcí.
+
+.PP
+Agregační operátor je
+.IR <<< ,
+a připomíná přiřazení, nebo operaci pro zápis do výstupního proudu známou z C++.
+Levý operand je skalární proměnná (nebo /skalární/ prvek pole - viz příklad
+níže), která musí být deklarována jako globální.  Pravým operandem je číselný
+výraz.  Význam je intuitivní:  Přidej dané číslo na hromadu nad kterou bude
+později možno provádět statistické operace.   Seznam funkcí pro extrakci
+statistických údajů je uveden níže.  Příklad:
+.SAMPLE
+foo <<< 1
+stats[pid()] <<< memsize
+.ESAMPLE
+.PP
+Funkce pro extrakci statistiky jsou neobvyklé.  Pro každý výskyt extrakční
+funkce pracující s daným identifikátorem zajistí překladač výpočet
+požadovaného statistického údaje.  Statistický subsystém tedy funguje "na
+požádání" a výpočet probíhá v reálném čase na všech dostupných CPU.
+.PP
+Zde je seznam extrakčních funkcí.  Prvním argumentem každé z nich je ta stejná
+l-hodnota, která byla použita pro akumulaci statistiky operátorem <<<.
+Extrakční funkce
+.IR @count(v) ", " @sum(v) ", " @min(v) ", " @max(v) ", " @avg(v)
+počítají počet, sumu, minimum, maximum, a aritmetický průměr přes všechny
+nashromážděné hodnoty.  Funkčními hodnotami jsou celá čísla.  Pole obsahující
+agregační data lze třídit a/nebo přes ně iterovat.  Viz cyklus
+.BR foreach
+výše.
+.PP
+Dostupné jsou též histogramy.  Například
+.I @hist_linear(v,start,stop,interval)
+reprezentuje lineární histogram od "start" do "stop" s inkrementem "interval".
+Inkrement musí být kladný.  Podobně
+.I @hist_log(v)
+představuje binárně logaritmický histogram.  Histogram lze vytisknout některou
+z rodiny
+.I print
+funkcí.  Výsledkem je ASCII-art.  Příklad:
+
+.SAMPLE
+probe timer.profile {
+  x[1] <<< pid()
+  x[2] <<< uid()
+  y <<< tid()
+}
+global x // pole
+global y // skalár
+probe end {
+  foreach ([i] in x @count+) {
+     printf ("x[%d]: avg %d = sum %d / count %d\\n",
+             i, @avg(x[i]), @sum(x[i]), @count(x[i]))
+     println (@hist_log(x[i]))
+  }
+  println ("y:")
+  println (@hist_log(y))
+}
+.ESAMPLE
+
+.SS PŘETYPOVÁNÍ
+Jakmile se ukazatel uloží do celočíselné proměnné v rámci systemtap skriptu,
+překladač ztrácí informaci o typu, která je potřebná k dereferencování.
+ (viz KONTEXTOVÉ PROMĚNNÉ man stránky
+.IR stapprobes (3stap)) .
+Použitím operátoru
+.I @cast()
+sdělujeme kompilátoru, jak má interpretovat takové číslo jakožto typovaný
+ukazatel.  Příklad:
+.SAMPLE
+@cast(p, "type_name"[, "module"])\->member
+.ESAMPLE
+.PP
+Takto bude
+.I p
+interpretován jako ukazatel do struktury/unionu
+.I type_name
+a dereferencovat
+.I member .
+Lze připojit další
+.IR \->subfield
+a dereferencovat tak další úrovně.
+.BR
+POZNÁMKA:
+stejný operátor
+.IR \->
+se používá jak pro přímý odkaz na člena, tak pro dereferenci ukazatele.
+Systemtap automaticky interpretuje tuto dvojakost.
+Volitelná složka
+.I module
+informuje překladač, kde má hledat informaci o daném typu.
+.I module
+lze uvést vícekrát jako seznam s oddělovačem
+.IR : .
+Pokud
+.I module
+není explicitně určen, budou pro jeho určení využity ladicí
+informace, nebo bude nastaven na "kernel" pro funkce a všechny ostatní typy
+sond.
+.PP
+Překladač může vytvořit svůj vlastní modul s informacemi o typech odvozením z
+hlavičkových souborů uzavřených ve špičatých závorkách v případě, že ladicí
+informace nejsou k dispozici.  Hlavičkovým souborům jádra je třeba přidat
+řetězec "kernel" jako předponu.  Ostatní hlavičkové soubory budou zpracovány s
+výchozími volbami kompilátoru.  Lze specifikovat více hlavičkových souborů za
+sebou pro vyřešení závislostí.
+
+.SAMPLE
+@cast(tv, "timeval", "<sys/time.h>")\->tv_sec
+@cast(task, "task_struct", "kernel<linux/sched.h>")\->tgid
+@cast(task, "task_struct",
+      "kernel<linux/sched.h><linux/fs_struct.h>")\->fs\->umask
+.ESAMPLE
+Hodnoty získané operátorem
+.BR @cast
+lze přehledně vytisknout (pretty-print) připojením operátoru
+.BR $ " a " $$
+jak je popsáno v sekci KONTEXTOVÉ PROMĚNNÉ man stránky
+.IR stapprobes (3stap).
+
+.PP
+V guru režimu (-g) umožňuje překladač také přiřadit novou hodnotu 
+dereferencovaným ukazatelům.
+.PP
+Přetypování je také užitečné v případě
+.I void*
+členů jejichž typ lze určit až za běhu.  Příklad:
+.SAMPLE
+probe foo {
+  if ($var\->type == 1) {
+    value = @cast($var\->data, "type1")\->bar
+  } else {
+    value = @cast($var\->data, "type2")\->baz
+  }
+  print(value)
+}
+.ESAMPLE
+
+.SS EMBEDDED C
+V guru režimu přijímá překladač vložený C kód v uživatelských
+skriptech.  Takový kód je uzavřen mezi značkami
+.IR %{
+a
+.IR %}
+a je doslovně, bez analýzy, vložen do vnější úrovně vygenerovaného kódu
+systemtap modulu.  Protože je vložen do vnější úrovně, je možné takto definovat
+.IR #include
+direktivy a různé pomocné definice použitelné ve zbytku kódu.
+.PP
+Dalším místem, kde je vložené C povoleno, je tělo funkce.  V tomto případě
+bude tělo systemtap funkce doslovně tvořeno vloženým C kódem uzavřeným mezi
+značky
+.IR %{ " a " %} .
+Takto vložený C kód může vykonávat libovolnou rozumnou a bezpečnou činnost.
+Existuje množství nedokumentovaných a komplexních omezení ohledně atomicity,
+souběžnosti, spotřeby zdrojů a časových omezení, takže jde o pokročilou
+techniku.
+.PP
+Paměťová umístění vyhrazená pro vstupní a výstupní hodnoty jsou zpřístupněna
+pomocí maker
+.IR STAP_ARG_*
+a
+.IR STAP_RETVALUE .
+Chyby lze signalizovat pomocí STAP_ERROR, výstup pomocí STAP_PRINTF a
+návratovou hodnotu lze předat prostřednictvím STAP_RETURN.  Zde je několik
+příkladů:
+
+.SAMPLE
+function integer_ops (val) %{
+  STAP_PRINTF("%d\\n", STAP_ARG_val);
+  STAP_RETVALUE = STAP_ARG_val + 1;
+  if (STAP_RETVALUE == 4)
+      STAP_ERROR("wrong guess: %d", (int) STAP_RETVALUE);
+  if (STAP_RETVALUE == 3)
+      STAP_RETURN(0);
+  STAP_RETVALUE ++;
+%}
+function string_ops (val) %{
+  strlcpy (STAP_RETVALUE, STAP_ARG_val, MAXSTRINGLEN);
+  strlcat (STAP_RETVALUE, "one", MAXSTRINGLEN);
+  if (strcmp (STAP_RETVALUE, "three-two-one"))
+      STAP_RETURN("parametr měl být be three-two-");
+%}
+function no_ops () %{
+    STAP_RETURN(); /* funkce bez návratové hodnoty */
+%}
+.ESAMPLE
+Typy funkčních hodnot a typ návratové hodnoty odvodí překladač ze způsobu
+volání dané funkce.  Před vytvářením vlastních vložených C funkcí je vhodné
+prostudovat zdrojový kód, který překladač generuje pro běžné funkce
+skriptovacího jazyka a tím se inspirovat.
+
+.PP
+Poslední místo, kde je vložené C povoleno, je r-hodnota ve výrazu.
+V tomto případě se C-kód uzavře mezi značky
+.IR %{ " a " %}
+a interpretuje se jako běžná hodnota výrazu.  Předpokládá se pak, že jde o 64
+bitové číslo se znaménkem, ovšem pokud se použije značka
+.I /* string */,
+bude hodnota výrazu interpretována jako řetězec.  Příklad:
+.SAMPLE
+function add_one (val) {
+  return val + %{ 1 %}
+}
+function add_string_two (val) {
+  return val . %{ /* string */ "two" %}
+}
+.ESAMPLE
+.PP
+K nastavení bezpečnosti a optimalizace lze použít následující značky:
+.TP
+.I /* pure */
+znamená, že C kód nemá žádné vedlejší efekty a může být v rámci optimalizace
+zcela zahozen pokud nemá vazby na zbytek kódu.
+.TP
+.I /* stable */
+znamená, že C kód má vždy stejnou hodnotu (při vyvolání v rámci libovolné obslužné rutiny
+sondy), takže opakovaná volání mohou být nahrazena zapamatovanou hodnotou.
+Takové funkce nesmí přijímat parametry a musí být
+.IR /* pure */ .
+.TP
+.I /* unprivileged */
+znamená, že C kód je tak bezpečný, že ho mohou používat i neprivilegovaní uživatelé.
+.TP
+.I /* myproc\-unprivileged */
+znamená, že C kód je tak bezpečný, že ho mohou používat i neprivilegovaní
+uživatelé, ovšem jen při analýze svých vlastních uživatelských procesů.
+.TP
+.I /* guru */
+znamená, že C kód je tak nebezpečný, že vyžaduje použití guru režimu
+.IR \-g .
+.TP
+.I /* unmangled */
+ve vložené C funkci zpřístupní zastaralou (pre-1.8) syntaxi pro přístup k
+funkčním parametrům.  V tomto případě lze uvnitř funkce kromě
+.I STAP_ARG_foo
+a
+.I STAP_RETVALUE
+použít také
+.I THIS->foo
+a
+.I THIS->__retvalue .
+.TP
+.I /* unmodified-fnargs */
+ve vložené C funkci znamená, že parametry nejsou uvnitř těla funkce měněny.
+.TP
+.I /* string */
+ve vložené C funkci znamená, že výraz má typ
+.I const char *
+a mělo by s ním být nakládáno jako s řetězcovou hodnotou namísto numerické (což
+je výchozí chování).
+
+.SS BUILT-INS
+Skripty instalované v umístění definovaném ve
+.IR stappaths (7)
+poskytují množství vestavěných sondážních bodů.  Ty jsou popsány v man stránce
+.IR stapprobes (3stap) .
+
+.SH ZPRACOVÁNÍ SKRIPTU
+Systemtap zpracovává skript v pěti procesních fázích: "parse", "elaborate",
+"translate", "compile" a "run". Překladač zahájí fázi 1 lexikální analýzou
+uživatelského skriptu spolu se všemi tapset skripty (což jsou soubory s příponou
+.IR *.stp )
+nalezenými v tapset adresáři.  Adresáře vyjmenované prostřednictvím
+.BR \-I
+jsou následně zpracovány také, a to v guru režimu.  Adresářová struktura se
+prohledává do hloubky.  Některé podadresáře jsou specifické pro verzi jádra
+(volba
+.BR \-R
+), a podle ní jsou (nebo nejsou) prohledávány, takže skripty specifičtější pro
+danou verzi jádra mohou předefinovat své méně specifické protějšky.  Například pro
+verzi jádra
+.IR 2.6.12\-23.FC3
+by byly prohledávány následující adresáře:
+.IR 2.6.12\-23.FC3/*.stp ,
+.IR 2.6.12/*.stp ,
+.IR 2.6/*.stp ,
+a nakonec
+.IR *.stp 
+v tomto pořadí.  Pokud překlad skončí na konci fáze 1 (-p1), pak překladač na
+standardní výstup vypíše derivační strom (parse tree).
+.PP
+Ve fázi 2 překladač analyzuje vstupní skript, aby vyhodnotil symboly a datové
+typy.  Odkazy na proměnné, funkce a přezdívky, které se nepodaří vyhodnotit
+lokálně, se vyhodnotí proti tapset skriptům.  Pokud je určitý symbol nalezen v
+tapset skriptu, pak daný tapset bude celý přidán do fronty pro zpracování
+překladačem.  Tento iterativní proces skončí jakmile jsou vyhodnoceny všechny
+symboly s využitím dané podmnožiny tapset skriptů.
+.PP
+Dále se ověří validnost sondážních bodů.  Sondy, které se odkazují k umístěním
+ve zdrojovém kódu ("synchronní sondážní body") vyžadují, aby byly nainstalovány
+příslušné ladicí informace.  V obslužných rutinách sond se naleznou cílové
+proměnné (ty, které začínají znakem "$") a dekódují se jejich "run-time"
+lokace.
+
+.PP
+Dále se všechny sondy a funkce optimalizují.  Cílem je odstranit zbytečné
+proměnné, výrazy a funkce, které nemají vedlejší účinky.  U vložených C funkcí
+se předpokládá, že mají vedlejší účinky pokud ovšem neobsahují kouzelnou značku
+.BR /*\ pure\ */ .
+Vzhledem k tomu, že optimalizace  mohou způsobit latentní chyby jako je
+například typová nekompatibilita, nebo neplatné kontextové proměnné, může být v
+některých případech užitečné optimalizace vypnout přepínačem
+.BR \-u .
+.PP
+Nakonec se z kontextu odvodí datové typy proměnných, funkcí, parametrů, polí a
+indexů.  Ukončení překladu po fázi 2 (-p2) způsobí vypsání seznamu všech sond,
+funkcí a proměnných spolu s jejich odvozenými typy.  Nekonzistentní nebo
+neodvoditelné typy způsobí chybu překladu.
+
+.PP
+Ve fázi 3 překladač zapíše vygenerovaný C kód a vytvoří
+.IR Makefile
+který slouží k jeho přeložení do podoby jaderného modulu.  Tyto soubory
+budou umístěny v dočasném adresáři.  Zastavení překladače v této fázi (-p3)
+způsobí vypsání C souboru na standardní výstup.
+
+.PP
+Ve fázi 4 překladač vyvolá jaderný "build systém", aby sestavil systemtap
+modul.  Při tom se v daném dočasném adresáři volá příkaz
+.IR make .
+K úspěšnému provedení tohoto kroku je třeba, aby byl nainstalován "build systém"
+jádra, tj. hlavičkové soubory, config a Makefile soubory a to v obvyklém
+umístění
+.IR /lib/modules/VERSION/build .
+Zastavení překladače v této fázi (-p4) může být užitečné, pokud chceme modul
+archivovat.  Je to také poslední šance zastavit systemtap před zavedením a
+spuštěním modulu.
+.PP
+Ve fázi 5 překladač zavolá pomocný program
+.I staprun
+a předá mu vzniklý systemtap modul.  Program staprun zavede modul do jádra,
+spustí jej a zajišťuje komunikaci s ním dokud činnost modulu neskončí.
+Jakákoliv chyba běhu, která se vyskytne v obslužných rutinách sond, jako např.
+vyčerpání dostupné paměti, dělení nulou, příliš hluboké zanoření, nebo
+překročení "run-time" limitů, způsobí měkkou chybu (soft error).  Pokud počet
+měkkých chyb překročí MAXERRORS, zastaví se všechny sondy (kromě těch, které
+obsluhují chyby), a zastaví se sezení.  Nakonec
+.I staprun
+odstraní modul z jádra a provede úklid.
+
+.SS NEOBVYKLÉ UKONČENÍ
+
+Je dobré neukončovat stap proces násilím, například prostřednictvím signálu
+SIGKILL, protože proces stapio (potomek procesu stap) a systemtap modul by se
+nemusely korektně ukončit.  Pokud se to přecejen stane, pošlete všem zbývajícím
+stapio procesům SIGTERM nebo SIGINT a použijte rmmod pro odstranění systemtap
+modulu z jádra.
+
+.SH PŘÍKLADY
+Viz
+.IR stapex (3stap)
+, kde se nachází několik krátkých příkladů, nebo viz adresář "examples" v RPM
+balíčcích "systemtap-client", či "systemtap-testsuite", kde se nachází rozsáhlá
+sbírka příkladů.  Viz
+.IR stappaths (7stap)
+pro podrobný popis konkrétních umístění.  Příklady jsou také zveřejněny na
+webové stránce projektu systemtap.
+
+.SH CACHE
+Překladač systemtapu ukládá do cache výstup fáze 3 (tj. vygenerovaný C kód) a
+výstup fáze 4 (tj. zkompilovaný jaderný modul) pokud tyto fáze skončí bez chyb.
+Obsah cache se použije pokud se znovu překládá stejný skript a za předpokladu,
+že platí stejné podmínky (verze jádra, verze systemtapu atp.).  Cache se
+nachází v adresáři
+.I $SYSTEMTAP_DIR/cache .
+Velikost cache lze omezit umístěním souboru
+.I cache_mb_limit
+do cache adresáře, přičemž tento soubor obsahuje ASCII číselnou hodnotu
+limitu, která vyjadřuje velikost cache v MiB.  Pokud tento soubor neexistuje,
+vytvoří se nový s výchozí hodnotou 256.  Jde o měkký limit v tom smyslu, že
+cache bude promazána až po určité době.  Dočasně tedy může velikost cache
+překročit stanovený limit.  Zmíněnou periodu je možno nastavit
+prostřednictvím souboru
+.I cache_clean_interval_s
+umístěného opět v cache adresáři.  Předpokládá se, že tento soubor obsahuje
+ASCII celé číslo vyjadřující časový interval pro promazávání cache v sekundách.
+Pokud tento soubor neexistuje, vytvoří se nový s výchozí hodnotou 300.
+
+.SH BEZPEČNOST A OCHRANA SOUKROMÍ
+
+.PP
+Systemtap může být použit jako mocný administrativní nástroj.  Může zpřístupnit
+privátní uživatelské informace v rámci interních jaderných struktur.  To se
+netýká
+.BR dyninst
+runtime, viz
+.I ALTERNATIVNÍ RUNTIME .
+
+Překladač zajišťuje dodržování mnoha různých bezpečnostních omezení během
+kompilace a běhu modulu.  Snaží se zajistit, aby žádná sonda neběžela příliš
+dlouho, aby nealokovala příliš mnoho paměti, neprováděla nebezpečné operace, nebo
+nežádoucím způsobem neovlivňovala systém.  Při práci s globálními proměnnými se
+využívají zámky pro čtení a zápis, aby nedocházelo k chybám při souběhu.
+Pravidelně dochází k testu na deadlocky.  Pro zjištění nepřiměřeného použití
+zámků lze použít přepínač
+.BR \-t .
+Experimentování se skripty je tedy v zásadě bezpečné.
+.BR Guru" "režim
+.B \-g
+umožňuje administrátorům obejít většinu bezpečnostních opatření a umožnit tak
+invazivní zásahy a změny stavu systému, použít vložené C a obecně zvýšit
+riziko průšvihu.  Za normálních okolností je pro všechny moduly aktivní ochrana
+proti přetížení.  Tu lze vypnout přepínačem
+.BR \-\-suppress\-time\-limits.
+
+Chyby zachycené při běhu za normálních okolností vedou k čistému ukončení
+skriptu s chybovou hláškou.  Přepínač
+.BR \-\-suppress\-handler\-errors
+umožňuje zcela ignorovat měkké chyby, takže ani po nastřádání jejich většího
+počtu nedojde k ukončení skriptu.
+
+
+.SS OPRÁVNĚNÍ
+Aby bylo možné spustit systemtap modul v rámci výchozí kernel runtime, musí
+uživatel splnit jednu z následujících podmínek:
+
+.IP \(bu 4
+být root.
+.IP \(bu 4
+být členem skupin
+.I stapdev
+a
+.I stapusr
+.IP \(bu 4
+být členem skupin
+.I stapsys
+a
+.I stapusr
+; nebo
+.IP \(bu 4
+být členem skupiny
+.I stapusr .
+.PP
+Uživatel root, nebo uživatel, který je členem skupin
+.I stapdev
+a
+.I stapusr
+, může přeložit a spustit libovolný systemtap skript.
+.PP
+Uživatel, který je členem skupin
+.I stapsys
+a
+.I stapusr, 
+může použít předem připravené systemtap moduly za následujících podmínek:
+.IP \(bu 4
+Modul byl podepsán kompilačním serverem "trusted signer", tj. systemtap
+kompilačním serverem, který podepsal modul klientovi, který použil volbu
+\fI\-\-privilege\fR.  Viz
+.IR stap\-server (8) .
+.IP \(bu 4
+Modul byl sestaven s použitím jedné z voleb \fI\-\-privilege=stapsys\fR nebo
+\fI\-\-privilege=stapusr\fR.
+
+.PP
+Členové pouze skupiny
+.I stapusr
+mohou používat jen předem připravené moduly za následujících podmínek:
+.IP \(bu 4
+Modul je umístěn v adresáři
+/lib/modules/VERSION/systemtap.  Tento adresář musí být vlastněn uživatelem
+root a nesmí být otevřený pro zápis všem.
+.PP
+nebo
+.IP \(bu 4
+Modul byl podepsán kompilačním serverem "trusted signer", tj. systemtap
+kompilačním serverem, který podepsal modul klientovi, který použil volbu
+\fI\-\-privilege\fR. Podrobnější informace viz
+.IR stap\-server (8) .
+.IP \(bu 4
+Modul byl přeložen s volbou \FI\-\-privilege=stapusr\fR.
+.PP
+Jaderné moduly vygenerované programem
+.I stap
+se zavádějí do jádra a spouštějí pomocí programu
+.IR staprun .
+Staprun je součástí systemtap balíčku určeného k zavádění a
+odstraňování modulů (za daných podmínek).  Slouží také k přenosu dat
+mezi systemtap modulem a uživatelelm.  Protože
+.IR staprun
+neprovádí žádné bezpečnostní kontroly modulu se kterým pracuje, bylo by od
+administrátora systému nemoudré přidat nedůvěryhodného uživatele do skupiny
+.I stapdev
+nebo
+.I stapusr .
+
+.SS SECUREBOOT
+
+Pokud má systém v rámci UEFI firmware zapnutý SecureBoot, všechny jaderné
+moduly musejí být kryptograficky podepsány.  (Některá jádra dovolují vypnout
+SecureBoot za běhu kombinací kláves SysRq-X.  Poté nemusí být moduly podepsané.)
+Kompilační server systemtapu může podepisovat moduly klíčem MOK (Machine Owner
+Key) který sdílí s daným systémem.  Pro více informací  viz následující wiki:
+
+.PP
+.RS
+.nh
+.BR https://sourceware.org/systemtap/wiki/SecureBoot
+.hy
+.RE
+
+.SS LIMITY NA ZDROJE
+Mnoho omezení pro využívání prostředků systému se nachází ve formě maker ve
+vygenerovaném C kódu systemtap modulu.  Ty lze předefinovat prostřednictvím
+přepínače
+.BR \-D .
+Seznam zmíněných maker:
+.TP
+MAXNESTING
+Maximální počet zanořených funkčních volání.  Výchozí hodnota se určuje při
+analýze skriptu.  Skripty založené na rekurzi obdrží 10 bonusových slotů.
+.TP
+MAXSTRINGLEN
+Maximální délka řetězce.  Výchozí hodnota je 128 znaků.
+.TP
+MAXTRYLOCK
+Maximální počet iterací při čekání na uvolnění zámku na globální proměnné před
+tím, než se vyhlásí deadlock a sonda se přeskočí.  Výchozí hodnota je 1000
+iterací.
+.TP
+MAXACTION
+Maximální počet příkazů, které mohou být vykonány během jednoho hitu sondy (s
+vypnutými přerušeními).  Výchozí hodnota je 1000.
+
+.TP
+MAXACTION_INTERRUPTIBLE
+Maximální počet příkazů, které mohou být vykonány během jedné aktivace (probe
+hit) sondy, která se provádí s povolenými přerušeními. (jako např. sondy begin
+a end). Výchozí hodnota je 10 * MAXACTION.
+.TP
+MAXBACKTRACE
+Maximální počet zásobníkových rámců, které budou zpracovány při výpisu
+backtrace.  Relevantní tapset je [u]context-unwind.stp, a výchozí hodnota je
+20.
+.TP
+MAXMAPENTRIES
+Maximální počet řádků v každém jednom globálním poli.  Výchozí hodnota je 2048.
+Jednotlivá pole mohou být deklarována s odlišným limitem.  Příklad:
+.SAMPLE
+global big[10000],little[5]
+.ESAMPLE
+nebo je možno využít modifikátoru
+.IR %
+, čímž se zapne array-wrapping.  Viz sekce o polích.
+.TP
+MAXERRORS
+Maximální množství měkkých chyb, které ještě nezpůsobí ukončení skriptu.
+Výchozí hodnotou je 0, tedy skript skončí při první měkké chybě.  Poznamenejme,
+že
+.B \-\-suppress\-handler\-errors
+tento limit vypíná.
+.TP
+MAXSKIPPED
+Maximální počet přeskočených sond, který ještě nevede k ukončení skriptu.
+Výchozí hodnotou je 100.  Pozn., že systemtap lze spustit s přepínačem  \-t
+(timing), který zobrazí podrobnosti ohledně počtu přeskočených sond.  Při
+použití \-DINTERRUPTIBLE=1 se nebudou brát v potaz sondy přeskočené kvůli
+re-entranci.  Dále poznamenejme, že
+.B \-\-suppress\-handler\-errors
+vypíná i tento limit.
+.TP
+MINSTACKSPACE
+Minimální množství volného místa na zásobníku jádra dostatečné pro start sondy.
+Výchozí hodnota 1024 bajtů.  Tato hodnota by měla být dostačující pro vlastní
+potřebu obslužné rutiny včetně malé rezervy.
+
+.TP
+MAXUPROBES
+Maximální množství současně zamčených uživatelských sond (uprobes).  Výchozí
+hodnota je o něco málo vyšší, než počet uživatelských sond ve skriptu.  Tato
+hodnota musí být relativně velká, protože jednotlivé uživatelské sondy (každá z
+nich okupuje přibližně 46 bajtů), se alokují pro každý proces a pro každou
+odpovídající sondu ve skriptu.
+
+.TP
+STP_MAXMEMORY
+Maximální velikost paměti (v kilobajtech), kterou je systemtap modul oprávněn
+použít.  Výchozí hodnota je neomezená.  Limit zahrnuje velikost modulu
+samotného plus dodatečné alokace.  Zahrnuty jsou jen přímé alokace provedené
+systemtap runtime.  Nepřímé alokace, které provádějí např, "kprobes", "uprobes",
+atd., nejsou započteny.
+
+.TP
+STP_OVEROAD_THRESHOLD, STP_OVERLOAD_INTERVAL
+Maximální počet cyklů, které lze strávit v sondách za daný čas (též vyjádřený v
+cyklech).  Při překročení této podmínky dojde k přetížení a skript se zastaví.
+Výchozí hodnoty jsou 5e+8 a 1e+9, což odpovídá max. 50% povolenému vytížení.
+
+.TP
+STP_PROCFS_BUFSIZE
+Velikost procfs bufferů pro čtení (v bajtech).  Výchozí hodnota je
+
+.IR MAXSTRINGLEN .
+Tento limit lze nastavit specificky pro jednotlivé sondy pomocí syntaxe
+.I .maxsize(MAXSIZE) .
+.PP
+Pokud skript obsahuje sondy vázané na přerušení, je možné, že k přerušení dojde
+tak často, že handler daného přerušení ještě nedoběhne zatímco dojde k dalšímu
+přerušení.  V tomto případě bude obslužná rutina přeskočena, aby se zamezilo
+reentranci.  Tento problém lze obejít použitím
+.BR \-DINTERRUPTIBLE=0 k odstínění běžící obslužné rutiny od daného přerušení.
+Tento přístup přináší jistou režii, ale v běžných případech zamezí reentranci.
+Nicméně, sondy v NMI handlerech a v samotném procesu stap, mohou stále být
+přeskočeny, aby se zamezilo reentranci.
+
+.PP
+Vznikne-li problém při běhu programu
+.IR stap " nebo " staprun
+když už sondy běží, je možné bezpečně zabít oba tyto uživatelské procesy a
+odstranit systemtap modul pomocí
+.IR rmmod .
+Část výstupu se tak nicméně může ztratit.
+
+.SH NEPRIVILEGOVANÍ UŽIVATELÉ
+
+.PP
+Systemtap umožňuje přístup k interním datům jádra a tedy potenciálně k
+soukromým datům uživatele.  Z tohoto důvodu je plný přístup k systemtapu omezen
+na uživatele root a na uživatele, kteří jsou členy skupin stapdev a stapusr.
+
+Nicméne omezená sada funkcí systemtapu může být dostupná důvěryhodným
+neprivilegovaným uživatelům.  Tito uživatelé jsou členy pouze skupiny stapusr
+plus případně skupiny stapsys.
+
+Tito uživatelé mohou zavést do jádra předem připravený modul, který byl podepsán
+důvěryhodným kompilačním serverem.  Viz popis voleb \fI\-\-privilege\fR a
+\fI\-\-use\-server\fR.  Viz také \fIREADME.unprivileged\fR mezi zdrojovými
+soubory systemtapu.  Tam je mj. popsáno jak nastavit důvěryhodný kompilační server.
+
+Omezení která plynou z volby \fI\-\-privilege=stapsys\fR mají zabránit
+neprivilegovaným  uživatelům v
+
+.RS
+.IP \(bu 4
+záměrném poškozování systému.
+.RE
+
+Omezení, která plynou z volby \fI\-\-privilege=stapusr\fR mají zabránit
+neprivilegovaným uživatelům v
+
+.RS
+.IP \(bu 4
+záměrném poškozování systému.
+.IP \(bu 4
+získání přístupu k neveřejným / soukromým informacím.
+.IP \(bu 4
+snižování výkonu procesů vlastněných jinými uživateli systému.  Určitému vlivu
+na výkon celého systému nelze zabránit, neboť sondy neprivilegovaného uživatele
+budou v příslušný čas aktivní.  Nicméně hlavním cílem zde je, aby
+neprivilegovaný uživatel nežádoucím nezpůsobem zasahoval do procesů jiných
+uživatelů.
+
+.RE
+
+.SS OMEZENÍ NA SONDY
+Člen skupin stapusr a stapsys má přístup ke všem sondám.
+.PP
+Člen pouze skupiny stapusr může použít následující sondy:
+.RS
+.IP \(bu 4
+begin, begin(n)
+.IP \(bu 4
+end, end(n)
+.IP \(bu 4
+error(n)
+.IP \(bu 4
+never
+.IP \(bu 4
+process.*, s tím, že cílový proces je jeho vlastní.
+.IP \(bu 4
+timer.{jiffies,s,sec,ms,msec,us,usec,ns,nsec}(n)*
+.IP \(bu 4
+timer.hz(n)
+.RE
+
+.SS OMEZENÍ SKRIPTOVACÍHO JAZYKA
+Následující vlastnosti skriptovacího jazyka jsou pro neprivilegovaného
+uživatele nedostupné:
+
+.RS
+.IP \(bu 4
+jakákoliv funkcionalita podmíněná guru režimem (-g).
+.IP \(bu 4
+vložený C kód.
+.RE
+
+.SS RUNTIME OMEZENÍ
+Neprivilegovaných uživatelů se týkají také následující omezení runtime:
+.RS
+.IP \(bu 4
+Lze použít jen výchozí runtime kód (viz \fI-R\fR).
+.RE
+
+Na členy pouze skupiny stapusr se vztahují dodatečná omezení:
+.RS
+.IP \(bu 4
+Analýza procesů vlastněných jinými uživateli není dovolena.
+.IP \(bu 4
+Přístup do paměti jádra není dovolen ani pro zápis, ani pro čtení.
+.RE
+
+.SS OMEZENÍ NA VOLBY PŘÍKAZOVÉ ŘÁDKY
+Některé volby příkazové řádky poskytují přístup k funkcionalitě, která nesmí být
+přístupná žádnému neprivilegovanému uživateli.  Konkrétně
+
+.RS
+.IP \(bu 4
+Nesmí nastavit \-g .
+.IP \(bu 4
+Následující volby nesmějí být použity klientem kompilačního serveru:
+.SAMPLE
+    \-a, \-B, \-D, \-I, \-r, \-R
+.ESAMPLE
+.RE
+
+.SS OMEZENÍ NA PROMĚNNÉ PROSTŘEDÍ
+Neprivilegovaní uživatelé nesmějí nastavit následující proměnné prostředí:
+.SAMPLE
+SYSTEMTAP_RUNTIME
+SYSTEMTAP_TAPSET
+SYSTEMTAP_DEBUGINFO_PATH
+.ESAMPLE
+
+.SS OMEZENÍ NA TAPSETY
+Obecně jsou tapset funkce přístupné členům skupiny stapusr pokud nepřistupují k
+informacím, které by neměl právo získat libovolný uživatelský program běžící s
+identitou daného uživatele.
+
+Existují dvě skupiny tapset funkcí pro neprivilegované uživatele.  První
+kategorie sestává z funkcí, které mohou použít všichni uživatelé, jako
+napřiklad:
+.SAMPLE
+cpu:long ()
+exit ()
+str_replace:string (prnt_str:string, srch_str:string, rplc_str:string)
+.ESAMPLE
+
+
+Druhou skupinou jsou tzv.
+.I myproc-unprivileged
+funkce, které mohou sbírat informace pouze o procesech, které daný uživatel
+vlastní.  Skripty, které mají používat myproc-unprivileged funkce musí testovat
+\fIis_myproc()\fR a volat takové funkce jen když výsledek je 1.  Skript se
+ihned ukončí, pokud tato podmínka nebude splněna.  Přiklady
+.I myproc-unprivileged
+funkcí:
+.SAMPLE
+print_usyms (stk:string)
+user_int:long (addr:long)
+usymname:string (addr:long)
+.ESAMPLE
+
+Pokud se uživatel patřící pouze do skupiny stapusr pokusí použít tapset funkci,
+která nespadá do žádné ze zmíněných dvou kategorií, dojde k chybě při
+kompilaci.
+
+.SH ALTERNATIVNÍ RUNTIME BACKENDY
+
+.PP
+Jak již bylo zmíněno, systemtap používá jako výchozí tzv. "kernel runtime
+backend", který pracuje na principu jaderného modulu. To přináší výše zmíněná
+bezpečnostní úskalí.  Systemtap nově obsahuje prototyp nového "backendu", který
+lze aktivovat volbou \fI\-\-runtime=dyninst\fR. Tento "backend" využívá Dyninst a
+lze jej použít k instrumentaci uživatelských procesů.  Dyninst "backend"
+nepoužívá jaderné moduly a nevyžaduje rootovské oprávnění.  Zůstávají v něm ale
+v platnosti omezení na povolené typy sond.
+
+\fIDyninst\fR backend pracuje v režimu připojení se k cílovému procesu, proto
+vyžaduje volbu \fI\-c COMMAND\fR, nebo \fI\-x PID\fR process.  Napřiklad:
+.SAMPLE
+stap \-\-runtime=dyninst \-c "stap \-V" \\
+     \-e "probe process.function("main")
+         { println("hi from dyninst!") }"
+.ESAMPLE
+
+Pro správnou funkci \fIdyninst\fR runtime může být nezbytné zapnout na cílovém
+systému SELinux volbu allow_execstack:
+.SAMPLE
+# setsebool allow_execstack 1
+.ESAMPLE
+
+.SH NÁVRATOVÝ KÓD
+
+V případě úspěšného běhu vrátí příkaz stap kód 0 (exit code).  V opačném
+případě se na standardní chybový výstup může vypsat chybová hláška a stap vrátí
+nenulový kód. Pro zvýšení upovídanosti použijte
+.I \-v
+nebo
+.I \-vp N .
+
+V "listing" režimu
+.RI ( \-l " and " \-L ),
+se chyby obvykle potlačují.  Pokud byla nalezena alespoň jedna sonda vyhovující
+zadaným požadavkům, stap skončí s návratovým kódem 0.
+
+Skript, který skončí svůj běh na žádost uživatele použitím ^C / SIGINT, se
+považuje za úspěšně ukončený.
+
+.SH ZASTARÁVÁNÍ
+Během vývoje systemtapu dochází občas ve skriptovacím jazyce k nekompatibilním
+změnám, takže staré skripty mohou přestat fungovat.  V takovém případě může
+pomoci volba
+.I \-\-compatible VERSION
+kde se určí poslední známá verze systemtapu, se kterou daný skript fungoval.
+
+Při použití volby
+.I \-\-check\-version
+vypíše systemtap varování pokud narazí při lexikální analýze na nekompatibilní
+element.  Informace o zastarávání se udržují v souboru NEWS.
+
+Smyslem mechanizmu zastarávání je přinést žádoucí inovace skriptovacího jazyka
+a současně nerozbít kompatibilitu se starými existujícími skripty.  Mechanizmus
+zastarávání by tedy měl být chápán především jako
+.I služba
+přinášející pohodlí uživatelům (a nepohodlí vývojářům) spíše než naopak.
+
+Poznamenejme, že tapset identifikátory s předponou "_" jsou považovány
+za interní a občas podstupují změny při kterých je těžké zaručit zpětnou
+kompatibilitu i při použití mechanizmu zastarávání.  V případě potřeby, prosím,
+navrhněte takový symbol k regulernímu zveřejnění.
+
+.SH SOUBORY
+.TP
+Důležité soubory a jim příslušné cesty dokumentuje manuálová stránka stappaths (7).
+
+.SH VIZ TAKÉ
+.nh
+.nf
+.IR stapprobes (3stap),
+.IR function::* (3stap),
+.IR probe::* (3stap),
+.IR tapset::* (3stap),
+.IR stappaths (7),
+.IR staprun (8),
+.IR stapdyn (8),
+.IR systemtap (8),
+.IR stapvars (3stap),
+.IR stapex (3stap),
+.IR stap\-server (8),
+.IR stap\-prep (1),
+.IR stapref (1),
+.IR awk (1),
+.IR gdb (1)
+
+.SH CHYBY
+Prosím, použijte následující bugzilla link, nebo náš mailing list.
+.nh
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .
+.hy
+.PP
+.IR error::reporting (7stap),
+.nh
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs
+.hy

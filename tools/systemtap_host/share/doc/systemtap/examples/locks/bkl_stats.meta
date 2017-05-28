@@ -1,0 +1,14 @@
+title: Per Process Statistics on Big Kernel Lock Use
+name: bkl_stats.stp
+version: 1.0
+author: William Cohen
+keywords: locking
+subsystem: locking
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The bkl_stats.stp script can indicate which processes have excessive waits for the Big Kernel Lock (BKL) and which processes are taking the BKL for long periods of time. The bkl_stats.stp script prints lists of all the processes that require the BKL. Every five seconds two tables are printed out. The first table lists the processes that waited for the BKL followed by the number of times that the process waited, the minimum time of the wait, the average and the maximum time waited. The second table lists has similar information for the time spent in holding the lock for each of the processes.
+test_support: stap -l 'kernel.function("lock_kernel").return'
+test_check: stap -p4 bkl_stats.stp
+test_installcheck: stap bkl_stats.stp -c "sleep 1"

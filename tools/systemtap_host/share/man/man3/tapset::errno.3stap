@@ -1,0 +1,52 @@
+.\" -*- nroff -*-
+.TH TAPSET::ERRNO 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::errno \- systemtap errno tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B errno_str 
+Symbolic string associated with error code
+.IP
+See 
+.IR function::errno_str (3stap)
+ for details.
+.P
+.TP
+.B returnval 
+Possible return value of probed function
+.IP
+See 
+.IR function::returnval (3stap)
+ for details.
+.P
+.TP
+.B returnstr 
+Formats the return value as a string
+.IP
+See 
+.IR function::returnstr (3stap)
+ for details.
+.P
+.TP
+.B return_str 
+Formats the return value as a string
+.IP
+See 
+.IR function::return_str (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::errno_str (3stap),
+.BR
+.IR \%function::returnval (3stap),
+.BR
+.IR \%function::returnstr (3stap),
+.BR
+.IR \%function::return_str (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

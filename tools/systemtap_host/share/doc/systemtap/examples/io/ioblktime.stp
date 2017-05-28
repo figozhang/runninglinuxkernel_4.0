@@ -1,0 +1,36 @@
+#! /usr/bin/env stap
+
+global req_time%[25000], etimes
+
+probe ioblock.request
+{
+  req_time[$bio] = gettimeofday_us()
+}
+
+probe ioblock.end
+{
+  t = gettimeofday_us()
+  s =  req_time[$bio]
+  delete req_time[$bio]
+  if (s) {
+    etimes[devname, bio_rw_str(rw)] <<< t - s
+  }
+}
+
+/* for time being delete things that get merged with others */
+probe kernel.{trace("block_bio_frontmerge"),
+              trace("block_bio_backmerge")}
+{
+  delete req_time[$bio]
+}
+
+probe timer.s(10), end {
+  ansi_clear_screen()
+  printf("%10s %3s %10s %10s %10s\n",
+         "device", "rw", "total (us)", "count", "avg (us)")
+  foreach ([dev,rw] in etimes - limit 20) {
+    printf("%10s %3s %10d %10d %10d\n", dev, rw,
+           @sum(etimes[dev,rw]), @count(etimes[dev,rw]), @avg(etimes[dev,rw]))
+  }
+  delete etimes
+}

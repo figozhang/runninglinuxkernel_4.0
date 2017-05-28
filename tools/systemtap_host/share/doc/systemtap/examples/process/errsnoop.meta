@@ -1,0 +1,13 @@
+title: Tabulate System Call Errors
+name: errsnoop.stp
+version: 1.0
+author: anonymous
+keywords: process syscall
+subsystem: syscall
+status: proposed
+exit: user-controlled
+output: timed
+scope: system-wide
+description: Prints a periodic tabular report about failing system calls, by process and by syscall failure.  The first optional argument specifies the reporting interval (in seconds, default 5); the second optional argument gives a screen height (number of lines in the report, default 20).
+test_check: stap -p4 errsnoop.stp
+test_installcheck: stap errsnoop.stp 1 10 -c "sleep 1"

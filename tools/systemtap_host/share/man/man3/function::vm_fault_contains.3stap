@@ -1,0 +1,49 @@
+'\" t
+.\"     Title: function::vm_fault_contains
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Memory Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::VM_FAULT_C" "3stap" "March 2016" "SystemTap Tapset Reference" "Memory Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::vm_fault_contains \- Test return value for page fault reason
+.SH "SYNOPSIS"
+.sp
+.nf
+    vm_fault_contains:long(value:long,test:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIvalue\fR
+.RS 4
+the fault_type returned by vm\&.page_fault\&.return
+.RE
+.PP
+\fItest\fR
+.RS 4
+the type of fault to test for (VM_FAULT_OOM or similar)
+.RE
+.SH SEE ALSO\n 
+.IR tapset::memory (3stap)

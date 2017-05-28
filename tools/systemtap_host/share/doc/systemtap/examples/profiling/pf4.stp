@@ -1,0 +1,36 @@
+#! /usr/bin/env stap
+
+%( CONFIG_64BIT == "y" %?
+global profile%[20000], pcount
+%:
+# On a 32-bit platform, the profile array must be smaller, otherwise
+# its allocation will fail on module startup.
+global profile%[5000], pcount
+%)
+
+probe timer.profile
+      # or perf.type(0).config(0).sample(NNNN) for apprx. every NNNN tsc ticks
+{
+  # add filtering as required:
+  # if (execname() != "program") next
+  # if (uid() != 4345) next
+  # if (! user_mode()) next
+  if (target() && pid() != target()) next  # be sensitive to -x PID or -c CMD
+
+  # NB: we count total hits also, because the report only shows top few
+  pcount <<< 1
+
+  bt = user_mode() ? sprint_ubacktrace() : sprint_backtrace()
+  profile[cpu(),bt] <<< 1
+}
+
+probe end,error,timer.ms(5000) {
+  printf ("\n--- %d samples recorded:\n", @count(pcount))
+
+  foreach ([c,b] in profile- limit 20) {
+    printf ("%d hits on cpu %d\n%s\n\n", @count(profile[c,b]), c, b)
+  }
+
+  delete profile
+  delete pcount
+}

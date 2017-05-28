@@ -1,0 +1,94 @@
+'\" t
+.\"     Title: probe::nfs.aop.write_end
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Network File Storage Tapsets
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NFS\&.AOP\&.W" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::nfs.aop.write_end \- NFS client complete writing data
+.SH "SYNOPSIS"
+.sp
+.nf
+nfs\&.aop\&.write_end 
+.fi
+.SH "VALUES"
+.PP
+\fIoffset\fR
+.RS 4
+start address of this write operation
+.RE
+.PP
+\fIsize\fR
+.RS 4
+write bytes
+.RE
+.PP
+\fIsb_flag\fR
+.RS 4
+super block flags
+.RE
+.PP
+\fIto\fR
+.RS 4
+end address of this write operation
+.RE
+.PP
+\fIino\fR
+.RS 4
+inode number
+.RE
+.PP
+\fIi_flag\fR
+.RS 4
+file flags
+.RE
+.PP
+\fIdev\fR
+.RS 4
+device identifier
+.RE
+.PP
+\fI__page\fR
+.RS 4
+the address of page
+.RE
+.PP
+\fIi_size\fR
+.RS 4
+file length in bytes
+.RE
+.PP
+\fIpage_index\fR
+.RS 4
+offset within mapping, can used a page identifier and position identifier in the page frame
+.RE
+.SH "DESCRIPTION"
+.PP
+Fires when do a write operation on nfs, often after prepare_write
+.PP
+Update and possibly write a cached page of an NFS file\&.
+.SH SEE ALSO\n 
+.IR tapset::nfs (3stap)

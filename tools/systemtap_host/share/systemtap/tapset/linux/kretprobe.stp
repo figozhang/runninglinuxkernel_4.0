@@ -1,0 +1,64 @@
+// kretprobe data tapset
+// Copyright (C) 2009, 2011 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+
+// This is an internally-used tapset for sharing data between kretprobe
+// entry / return handlers.  See the function
+//   dwarf_var_expanding_visitor::gen_kretprobe_saved_return
+// for details.
+//
+// Note, invalid calls are silently ignored...
+
+%{
+static void *
+_kretprobe_data(struct kretprobe_instance *pi, size_t offset, size_t length)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+	size_t end = offset + length;
+	if (end > offset && pi && end <= pi->rp->data_size)
+		return &pi->data[offset];
+#endif
+	return NULL;
+}
+%}
+
+function _get_kretprobe_long:long(i:long) %{ /* pure */
+    if (CONTEXT->probe_type == stp_probe_type_kretprobe) {
+	size_t offset = STAP_ARG_i * sizeof(int64_t);
+	const int64_t *data = _kretprobe_data(CONTEXT->ips.krp.pi, offset, sizeof(int64_t));
+	STAP_RETVALUE = data ? *data : 0;
+    }
+%}
+
+function _set_kretprobe_long(i:long, value:long) %{ /* impure */
+    if (CONTEXT->probe_type == stp_probe_type_kretprobe) {
+	size_t offset = STAP_ARG_i * sizeof(int64_t);
+	int64_t *data = _kretprobe_data(CONTEXT->ips.krp.pi, offset, sizeof(int64_t));
+	if (data)
+		*data = STAP_ARG_value;
+    }
+%}
+
+function _get_kretprobe_string:string(i:long) %{ /* pure */
+    if (CONTEXT->probe_type == stp_probe_type_kretprobe) {
+	size_t offset = CONTEXT->ips.krp.pi_longs * sizeof(int64_t) +
+			STAP_ARG_i * MAXSTRINGLEN;
+	const char *data = _kretprobe_data(CONTEXT->ips.krp.pi, offset, MAXSTRINGLEN);
+	strlcpy(STAP_RETVALUE, data ?: "", MAXSTRINGLEN);
+    }
+%}
+
+function _set_kretprobe_string(i:long, value:string) %{ /* impure */ /* unmodified-fnargs */
+    if (CONTEXT->probe_type == stp_probe_type_kretprobe) {
+	size_t offset = CONTEXT->ips.krp.pi_longs * sizeof(int64_t) +
+			STAP_ARG_i * MAXSTRINGLEN;
+	char *data = _kretprobe_data(CONTEXT->ips.krp.pi, offset, MAXSTRINGLEN);
+	if (data)
+		strlcpy(data, STAP_ARG_value, MAXSTRINGLEN);
+    }
+%}

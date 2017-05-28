@@ -1,0 +1,174 @@
+# arch-specific requests of ptrace ___________________________
+#
+%{
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
+
+#ifndef PTRACE_GETVSRREGS
+# define PTRACE_GETVSRREGS 27
+#endif
+#ifndef PTRACE_SETVSRREGS
+# define PTRACE_SETVSRREGS 28
+#endif
+#ifndef PTRACE_GETREGS
+# define PTRACE_GETREGS 12
+#endif
+#ifndef PTRACE_SETREGS
+# define PTRACE_SETREGS 13
+#endif
+#ifndef PTRACE_GETFPREGS
+# define PTRACE_GETFPREGS 14
+#endif
+#ifndef PTRACE_SETFPREGS
+# define PTRACE_SETFPREGS 15
+#endif
+#ifndef PTRACE_GETREGS64
+# define PTRACE_GETREGS64 22
+#endif
+#ifndef PTRACE_SETREGS64
+# define PTRACE_SETREGS64 23
+#endif
+
+/* (old) PTRACE requests with inverted arguments */
+#ifndef PPC_PTRACE_GETREGS
+# define PPC_PTRACE_GETREGS 0x99
+#endif
+#ifndef PPC_PTRACE_SETREGS
+# define PPC_PTRACE_SETREGS 0x98
+#endif
+#ifndef PPC_PTRACE_GETFPREGS
+# define PPC_PTRACE_GETFPREGS 0x97
+#endif
+#ifndef PPC_PTRACE_SETFPREGS
+# define PPC_PTRACE_SETFPREGS 0x96
+#endif
+
+#ifndef PTRACE_SINGLEBLOCK
+# define PTRACE_SINGLEBLOCK 0x100
+#endif
+
+#ifndef PPC_PTRACE_GETHWDBGINFO
+# define PPC_PTRACE_GETHWDBGINFO 0x89
+#endif
+#ifndef PPC_PTRACE_SETHWDEBUG
+# define PPC_PTRACE_SETHWDEBUG 0x88
+#endif
+#ifndef PPC_PTRACE_DELHWDEBUG
+# define PPC_PTRACE_DELHWDEBUG 0x87
+#endif
+
+static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
+	V(PTRACE_GETVRREGS),
+	V(PTRACE_SETVRREGS),
+
+	/* Get/set all the upper 32-bits of the SPE registers,
+	 * accumulator, and spefscr, in one go */
+	V(PTRACE_GETEVRREGS),
+	V(PTRACE_SETEVRREGS),
+
+	/* Get the first 32 128bit VSX registers */
+	V(PTRACE_GETVSRREGS),
+	V(PTRACE_SETVSRREGS),
+
+	/*
+	 * Get or set a debug register. The first 16 are DABR
+	 * registers and the second 16 are IABR registers.
+	 */
+	V(PTRACE_GET_DEBUGREG),
+	V(PTRACE_SET_DEBUGREG),
+
+	/* (new) PTRACE requests using the same numbers as x86 and the
+	 * same argument ordering. Additionally, they support more
+	 * registers too
+	 */
+	V(PTRACE_GETREGS),
+	V(PTRACE_SETREGS),
+	V(PTRACE_GETFPREGS),
+	V(PTRACE_SETFPREGS),
+	V(PTRACE_GETREGS64),
+	V(PTRACE_SETREGS64),
+
+	/* Calls to trace a 64bit program from a 32bit program */
+	V(PPC_PTRACE_PEEKTEXT_3264),
+	V(PPC_PTRACE_PEEKDATA_3264),
+	V(PPC_PTRACE_POKETEXT_3264),
+	V(PPC_PTRACE_POKEDATA_3264),
+	V(PPC_PTRACE_PEEKUSR_3264),
+	V(PPC_PTRACE_POKEUSR_3264),
+
+	/* (old) PTRACE requests with inverted arguments */
+	V(PPC_PTRACE_GETREGS),
+	V(PPC_PTRACE_SETREGS),
+	V(PPC_PTRACE_GETFPREGS),
+	V(PPC_PTRACE_SETFPREGS),
+
+	V(PTRACE_SINGLEBLOCK),
+
+	V(PPC_PTRACE_GETHWDBGINFO),
+	V(PPC_PTRACE_SETHWDEBUG),
+	V(PPC_PTRACE_DELHWDEBUG),
+	{0, NULL}
+};
+%}
+
+function __arch_ptrace_request_str:string(request:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_arch_ptrace_request_list,
+			(unsigned long)STAP_ARG_request, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+function _arch_ptrace_argstr(request, pid, addr, data)
+{
+	if (request == %{ /* pure */ PTRACE_GETVRREGS %}
+	    || request == %{ /* pure */ PTRACE_SETVRREGS %}
+	    || request == %{ /* pure */ PTRACE_GETEVRREGS %}
+	    || request == %{ /* pure */ PTRACE_SETEVRREGS %}
+	    || request == %{ /* pure */ PTRACE_GETVSRREGS %}
+	    || request == %{ /* pure */ PTRACE_SETVSRREGS %}
+	    || request == %{ /* pure */ PTRACE_GETREGS %}
+	    || request == %{ /* pure */ PTRACE_SETREGS %}
+	    || request == %{ /* pure */ PTRACE_GETFPREGS %}
+	    || request == %{ /* pure */ PTRACE_SETFPREGS %}
+	    || request == %{ /* pure */ PTRACE_GETREGS64 %}
+	    || request == %{ /* pure */ PTRACE_SETREGS64 %}
+	    || request == %{ /* pure */ PTRACE_GET_DEBUGREG %})
+		return sprintf("%s, %d, %#x, %p",
+			       __arch_ptrace_request_str(request), pid,
+			       addr, data)
+	if (request == %{ /* pure */ PTRACE_SET_DEBUGREG %})
+		return sprintf("PTRACE_SET_DEBUGREG, %d, %#x, %#x", pid,
+			       addr, data)
+	if (request == %{ /* pure */ PPC_PTRACE_GETREGS %}
+	    || request == %{ /* pure */ PPC_PTRACE_SETREGS %}
+	    || request == %{ /* pure */ PPC_PTRACE_GETFPREGS %}
+	    || request == %{ /* pure */ PPC_PTRACE_SETFPREGS %})
+		return sprintf("%s, %d, %p, %#x",
+			       __arch_ptrace_request_str(request), pid,
+			       addr, data)
+	if (request == %{ /* pure */ PTRACE_SINGLEBLOCK %})
+		return sprintf("PTRACE_SINGLEBLOCK, %d, %#x, %s", pid,
+			       addr, _signal_name (data))
+	if (request == %{ /* pure */ PPC_PTRACE_PEEKTEXT_3264 %}
+	    || request == %{ /* pure */ PPC_PTRACE_PEEKDATA_3264 %}
+	    || request == %{ /* pure */ PPC_PTRACE_PEEKUSR_3264 %})
+		return sprintf("%s, %d, %p, [%p]",
+			       __arch_ptrace_request_str(request), pid, addr,
+			       data)
+	if (request == %{ /* pure */ PPC_PTRACE_POKETEXT_3264 %}
+	    || request == %{ /* pure */ PPC_PTRACE_POKEDATA_3264 %}
+	    || request == %{ /* pure */ PPC_PTRACE_POKEUSR_3264 %}
+	    || request == %{ /* pure */ PPC_PTRACE_GETHWDBGINFO %}
+	    || request == %{ /* pure */ PPC_PTRACE_SETHWDEBUG %})
+		return sprintf("%s, %d, %p, %p",
+			       __arch_ptrace_request_str(request), pid, addr,
+			       data)
+	if (request == %{ /* pure */ PPC_PTRACE_DELHWDEBUG %})
+		return sprintf ("PPC_PTRACE_DELHWDEBUG, %d, %#x, %d", pid,
+				addr, data)
+}
+
+function _ptrace_return_arch_prctl_addr:long(request:long, addr:long, data:long)
+{
+	return 0
+}

@@ -1,0 +1,50 @@
+// timestamp tapset
+// Copyright (C) 2005-2006 Red Hat Inc.
+// Copyright (C) 2006 Intel Corporation.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// Each timestamp function returns a value to indicate when a function is executed. These 
+//returned values can then be used to indicate when an event occurred, provide an ordering for events, 
+//or compute the amount of time elapsed between two time stamps.
+// </tapsetdescription>
+
+/**
+ * sfunction get_cycles - Processor cycle count
+ *
+ * Description: This function returns the processor cycle counter value
+ * if available, else it returns zero. The cycle counter is free running
+ * and unsynchronized on each processor. Thus, the order of events cannot
+ * determined by comparing the results of the get_cycles function on 
+ * different processors.
+ */
+function get_cycles:long () %{ /* pure */ /* unprivileged */
+  cycles_t c = get_cycles();
+  STAP_RETVALUE = (int64_t) c;
+%}
+
+
+/**
+ * sfunction jiffies - Kernel jiffies count
+ *
+ * Description: This function returns the value of the kernel jiffies
+ * variable.  This value is incremented periodically by timer interrupts,
+ * and may wrap around a 32-bit or 64-bit boundary.  See HZ().
+ */
+function jiffies:long () %{ /* pure */ /* unprivileged */
+  STAP_RETVALUE = (int64_t) jiffies;
+%}
+
+
+/**
+ * sfunction HZ - Kernel HZ
+ *
+ * Description: This function returns the value of the kernel HZ macro,
+ * which corresponds to the rate of increase of the jiffies value.
+ */
+function HZ:long () %{ /* pure */ /* unprivileged */
+  STAP_RETVALUE = (int64_t) HZ;
+%}

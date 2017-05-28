@@ -1,0 +1,91 @@
+.\" t
+.TH ERROR::PASS5 7stap 
+.SH NAME
+error::pass5 \- systemtap pass-5 errors
+
+.SH DESCRIPTION
+Errors that occur during pass 5 (execution) can have a variety of causes.
+
+.TP
+exceptional events during script execution
+The systemtap translator and runtime include numerous error checks
+that aim to protect the systems and the users from mistakes or
+transient conditions.  The script may deliberately call the
+.IR error()
+tapset function to signal a problem.  Some memory needed for
+accessing
+.IR $context
+variables may be temporarily unavailable.  Consider using the 
+.IR try / catch
+construct to wrap script fragments in exception-handling code.
+Consider using the
+.IR "stap --suppress-handler-errors"
+or
+.IR "stap --skip-badvars"
+option.
+
+.TP
+resource exhaustion
+One of several types of space or time resource limits may be
+exceeded by the script, including system overload, too many tuples
+to be stored in an array, etc.  Some of the error messages identify
+the constraint by macro name, which may be individually raised.
+Consider using the 
+.IR "stap --suppress-handler-errors"
+and/or
+.IR "stap -g --suppress-time-limits"
+options.  Extend or disable individual resource limits using the
+.IR "stap -DSOME_LIMIT=NNNN"
+option.
+.\" the systemtap/wiki/TipExhaustedResourceErrors should be transcribed here
+
+.TP
+remote execution server problems
+If you use the 
+.IR "stap --remote"
+option to direct a systemtap script to be executed somewhere else,
+ensure that an SSH connection may be made to the remote host, and
+that it has the current systemtap runtime installed & available.
+
+.TP
+installation/permission problems
+It is possible that your installation of systemtap was not correctly
+installed.  For example, the
+.IR /usr/bin/staprun
+program may lack the necessary setuid permissions, or your invoking
+userid might not have sufficient privileges (root, or
+.IR stapusr
+and related group memberships).  Environment
+variables may interfere with locating
+.IR /usr/libexec/.../stapio  "."
+
+.TP
+errors from target program
+The program invoked by the
+.IR "stap -c CMD"
+option may exit with a non-zero code.
+
+.TP
+uncaught exceptions in the target program
+When using
+.IR --runtime=dyninst
+you may encounter an issue where the target program aborts with a
+message like "terminate called after throwing an instance
+of 'foo_exception'".  This is unfortunately a limitation of Dyninst,
+which sometimes prevents exceptions from properly unwinding through
+instrumented code.
+
+
+.SH GATHERING MORE INFORMATION
+Increasing the verbosity of pass-5
+with an option such as
+.IR "--vp 00001"
+can help pinpoint the problem.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR http://sourceware.org/systemtap/wiki/TipExhaustedResourceErrors ,
+.IR error::fault (7stap),
+.IR error::reporting (7stap)

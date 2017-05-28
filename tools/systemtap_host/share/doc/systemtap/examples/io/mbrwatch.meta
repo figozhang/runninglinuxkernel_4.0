@@ -1,0 +1,13 @@
+title: Monitor Read/Write of the Boot Sector Area of Block Devices
+name: mbrwatch.stp
+version: 1.0
+author: anonymous
+keywords: io monitoring disk simple
+subsystem: io
+status: proposed
+exit: user-controlled
+output: trace
+scope: system-wide
+description:  The mbrwatch.stp script reports any attempted reads/writes of the first few sectors of a raw block device.
+test_check: stap -p4 mbrwatch.stp
+test_installcheck: stap mbrwatch.stp -c "dd of=/dev/null count=1 if=/dev/`grep -v major /proc/partitions | grep . | grep -v 'sr[0-9]' | awk '{print $4}' | head -1`"

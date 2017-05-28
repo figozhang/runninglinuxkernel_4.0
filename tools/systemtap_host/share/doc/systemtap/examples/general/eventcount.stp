@@ -1,0 +1,161 @@
+#! /usr/bin/env stap
+
+# General event counter / monitor.  Gives a report of event counts/rates on a
+# per-process or systemwide basis at script shutdown.
+# 
+# Invoke with a list of probe point patterns as script command-line arguments:
+# stap eventcount.stp 'syscall.*' ...
+#
+# Optionally, specify process/thread-id to limit analysis:
+# stap eventcount.stp -c "CMD ARGS" [...probe points...]
+# or stap eventcount.stp -x PID [...probe points...]
+# or stap eventcount.stp -G comm=EXECNAME [...probe points...]
+#
+# Optionally, override periodic screen update, every NNN seconds (default 10)
+# stap eventcount.stp -G period=NNN [...probe points...]
+# ... or cumulative totals
+# stap eventcount.stp -G period=0 [...probe points...]
+#
+# Optionally, specify cumulative mode for periodic updates
+# stap eventcount.stp -G period=NNN -G cumulative=1 [...probe points...]
+# stap eventcount.stp -G period=NNN -G cumulative=1 [...probe points...]
+#
+# Optionally, specify sorting other than by =count
+# stap eventcount.stp -G sort=tid [...probe points...]
+# stap eventcount.stp -G sort=count [...probe points...]
+# stap eventcount.stp -G sort=event [...probe points...]
+# stap eventcount.stp -G sort=unsorted [...probe points...]
+#
+# Optionally, specify a limit for sorted event count reports
+# stap eventcount.stp -G lines=100 [...probe points...]
+
+global period=10
+global cumulative=0
+global comm=""
+global sort="count"
+global lines=20
+
+probe %($# == 0 || $# > 32 %? begin %: never %)
+{
+  printf("Please specify between 1 and 32 events to count.\n")
+  exit()
+}
+
+
+global c%
+global totalc, filteredc
+
+//paramaterize up to 32 arguments
+probe %($# >= 1 %? $1 %: never %),
+      %($# >= 2 %? $2 %: never %),
+      %($# >= 3 %? $3 %: never %),
+      %($# >= 4 %? $4 %: never %),
+      %($# >= 5 %? $5 %: never %),
+      %($# >= 6 %? $6 %: never %),
+      %($# >= 7 %? $7 %: never %),
+      %($# >= 8 %? $8 %: never %),
+      %($# >= 9 %? $9 %: never %),
+      %($# >= 10 %? $10 %: never %),
+      %($# >= 11 %? $11 %: never %),
+      %($# >= 12 %? $12 %: never %),
+      %($# >= 13 %? $13 %: never %),
+      %($# >= 14 %? $14 %: never %),
+      %($# >= 15 %? $15 %: never %),
+      %($# >= 16 %? $16 %: never %),
+      %($# >= 17 %? $17 %: never %),
+      %($# >= 18 %? $18 %: never %),
+      %($# >= 19 %? $19 %: never %),
+      %($# >= 20 %? $20 %: never %),
+      %($# >= 21 %? $21 %: never %),
+      %($# >= 22 %? $22 %: never %),
+      %($# >= 23 %? $23 %: never %),
+      %($# >= 24 %? $24 %: never %),
+      %($# >= 25 %? $25 %: never %),
+      %($# >= 26 %? $26 %: never %),
+      %($# >= 27 %? $27 %: never %),
+      %($# >= 28 %? $28 %: never %),
+      %($# >= 29 %? $29 %: never %),
+      %($# >= 30 %? $30 %: never %),
+      %($# >= 31 %? $32 %: never %),
+      %($# >= 32 %? $32 %: never %)
+{
+  totalc <<< 1
+  if (target() && ! target_set_pid(pid()))
+    next
+  if (comm != "" && execname() != comm)
+    next
+  filteredc <<< 1
+  c[sprintf("%s(%d)",execname(),tid()), pn()]<<<1
+}
+
+probe begin {
+      start_ms = gettimeofday_ms() 
+      if (target()) msg = sprintf ("pid %d + children", target())
+      else if (comm != "") msg = sprintf ("execname %s", comm)
+      else msg = "unfiltered";
+      printf("Starting event counting at %s, %s\n",
+             tz_ctime(gettimeofday_s()), msg)
+      format = sprintf("max %d lines, sorted by %s", lines, sort);
+      if (period)
+        printf("%s reporting (%s) every %d s\n",
+               cumulative ? "Cumulative" : "Incremental",
+               format, period)
+      else
+        printf("One-time cumulative reporting (%s) at script termination (^C)\n",
+               format)
+}
+global start_ms
+
+function report () {
+  elapsed_ms = gettimeofday_ms() - start_ms
+  if (elapsed_ms < 0) elapsed_ms=1
+  printf("%s time elapsed: %d ms, %d events, %d after filtering.\n",
+         (cumulative ? "Cumulative" : "Period"),
+         elapsed_ms, @count(totalc), @count(filteredc))
+
+  printf("%-24s %-38s %s\n", "TID", "EVENT", "COUNT (RATE Hz)")
+  printf("%-24s %-38s %s\n", "---", "-----", "---------------")
+  if (sort == "count")
+    foreach([tid, name] in c- limit lines)
+      printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
+           @count(c[tid, name]),
+           (@count(c[tid,name])*100000/elapsed_ms)/100,
+           (@count(c[tid,name])*100000/elapsed_ms)%100)
+  else if (sort == "tid")
+    foreach([tid+, name] in c limit lines)
+      printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
+           @count(c[tid, name]),
+           (@count(c[tid,name])*100000/elapsed_ms)/100,
+           (@count(c[tid,name])*100000/elapsed_ms)%100)
+  else if (sort == "event")
+    foreach([tid, name+] in c limit lines)
+      printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
+           @count(c[tid, name]),
+           (@count(c[tid,name])*100000/elapsed_ms)/100,
+           (@count(c[tid,name])*100000/elapsed_ms)%100)
+  else # unsorted
+    foreach([tid, name] in c limit lines)
+      printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
+           @count(c[tid, name]),
+           (@count(c[tid,name])*100000/elapsed_ms)/100,
+           (@count(c[tid,name])*100000/elapsed_ms)%100)
+
+}
+
+probe end {
+  report()
+  printf("Finished event counting at %s.\n", tz_ctime(gettimeofday_s()))
+}
+
+probe timer.s(1) {
+      if (period <= 0) next
+      if ((gettimeofday_s() % period) == 0) {
+         report()
+         if (! cumulative) {
+             delete c
+             delete filteredc
+             delete totalc
+             start_ms = gettimeofday_ms()
+         }
+      }
+}

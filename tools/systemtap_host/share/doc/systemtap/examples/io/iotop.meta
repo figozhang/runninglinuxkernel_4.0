@@ -1,0 +1,13 @@
+title: Periodically Print IO Activity by Process Name
+name: iotop.stp
+version: 1.0
+author: anonymous
+keywords: io
+subsystem: io
+status: production
+exit: user-controlled
+output: timed
+scope: system-wide
+description: Every five seconds print out the top ten executables generating I/O traffic during that interval sorted in descending order.
+test_check: stap -p4 iotop.stp
+test_installcheck: stap iotop.stp -c "sleep 1"

@@ -1,0 +1,82 @@
+.\" -*- nroff -*-
+.TH TAPSET::CONVERSIONS-GURU 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::conversions-guru \- systemtap conversions-guru tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B set_kernel_string 
+Writes a string to kernel memory
+.IP
+See 
+.IR function::set_kernel_string (3stap)
+ for details.
+.P
+.TP
+.B set_kernel_string_n 
+Writes a string of given length to kernel memory
+.IP
+See 
+.IR function::set_kernel_string_n (3stap)
+ for details.
+.P
+.TP
+.B set_kernel_long 
+Writes a long value to kernel memory
+.IP
+See 
+.IR function::set_kernel_long (3stap)
+ for details.
+.P
+.TP
+.B set_kernel_int 
+Writes an int value to kernel memory
+.IP
+See 
+.IR function::set_kernel_int (3stap)
+ for details.
+.P
+.TP
+.B set_kernel_short 
+Writes a short value to kernel memory
+.IP
+See 
+.IR function::set_kernel_short (3stap)
+ for details.
+.P
+.TP
+.B set_kernel_char 
+Writes a char value to kernel memory
+.IP
+See 
+.IR function::set_kernel_char (3stap)
+ for details.
+.P
+.TP
+.B set_kernel_pointer 
+Writes a pointer value to kernel memory.
+.IP
+See 
+.IR function::set_kernel_pointer (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::set_kernel_string (3stap),
+.BR
+.IR \%function::set_kernel_string_n (3stap),
+.BR
+.IR \%function::set_kernel_long (3stap),
+.BR
+.IR \%function::set_kernel_int (3stap),
+.BR
+.IR \%function::set_kernel_short (3stap),
+.BR
+.IR \%function::set_kernel_char (3stap),
+.BR
+.IR \%function::set_kernel_pointer (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

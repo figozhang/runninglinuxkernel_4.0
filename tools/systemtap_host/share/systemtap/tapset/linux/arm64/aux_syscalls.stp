@@ -1,0 +1,49 @@
+# arch-specific requests of ptrace ___________________________
+#
+
+%{
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
+
+static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
+	V(COMPAT_PTRACE_GETREGS),
+	V(COMPAT_PTRACE_SETREGS),
+	V(COMPAT_PTRACE_GET_THREAD_AREA),
+	V(COMPAT_PTRACE_SET_SYSCALL),
+	V(COMPAT_PTRACE_GETVFPREGS),
+	V(COMPAT_PTRACE_SETVFPREGS),
+	V(COMPAT_PTRACE_GETHBPREGS),
+	V(COMPAT_PTRACE_SETHBPREGS),
+	{0, NULL}
+};
+%}
+
+function __arch_ptrace_request_str:string(request:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_arch_ptrace_request_list,
+			(unsigned long)STAP_ARG_request, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+function _arch_ptrace_argstr(request, pid, addr, data)
+{
+	if (request == %{ /* pure */ COMPAT_PTRACE_GETREGS %}
+	    || request == %{ /* pure */ COMPAT_PTRACE_SETREGS %}
+	    || request == %{ /* pure */ COMPAT_PTRACE_SET_SYSCALL %}
+	    || request == %{ /* pure */ COMPAT_PTRACE_GETVFPREGS %}
+	    || request == %{ /* pure */ COMPAT_PTRACE_SETVFPREGS %}
+	    || request == %{ /* pure */ COMPAT_PTRACE_GETHBPREGS %}
+	    || request == %{ /* pure */ COMPAT_PTRACE_SETHBPREGS %})
+		return sprintf("%s, %d, %#x, %p",
+			       __arch_ptrace_request_str(request), pid,
+			       addr, data)
+	if (request == %{ /* pure */ COMPAT_PTRACE_GET_THREAD_AREA %})
+		return sprintf("%s, %d, %d, %p", 
+			       __arch_ptrace_request_str(request), pid,
+			       __int32(addr), data)
+}
+
+function _ptrace_return_arch_prctl_addr:long(request:long, addr:long, data:long)
+{
+	return 0
+}

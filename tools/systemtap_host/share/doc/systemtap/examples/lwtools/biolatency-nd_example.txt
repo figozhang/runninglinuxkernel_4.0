@@ -1,0 +1,143 @@
+Examples of biolatency-nd.stp, the Linux SystemTap version.
+
+
+Measuring block I/O (storage I/O, ie, disk I/O) latency until Ctrl-C:
+
+# ./biolatency-nd.stp 
+Tracing block I/O... Hit Ctrl-C to end.
+^C
+bio latency (ns):
+   value |-------------------------------------------------- count
+  131072 |                                                    0
+  262144 |                                                    0
+  524288 |@@                                                  5
+ 1048576 |@@                                                  4
+ 2097152 |@@@@@@@@@@@@@@@@@@@@@@@@                           49
+ 4194304 |@@@@@@@@@@@@@@@@@@@@@@@@@@@                        55
+ 8388608 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@          82
+16777216 |@@@@@@@@@@@@@@@@@@                                 37
+33554432 |                                                    0
+67108864 |                                                    0
+
+This shows a distribution between aout 1 and 16 milliseconds, which is expected
+for current rotational disk I/O.
+
+
+A more interesting distribution:
+
+# ./biolatency-nd.stp 
+Tracing block I/O... Hit Ctrl-C to end.
+^C
+bio latency (ns):
+     value |-------------------------------------------------- count
+     32768 |                                                      0
+     65536 |                                                      0
+    131072 |                                                     10
+    262144 |@@@@@@@@@                                           450
+    524288 |@@@                                                 159
+   1048576 |                                                     26
+   2097152 |                                                     35
+   4194304 |                                                     18
+   8388608 |@@                                                  112
+  16777216 |@@@@                                                195
+  33554432 |@@@@@@@@@                                           452
+  67108864 |@@@@@@@@@@@@@@@@@@@@@@                             1065
+ 134217728 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  2398
+ 268435456 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@          2008
+ 536870912 |                                                      0
+1073741824 |                                                      0
+
+This shows a bimodal distribution with a low-latency mode around 0.26
+milliseconds, which may be on-disk cache hits, and then a high-latency mode
+between around 16 and 268 milliseconds. Such high latency is likely
+caused by queueing, which can be investigated further using custom
+SystemTap invocations as well as the "avgqu-sz" column from iostat(1).
+
+
+biolatency-nd.stp accepts an optional interval and count as arguments. Measuring
+block I/O latency, and printing a report every second, five times:
+
+# ./biolatency-nd.stp 1 5
+Tracing block I/O... Output every 1 secs.
+
+bio latency (ns):
+   value |-------------------------------------------------- count
+   32768 |                                                     0
+   65536 |                                                     0
+  131072 |@@                                                  28
+  262144 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   486
+  524288 |@@@@@@@@@@@@@@@@@@@                                198
+ 1048576 |@@@@@@@@@                                           98
+ 2097152 |@@@@@@                                              61
+ 4194304 |@@@                                                 35
+ 8388608 |@                                                   17
+16777216 |                                                     3
+33554432 |                                                     0
+67108864 |                                                     0
+
+
+bio latency (ns):
+   value |-------------------------------------------------- count
+   32768 |                                                     0
+   65536 |                                                     0
+  131072 |@@                                                  22
+  262144 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@      505
+  524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                  370
+ 1048576 |@@@@@@@@                                            91
+ 2097152 |@@                                                  31
+ 4194304 |@                                                   20
+ 8388608 |@                                                   20
+16777216 |                                                     4
+33554432 |                                                     0
+67108864 |                                                     0
+
+
+bio latency (ns):
+   value |-------------------------------------------------- count
+   32768 |                                                     0
+   65536 |                                                     0
+  131072 |@@@@                                                70
+  262144 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   826
+  524288 |@@@@@@@@@@@@@@@@@@@                                333
+ 1048576 |@@@                                                 52
+ 2097152 |                                                    11
+ 4194304 |                                                     7
+ 8388608 |@                                                   17
+16777216 |                                                     5
+33554432 |                                                     0
+67108864 |                                                     0
+
+
+bio latency (ns):
+    value |-------------------------------------------------- count
+    32768 |                                                     0
+    65536 |                                                     0
+   131072 |@@                                                  35
+   262144 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@     559
+   524288 |@@@@@@@@@@@@@@@@@@@@@@                             270
+  1048576 |@@@@@@                                              82
+  2097152 |@@                                                  34
+  4194304 |@                                                   17
+  8388608 |@                                                   19
+ 16777216 |                                                     9
+ 33554432 |                                                     2
+ 67108864 |                                                     0
+134217728 |                                                     0
+
+
+bio latency (ns):
+   value |-------------------------------------------------- count
+   32768 |                                                     0
+   65536 |                                                     0
+  131072 |@@@                                                 57
+  262144 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   877
+  524288 |@@@@@@@@@@@@@@@                                    270
+ 1048576 |@@@@                                                85
+ 2097152 |@@                                                  46
+ 4194304 |                                                     7
+ 8388608 |                                                    15
+16777216 |                                                    10
+33554432 |                                                     0
+67108864 |                                                     0
+
+These disk I/O were much faster, with a mode around 0.25 ms.

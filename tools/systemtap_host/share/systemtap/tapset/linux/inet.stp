@@ -1,0 +1,43 @@
+/* Some functions from libc <arpa/inet.h> */
+
+/* <tapsetdescription>
+ * These functions convert between network (big-endian) and host byte
+ * order, like their namesake C functions.
+ * </tapsetdescription>
+ */
+
+/**
+ * sfunction htonll - Convert 64-bit long long from host to network order
+ * @x: Value to convert
+ */
+function htonll:long (x:long) %{ /* pure */ STAP_RETVALUE = (int64_t) cpu_to_be64 ((u64) STAP_ARG_x); %}
+
+/**
+ * sfunction htonl - Convert 32-bit long from host to network order
+ * @x: Value to convert
+ */
+function htonl:long (x:long) %{ /* pure */ STAP_RETVALUE = (int64_t) cpu_to_be32 ((u32) STAP_ARG_x); %}
+
+/**
+ * sfunction htons - Convert 16-bit short from host to network order
+ * @x: Value to convert
+ */
+function htons:long (x:long) %{ /* pure */ STAP_RETVALUE = (int64_t) cpu_to_be16 ((u16) STAP_ARG_x); %}
+
+/**
+ * sfunction ntohll - Convert 64-bit long long from network to host order
+ * @x: Value to convert
+ */
+function ntohll:long (x:long) %{ /* pure */ STAP_RETVALUE = (int64_t) be64_to_cpu ((u64) STAP_ARG_x); %}
+
+/**
+ * sfunction ntohl - Convert 32-bit long from network to host order
+ * @x: Value to convert
+ */
+function ntohl:long (x:long) %{ /* pure */ STAP_RETVALUE = (int64_t) be32_to_cpu ((u32) STAP_ARG_x); %}
+
+/**
+ * sfunction ntohs - Convert 16-bit short from network to host order
+ * @x: Value to convert
+ */
+function ntohs:long (x:long) %{ /* pure */ STAP_RETVALUE = (int64_t) be16_to_cpu ((u16) STAP_ARG_x); %}

@@ -1,0 +1,52 @@
+.\" -*- nroff -*-
+.TH TAPSET::TIMESTAMP_GTOD 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::timestamp_gtod \- systemtap timestamp_gtod tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B gettimeofday_ns 
+Number of nanoseconds since UNIX epoch
+.IP
+See 
+.IR function::gettimeofday_ns (3stap)
+ for details.
+.P
+.TP
+.B gettimeofday_us 
+Number of microseconds since UNIX epoch
+.IP
+See 
+.IR function::gettimeofday_us (3stap)
+ for details.
+.P
+.TP
+.B gettimeofday_ms 
+Number of milliseconds since UNIX epoch
+.IP
+See 
+.IR function::gettimeofday_ms (3stap)
+ for details.
+.P
+.TP
+.B gettimeofday_s 
+Number of seconds since UNIX epoch
+.IP
+See 
+.IR function::gettimeofday_s (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::gettimeofday_ns (3stap),
+.BR
+.IR \%function::gettimeofday_us (3stap),
+.BR
+.IR \%function::gettimeofday_ms (3stap),
+.BR
+.IR \%function::gettimeofday_s (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

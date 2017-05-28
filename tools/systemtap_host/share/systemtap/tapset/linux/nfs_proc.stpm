@@ -1,0 +1,46 @@
+// macros for nfs_proc.stp (the NFS procedure tapset)
+// Copyright (C) 2013 Red Hat
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// Macros to return data from a 'struct nfs_read_data', 'struct
+// nfs_write_data', or 'struct nfs_commit_data'. Even though the
+// structures are laid out differently, since the names of the fields
+// are the same, one set of macros can work for all types.
+
+@define _nfs_data_server_ip(nfs_data)
+%(
+	( get_ip(&@nfs_data->task) )
+%)
+
+@define _nfs_data_prot(nfs_data)
+%(
+	( get_prot(&@nfs_data->task) )
+%)
+
+@define _nfs_data_args_count(nfs_data)
+%(
+	( @nfs_data->args->count )
+%)
+
+// The 'nfs_commitres' structure has no 'count' field.
+@define _nfs_data_res_count(nfs_data)
+%(
+	( @choose_defined(@nfs_data->res->count, 0) )
+%)
+
+@define _nfs_data_valid(nfs_data)
+%(
+	( @nfs_data->res->fattr->valid )
+%)
+
+// The 'nfs_commit_data' structure has no 'timestamp' field.
+@define _nfs_data_timestamp(nfs_data)
+%(
+	( %( CONFIG_NFS_V4 == "[ym]"
+	     %? @choose_defined(@nfs_data->timestamp, 0)
+	     %: 0 %) )
+%)

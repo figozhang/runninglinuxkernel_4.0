@@ -1,0 +1,145 @@
+// timestamp tapset -- monotonic clock variants
+// Copyright (C) 2011 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+%{
+// Since scripts can run from quite arbitrary contexts, we can only use
+// cpu_clock once it was made NMI safe.  This was in commit def0a9b2 for
+// HAVE_UNSTABLE_SCHED_CLOCK archs (included in 2.6.32), and commit b9f8fcd5
+// for the rest (included in 2.6.33).  So before that, we'll just pretend that
+// cpu_clock and local_clock don't exist.
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)) \
+    || (!defined (CONFIG_HAVE_UNSTABLE_SCHED_CLOCK) \
+        && (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)))
+#undef STAPCONF_CPU_CLOCK
+#undef STAPCONF_LOCAL_CLOCK
+#endif
+
+// If we're falling back on gettimeofday, that machinery needs to be started.
+#if !defined (STAPCONF_CPU_CLOCK)
+#define STAP_NEED_GETTIMEOFDAY 1
+#endif
+%}
+
+
+/**
+ * sfunction cpu_clock_ns - Number of nanoseconds on the given cpu's clock
+ * @cpu: Which processor's clock to read
+ *
+ * Description: This function returns the number of nanoseconds on the given
+ * cpu's clock.  This is always monotonic comparing on the same cpu, but may
+ * have some drift between cpus (within about a jiffy).
+ */
+function cpu_clock_ns:long (cpu:long) %{ /* pure */ /* unprivileged */
+#if defined (STAPCONF_CPU_CLOCK)
+  if (likely(STAP_ARG_cpu >= 0 && STAP_ARG_cpu < NR_CPUS && cpu_online(STAP_ARG_cpu)))
+    STAP_RETVALUE = cpu_clock(STAP_ARG_cpu);
+  else
+    {
+      snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+               "cpu %lld is not online", STAP_ARG_cpu);
+      CONTEXT->last_error = CONTEXT->error_buffer;
+    }
+#else
+  /* NOTE: we can't use do_gettimeofday because we could be called from a
+   * context where xtime_lock is already held.  See bug #2525. */
+  STAP_RETVALUE = _stp_gettimeofday_ns();
+  if (STAP_RETVALUE < 0)
+    CONTEXT->last_error = "gettimeofday not initialized";
+#endif
+%}
+
+/**
+ * sfunction cpu_clock_us - Number of microseconds on the given cpu's clock
+ * @cpu: Which processor's clock to read
+ *
+ * Description: This function returns the number of microseconds on the given
+ * cpu's clock.  This is always monotonic comparing on the same cpu, but may
+ * have some drift between cpus (within about a jiffy).
+ */
+function cpu_clock_us:long (cpu:long) {
+  return cpu_clock_ns(cpu) / 1000;
+}
+
+/**
+ * sfunction cpu_clock_ms - Number of milliseconds on the given cpu's clock
+ * @cpu: Which processor's clock to read
+ *
+ * Description: This function returns the number of milliseconds on the given
+ * cpu's clock.  This is always monotonic comparing on the same cpu, but may
+ * have some drift between cpus (within about a jiffy).
+ */
+function cpu_clock_ms:long (cpu:long) {
+  return cpu_clock_ns(cpu) / 1000000;
+}
+
+/**
+ * sfunction cpu_clock_s - Number of seconds on the given cpu's clock
+ * @cpu: Which processor's clock to read
+ *
+ * Description: This function returns the number of seconds on the given cpu's
+ * clock.  This is always monotonic comparing on the same cpu, but may have
+ * some drift between cpus (within about a jiffy).
+ */
+function cpu_clock_s:long (cpu:long) {
+  return cpu_clock_ns(cpu) / 1000000000;
+}
+
+
+/**
+ * sfunction local_clock_ns - Number of nanoseconds on the local cpu's clock
+ *
+ * Description: This function returns the number of nanoseconds on the local
+ * cpu's clock.  This is always monotonic comparing on the same cpu, but may
+ * have some drift between cpus (within about a jiffy).
+ */
+function local_clock_ns:long () %{ /* pure */ /* unprivileged */
+#if defined (STAPCONF_LOCAL_CLOCK)
+  STAP_RETVALUE = local_clock();
+#elif defined (STAPCONF_CPU_CLOCK)
+  STAP_RETVALUE = cpu_clock(smp_processor_id());
+#else
+  /* NOTE: we can't use do_gettimeofday because we could be called from a
+   * context where xtime_lock is already held.  See bug #2525. */
+  STAP_RETVALUE = _stp_gettimeofday_ns();
+  if (STAP_RETVALUE < 0)
+    CONTEXT->last_error = "gettimeofday not initialized";
+#endif
+%}
+
+/**
+ * sfunction local_clock_us - Number of microseconds on the local cpu's clock
+ *
+ * Description: This function returns the number of microseconds on the local
+ * cpu's clock.  This is always monotonic comparing on the same cpu, but may
+ * have some drift between cpus (within about a jiffy).
+ */
+function local_clock_us:long () {
+  return local_clock_ns() / 1000;
+}
+
+/**
+ * sfunction local_clock_ms - Number of milliseconds on the local cpu's clock
+ *
+ * Description: This function returns the number of milliseconds on the local
+ * cpu's clock.  This is always monotonic comparing on the same cpu, but may
+ * have some drift between cpus (within about a jiffy).
+ */
+function local_clock_ms:long () {
+  return local_clock_ns() / 1000000;
+}
+
+/**
+ * sfunction local_clock_s - Number of seconds on the local cpu's clock
+ *
+ * Description: This function returns the number of seconds on the local cpu's
+ * clock.  This is always monotonic comparing on the same cpu, but may have
+ * some drift between cpus (within about a jiffy).
+ */
+function local_clock_s:long () {
+  return local_clock_ns() / 1000000000;
+}

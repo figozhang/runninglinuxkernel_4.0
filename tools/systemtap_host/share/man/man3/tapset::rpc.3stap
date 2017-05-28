@@ -1,0 +1,202 @@
+.\" -*- nroff -*-
+.TH TAPSET::RPC 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::rpc \- systemtap rpc tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B sunrpc.clnt.create_client 
+Create an RPC client
+.IP
+ See 
+.IR probe::sunrpc.clnt.create_client (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.clnt.clone_client 
+Clone an RPC client structure
+.IP
+ See 
+.IR probe::sunrpc.clnt.clone_client (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.clnt.shutdown_client 
+Shutdown an RPC client
+.IP
+ See 
+.IR probe::sunrpc.clnt.shutdown_client (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.clnt.bind_new_program 
+Bind a new RPC program to an existing client
+.IP
+ See 
+.IR probe::sunrpc.clnt.bind_new_program (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.clnt.call_sync 
+Make a synchronous RPC call
+.IP
+ See 
+.IR probe::sunrpc.clnt.call_sync (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.clnt.call_async 
+Make an asynchronous RPC call
+.IP
+ See 
+.IR probe::sunrpc.clnt.call_async (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.clnt.restart_call 
+Restart an asynchronous RPC call
+.IP
+ See 
+.IR probe::sunrpc.clnt.restart_call (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.svc.register 
+Register an RPC service with the local portmapper
+.IP
+ See 
+.IR probe::sunrpc.svc.register (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.svc.create 
+Create an RPC service
+.IP
+ See 
+.IR probe::sunrpc.svc.create (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.svc.destroy 
+Destroy an RPC service
+.IP
+ See 
+.IR probe::sunrpc.svc.destroy (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.svc.process 
+Process an RPC request
+.IP
+ See 
+.IR probe::sunrpc.svc.process (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.svc.authorise 
+An RPC request is to be authorised
+.IP
+ See 
+.IR probe::sunrpc.svc.authorise (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.svc.recv 
+Listen for the next RPC request on any socket
+.IP
+ See 
+.IR probe::sunrpc.svc.recv (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.svc.send  
+Return reply to RPC client
+.IP
+ See 
+.IR probe::sunrpc.svc.send  (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.svc.drop 
+Drop RPC request
+.IP
+ See 
+.IR probe::sunrpc.svc.drop (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.sched.new_task 
+Create new task for the specified client
+.IP
+ See 
+.IR probe::sunrpc.sched.new_task (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.sched.release_task 
+Release all resources associated with a task
+.IP
+ See 
+.IR probe::sunrpc.sched.release_task (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.sched.execute 
+Execute the RPC `scheduler' 
+.IP
+ See 
+.IR probe::sunrpc.sched.execute (3stap)
+ for details.
+.P
+.TP
+.B sunrpc.sched.delay 
+Delay an RPC task
+.IP
+ See 
+.IR probe::sunrpc.sched.delay (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::sunrpc.clnt.create_client (3stap),
+.BR
+.IR \%probe::sunrpc.clnt.clone_client (3stap),
+.BR
+.IR \%probe::sunrpc.clnt.shutdown_client (3stap),
+.BR
+.IR \%probe::sunrpc.clnt.bind_new_program (3stap),
+.BR
+.IR \%probe::sunrpc.clnt.call_sync (3stap),
+.BR
+.IR \%probe::sunrpc.clnt.call_async (3stap),
+.BR
+.IR \%probe::sunrpc.clnt.restart_call (3stap),
+.BR
+.IR \%probe::sunrpc.svc.register (3stap),
+.BR
+.IR \%probe::sunrpc.svc.create (3stap),
+.BR
+.IR \%probe::sunrpc.svc.destroy (3stap),
+.BR
+.IR \%probe::sunrpc.svc.process (3stap),
+.BR
+.IR \%probe::sunrpc.svc.authorise (3stap),
+.BR
+.IR \%probe::sunrpc.svc.recv (3stap),
+.BR
+.IR \%probe::sunrpc.svc.send (3stap),
+.BR
+.IR \%probe::sunrpc.svc.drop (3stap),
+.BR
+.IR \%probe::sunrpc.sched.new_task (3stap),
+.BR
+.IR \%probe::sunrpc.sched.release_task (3stap),
+.BR
+.IR \%probe::sunrpc.sched.execute (3stap),
+.BR
+.IR \%probe::sunrpc.sched.delay (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

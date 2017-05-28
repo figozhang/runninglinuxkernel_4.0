@@ -1,0 +1,65 @@
+.TH fsslower-nd 8  "2015-01-30" "USER COMMANDS"
+.SH NAME
+fsslower-nd \- Trace slow file system sync reads and writes. Uses Linux SystemTap (non-debuginfo).
+.SH SYNOPSIS
+.B fsslower-nd.stp
+[min_ms]
+.SH DESCRIPTION
+fsslower-nd.stp dynamically traces two common file system functions:
+do_sync_read() and do_sync_write(), and shows details of each call that is
+slower than a threshold. Many, but not all, file systems and
+workloads use these functions. Tracing their time provides one view of
+suffered file system latency.
+
+Other file system requests not covered by these functions and this tool include:
+asynchronous I/O, directory operations, and file handle operations.
+.SH REQUIREMENTS
+SystemTap.
+.SH OPTIONS
+.TP
+min_ms
+Minimum millisecond threshold.
+.SH EXAMPLES
+.TP
+Measure (most) file system synchronous read and write requests with latency slower than or equal to 5 ms:
+#
+.B fsslower-nd.stp 5
+.SH FIELDS
+.TP
+TIME
+Time of the event completion.
+.TP
+PID
+Process ID.
+.TP
+COMM
+Process name.
+.TP
+FUNC
+Kernel function traced.
+.TP
+SIZE
+Size of FS request, in bytes.
+.TP
+LAT(ms)
+Latency of function, in milliseconds.
+.SH OVERHEAD
+The overheads are measurable, as file system requests can be very frequent, and
+the small overhead of tracing each (eg, 4 microseconds per call) can begin to
+add up. Best case, it won't be noticeable. Worst case, the application may run
+2x slower.
+.SH SOURCE
+This is from the SystemTap lwtools collection.
+.IP
+https://github.com/brendangregg/systemtap-lwtools
+.PP
+Also look under the examples directory for a text file containing example
+usage, output, and commentary for this tool.
+.SH OS
+Linux
+.SH STABILITY
+Unstable - in development.
+.SH AUTHOR
+Brendan Gregg
+.SH SEE ALSO
+iostat(1), fslatency-nd.stp(8), biolatency-nd.stp(8)

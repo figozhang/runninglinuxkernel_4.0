@@ -1,0 +1,148 @@
+// context tapset
+// Copyright (C) 2005-2011 Red Hat Inc.
+// Copyright (C) 2006 Intel Corporation.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// Context functions provide additional information about where an event occurred. These functions can
+//provide information such as a backtrace to where the event occurred and the current register values for the
+//processor.
+// </tapsetdescription>
+
+/**
+ * sfunction print_regs - Print a register dump
+ * 
+ * Description: This function prints a register dump. Does nothing if no registers are available for the probe point.
+ */
+function print_regs ()
+%{
+	if (c->user_mode_p && CONTEXT->uregs) {
+		_stp_print_regs (CONTEXT->uregs);
+	} else if (CONTEXT->kregs) {
+		_stp_print_regs (CONTEXT->kregs);
+	}
+%}
+
+/**
+ * sfunction pp - Returns the active probe point
+ *
+ * Description: This function returns the fully-resolved probe point
+ * associated with a currently running probe handler, including alias
+ * and wild-card expansion effects. Context: The current probe point.
+ */
+function pp:string ()
+%{ /* pure */ /* unprivileged */ /* stable */
+	strlcpy (STAP_RETVALUE, CONTEXT->probe_point, MAXSTRINGLEN);
+%}
+
+/**
+ * sfunction ppfunc - Returns the function name parsed from pp()
+ *
+ * Description: This returns the function name from the current pp().
+ * Not all pp() have functions in them, in which case "" is returned.
+ */
+function ppfunc:string ()
+%{ /* pure */ /* unprivileged */ /* stable */
+	char *ptr, *start;
+
+	/* This is based on the pre-2.0 behavior of probefunc(), but without
+	 * the _stp_snprint_addr fallback, so we're purely pp()-based.
+	 *
+	 * The obsolete inline("...") syntax is dropped, but in its place we'll
+	 * look for function names in statement("...") form.
+	 */
+
+	STAP_RETVALUE[0] = '\0';
+	start = strstr(CONTEXT->probe_point, "function(\"");
+	ptr = start + 10;
+	if (!start) {
+		start = strstr(CONTEXT->probe_point, "statement(\"");
+		ptr = start + 11;
+	}
+
+	if (start) {
+		int len = MAXSTRINGLEN;
+		char *dst = STAP_RETVALUE;
+		while (*ptr != '@' && *ptr != '"' && --len > 0 && *ptr)
+			*dst++ = *ptr++;
+		*dst = 0;
+	}
+%}
+
+/**
+ * sfunction probe_type - The low level probe handler type of the current probe.
+ *
+ * Description: Returns a short string describing the low level probe handler
+ * type for the current probe point. This is for informational purposes only.
+ * Depending on the low level probe handler different context functions can
+ * or cannot provide information about the current event (for example some
+ * probe handlers only trigger in user space and have no associated kernel
+ * context). High-level probes might map to the same or different low-level
+ * probes (depending on systemtap version and/or kernel used).
+ */
+function probe_type:string()
+%{ /* pure */ /* unprivileged */ /* stable */
+  switch (CONTEXT->probe_type)
+  {
+    case stp_probe_type_been:
+      strlcpy (STAP_RETVALUE, "begin_end", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_itrace:
+      strlcpy (STAP_RETVALUE, "itrace", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_marker:
+      strlcpy (STAP_RETVALUE, "kernel_marker", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_perf:
+      strlcpy (STAP_RETVALUE, "perf_event", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_procfs:
+      strlcpy (STAP_RETVALUE, "procfs", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_timer:
+      strlcpy (STAP_RETVALUE, "timer", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_hrtimer:
+      strlcpy (STAP_RETVALUE, "hrtimer", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_profile_timer:
+      strlcpy (STAP_RETVALUE, "profile_timer", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_netfilter:
+      strlcpy (STAP_RETVALUE, "netfilter", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_utrace:
+      strlcpy (STAP_RETVALUE, "utrace", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_utrace_syscall:
+      strlcpy (STAP_RETVALUE, "utrace_syscall", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_kprobe:
+      strlcpy (STAP_RETVALUE, "kprobe", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_kretprobe:
+      strlcpy (STAP_RETVALUE, "kretprobe", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_uprobe:
+      strlcpy (STAP_RETVALUE, "uprobe", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_uretprobe:
+      strlcpy (STAP_RETVALUE, "uretprobe", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_hwbkpt:
+      strlcpy (STAP_RETVALUE, "hardware_data_breakpoint", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_tracepoint:
+      strlcpy (STAP_RETVALUE, "kernel_tracepoint", MAXSTRINGLEN);
+      break;
+    default:
+      /* This should never happen. */
+      snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+               "Unknown probe-type state %d", CONTEXT->probe_type);
+      CONTEXT->last_error = CONTEXT->error_buffer;
+      break;
+  }
+%}

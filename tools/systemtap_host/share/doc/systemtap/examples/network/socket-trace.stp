@@ -1,0 +1,8 @@
+#! /usr/bin/env stap
+
+probe kernel.function("*@net/socket.c").call {
+  printf ("%s -> %s\n", thread_indent(1), ppfunc())
+}
+probe kernel.function("*@net/socket.c").return {
+  printf ("%s <- %s\n", thread_indent(-1), ppfunc())
+}

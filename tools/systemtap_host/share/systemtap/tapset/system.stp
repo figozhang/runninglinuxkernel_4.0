@@ -1,0 +1,13 @@
+/** 
+ * sfunction system - Issue a command to the system
+ *
+ * @cmd: the command to issue to the system
+ *
+ * Description: This function runs a command on the system.  The
+ * command is started in the background some time after the current
+ * probe completes. The command is run with the same UID as the user
+ * running the stap or staprun command.
+ */
+function system (cmd:string) %{ /* unprivileged */
+	_stp_ctl_send(STP_SYSTEM, STAP_ARG_cmd, strlen(STAP_ARG_cmd)+1);
+%}

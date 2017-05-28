@@ -6,3 +6,5 @@ mkdir -p /dev/pts
 mount -t devpts devpts /dev/pts
 echo /sbin/mdev > /proc/sys/kernel/hotplug
 mdev -s
+
+ln -s /home/figo/systemtap-3.0-3521/bin/staprun /bin/staprun

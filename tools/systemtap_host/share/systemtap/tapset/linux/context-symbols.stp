@@ -1,0 +1,344 @@
+// context-symbols tapset
+// Copyright (C) 2005-2012 Red Hat Inc.
+// Copyright (C) 2006 Intel Corporation.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// Context functions provide additional information about where an event occurred. These functions can 
+//provide information such as a backtrace to where the event occurred and the current register values for the 
+//processor.
+// </tapsetdescription>
+
+@__private30 function __stack_raw:long (n:long) %{ /* pragma:unwind */ /* pure */
+         /* basic sanity check for bounds: */
+         if (unlikely(STAP_ARG_n < 0 || STAP_ARG_n >= MAXBACKTRACE))
+                  STAP_RETVALUE = 0;
+         else
+                  STAP_RETVALUE = _stp_stack_kernel_get (CONTEXT, (unsigned)STAP_ARG_n);
+%}
+
+/**
+ *  sfunction stack - Return address at given depth of kernel stack backtrace
+ *  @n: number of levels to descend in the stack.
+ *
+ *  Description: Performs a simple (kernel) backtrace, and returns the
+ *  element at the specified position. The results of the backtrace itself
+ *  are cached, so that the backtrace computation is performed at most once
+ *  no matter how many times stack() is called, or in what order.
+ */
+function stack:long (n:long) {
+         __r = __stack_raw(n);
+         if (__r != 0) return __r
+
+         /* fallback: parse backtrace() to go deeper in the stack */
+         __b = backtrace (); __orig_n = __n;
+         __sym = tokenize (__b, " ");
+         if (__sym == "") @__context_unwind_error(__orig_n);
+         while (__n > 0) {
+               __sym = tokenize ("", " ");
+               if (__sym == "") @__context_unwind_error(__orig_n);
+               __n--;
+         }
+         return strtol(__sym, 16)
+}
+
+/**
+ *  sfunction print_stack - Print out kernel stack from string
+ *  @stk: String with list of hexadecimal addresses
+ *
+ *  Description: This function performs a symbolic lookup of the addresses
+ *  in the given  string,
+ *  which is assumed to be the result of a prior call to 
+ *  backtrace().
+ * 
+ *  Print one line per address, including the address, the
+ *  name  of the function containing the address, and an estimate of
+ *  its position within that function.  Return nothing.
+ *
+ * NOTE: it is recommended to use print_syms() instead of this function.
+ */
+function print_stack(stk:string) { print_syms(stk) }
+
+/**
+ * sfunction sprint_stack - Return stack for kernel addresses from string
+ * @stk: String with list of hexadecimal (kernel) addresses
+ *
+ * Perform a symbolic lookup of the addresses in the given string,
+ * which is assumed to be the result of a prior call to backtrace().
+ *
+ * Returns a simple backtrace from the given hex string. One line per
+ * address. Includes the symbol name (or hex address if symbol
+ * couldn't be resolved) and module name (if found). Includes the
+ * offset from the start of the function if found, otherwise the
+ * offset will be added to the module (if found, between
+ * brackets). Returns the backtrace as string (each line terminated by
+ * a newline character).  Note that the returned stack will be
+ * truncated to MAXSTRINGLEN, to print fuller and richer stacks use
+ * print_stack.
+ *
+ * NOTE: it is recommended to use sprint_syms() instead of this function.
+ */
+function sprint_stack:string(stk:string) { return sprint_syms(stk) }
+
+/**
+ * sfunction probefunc - Return the probe point's function name, if known
+ *
+ * Description: This function returns the name of the function being probed
+ * based on the current address, as computed by symname(addr()) or
+ * usymname(uaddr()) depending on probe context (whether the probe is
+ * a user probe or a kernel probe).
+ *
+ * Please note: this function's behaviour differs between SystemTap 2.0
+ * and earlier versions. Prior to 2.0, probefunc() obtained the function
+ * name from the probe point string as returned by pp(), and used the
+ * current address as a fallback.
+ *
+ * Consider using ppfunc() instead.
+ */
+function probefunc:string () %( systemtap_v < "2.0" %?
+%{ /* pure */ /* stable */ /* pragma:symbols */
+	char *ptr, *start;
+
+	STAP_RETVALUE[0] = '\0';
+	start = strstr(CONTEXT->probe_point, "function(\"");
+	ptr = start + 10; 
+	if (!start) {
+		start = strstr(CONTEXT->probe_point, "inline(\"");
+		ptr = start + 8;
+	}
+
+	if (start) {
+		int len = MAXSTRINGLEN;
+		char *dst = STAP_RETVALUE;
+		while (*ptr != '@' && *ptr != '"' && --len > 0 && *ptr)
+			*dst++ = *ptr++;
+		*dst = 0;
+
+	} else {
+		struct pt_regs *regs;
+		int user_mode;
+		user_mode = c->user_mode_p;
+		regs = user_mode ? CONTEXT->uregs : CONTEXT->kregs;
+		if (regs) {
+			_stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN,
+					  REG_IP(regs), _STP_SYM_SYMBOL,
+					  (user_mode ? current : NULL));
+		}
+	}
+%}
+%:
+{
+	%( systemtap_privilege != "stapusr" %?
+	   return user_mode() ? usymname(uaddr()) : symname(addr())
+	%:
+	   return user_mode() ? usymname(uaddr())
+	   	  	      : error("kernel probefunc() query from unprivileged script") /* XXX should be impossible */
+        %)
+}
+%)
+
+/**
+ * sfunction probemod - Return the probe point's kernel module name
+ * 
+ * Description: This function returns the name of the kernel module
+ * containing the probe point, if known.
+ */
+function probemod:string () %{ /* pure */ /* stable */
+	char *ptr, *start;
+
+	start = strstr(CONTEXT->probe_point, "module(\"");
+	ptr = start + 8;
+
+	if (start) {
+		int len = MAXSTRINGLEN;
+		char *dst = STAP_RETVALUE;
+		while (*ptr != '"' && --len && *ptr)
+			*dst++ = *ptr++;
+		*dst = 0;
+	} else if (CONTEXT->kregs && ! CONTEXT->user_mode_p) {
+		struct _stp_module *m;
+		m = _stp_kmod_sec_lookup (REG_IP(CONTEXT->kregs), NULL);
+		if (m && m->name)
+			strlcpy (STAP_RETVALUE, m->name, MAXSTRINGLEN);
+		else
+#if STAP_COMPAT_VERSION <= STAP_VERSION(2,2)
+			strlcpy (STAP_RETVALUE, "<unknown>", MAXSTRINGLEN);
+#else
+			CONTEXT->last_error = "Cannot determine kernel module name";
+#endif
+	} else
+#if STAP_COMPAT_VERSION <= STAP_VERSION(2,2)
+		strlcpy (STAP_RETVALUE, "<unknown>", MAXSTRINGLEN);
+#else
+		CONTEXT->last_error = "Cannot determine kernel module name";
+#endif
+%}
+
+/**
+ * sfunction modname - Return the kernel module name loaded at the address
+ * @addr: The address to map to a kernel module name
+ *
+ * Description: Returns the module name associated with the given
+ * address if known. If not known it will raise an error. If the
+ * address was not in a kernel module, but in the kernel itself, then
+ * the string "kernel" will be returned.
+ */
+function modname:string (addr: long) %{ /* pure */
+	struct _stp_module *m;
+#ifdef STAPCONF_MODULE_TEXT_ADDRESS
+	struct module *ko;
+#endif
+	m = _stp_kmod_sec_lookup (STAP_ARG_addr, NULL);
+	if (m && m->name)
+	  {
+	    strlcpy (STAP_RETVALUE, m->name, MAXSTRINGLEN);
+	    return;
+	  }
+
+#ifdef STAPCONF_MODULE_TEXT_ADDRESS
+	preempt_disable();
+	ko = __module_text_address (STAP_ARG_addr);
+	if (ko && ko->name)
+	  {
+	    strlcpy (STAP_RETVALUE, ko->name, MAXSTRINGLEN);
+	    preempt_enable_no_resched();
+	    return;
+	  }
+	preempt_enable_no_resched();
+#endif
+#if STAP_COMPAT_VERSION <= STAP_VERSION(2,2)
+	strlcpy (STAP_RETVALUE, "<unknown>", MAXSTRINGLEN);
+#else
+	CONTEXT->last_error = "Cannot determine kernel module name";
+#endif
+%}
+
+/**
+ * sfunction symname - Return the kernel symbol associated with the given address
+ * @addr: The address to translate
+ *
+ * Description: Returns the (function) symbol name associated with the
+ * given address if known. If not known it will return the hex string
+ * representation of addr.
+ */
+function symname:string (addr: long) %{ /* pure */ /* pragma:symbols */
+	 _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+			   _STP_SYM_SYMBOL, NULL);
+%}
+
+/**
+ * sfunction symdata - Return the kernel symbol and module offset for the address
+ * @addr: The address to translate
+ *
+ * Description: Returns the (function) symbol name associated with the
+ * given address if known, the offset from the start and size of the
+ * symbol, plus module name (between brackets). If symbol is unknown,
+ * but module is known, the offset inside the module, plus the size of
+ * the module is added.  If any element is not known it will be
+ * omitted and if the symbol name is unknown it will return the hex
+ * string for the given address.
+ */
+function symdata:string (addr: long) %{ /* pure */ /* pragma:symbols */
+	_stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+			  _STP_SYM_DATA, NULL);
+%}
+
+/**
+ * sfunction print_syms - Print out kernel stack from string
+ * @callers: String with list of hexadecimal (kernel) addresses
+ *
+ *  Description: This function performs a symbolic lookup of the addresses
+ *  in the given string,
+ *  which are assumed to be the result of prior calls to stack(),
+ *  callers(), and similar functions.
+ * 
+ *  Prints one line per address, including the address, the
+ *  name of the function containing the address, and an estimate of
+ *  its position within that function, as obtained by symdata().
+ *  Returns nothing.
+ */
+function print_syms (callers:string) {
+         __sym = tokenize (callers, " ");
+         while (__sym != "") {
+               printf (" %s : %s\n", __sym, symdata (strtol(__sym,16)));
+               __sym = tokenize ("", " ");
+         }
+}
+
+/**
+ * sfunction sprint_syms - Return stack for kernel addresses from string
+ *
+ * @callers: String with list of hexadecimal (kernel) addresses
+ *
+ * Perform a symbolic lookup of the addresses in the given string,
+ * which are assumed to be the result of a prior calls to stack(),
+ * callers(), and similar functions.
+ *
+ * Returns a simple backtrace from the given hex string. One line per
+ * address. Includes the symbol name (or hex address if symbol
+ * couldn't be resolved) and module name (if found), as obtained from
+ * symdata(). Includes the offset from the start of the function if
+ * found, otherwise the offset will be added to the module (if found, between
+ * brackets). Returns the backtrace as string (each line terminated by
+ * a newline character).  Note that the returned stack will be
+ * truncated to MAXSTRINGLEN, to print fuller and richer stacks use
+ * print_syms().
+ */
+function sprint_syms (callers:string) {
+         __sym = tokenize (callers, " ");
+         __foo = ""; __l = 0
+         while (__sym != "") {
+               // cleanly handle overflow instead of printing partial line:
+               __line = sprintf (" %s : %s\n", __sym, symdata (strtol(__sym,16)));
+               __l += strlen(__line)
+               if (__l > @MAXSTRINGLEN) break
+               __foo .= __line
+               __sym = tokenize ("", " ")
+         }
+         return __foo
+}
+
+/**
+ * sfunction symfileline - Return the file name and line number of an address.
+ * @addr: The address to translate.
+ *
+ * Description: Returns the file name and the (approximate) line number of the
+ * given address, if known. If the file name or the line number cannot be
+ * found, the hex string representation of the address will be returned.
+ */
+function symfileline:string (addr:long) %{
+/* pure */ /* pragma:symbols */ /* pragma:lines */
+  _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+                    _STP_SYM_LINENUMBER + _STP_SYM_FILENAME, NULL);
+%}
+
+/**
+ * sfunction usymfile - Return the file name of a given address.
+ * @addr: The address to translate.
+ *
+ * Description: Returns the file name of the  given address, if known. If the
+ * file name cannot be found, the hex string representation of the address
+ * will be returned.
+ */
+function symfile:string (addr:long) %{
+/* pure */ /* pragma:symbols */ /* pragma:lines */
+  _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+                    _STP_SYM_FILENAME, NULL);
+%}
+
+/**
+ * sfunction usymline - Return the line number of an address.
+ * @addr: The address to translate.
+ *
+ * Description: Returns the (approximate) line number of the given address, if
+ * known. If the line number cannot be found, the hex string representation of
+ * the address will be returned.
+ */
+function symline:string (addr:long) %{
+/* pure */ /* pragma:symbols */ /* pragma:lines */
+  _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+                    _STP_SYM_LINENUMBER, NULL);
+%}

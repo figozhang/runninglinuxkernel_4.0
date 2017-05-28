@@ -1,0 +1,13 @@
+title: Count Times Functions Are Called
+name: functioncallcount.stp
+version: 1.0
+author: anonymous
+keywords: profiling function
+subsystem: any
+status: production
+exit: user-controlled
+output: sorted-list on-exit
+scope: system-wide
+description: The functioncallcount.stp script takes one argument, a list of functions to probe. The script will run and count the number of times that each of the functions on the list is called. On exit the script will print a sorted list from most frequently to least frequently called function.
+test_check: stap -wp4 functioncallcount.stp "*@mm/*.c"
+test_installcheck: stap -w functioncallcount.stp "*@mm/*.c" -c "sleep 1"

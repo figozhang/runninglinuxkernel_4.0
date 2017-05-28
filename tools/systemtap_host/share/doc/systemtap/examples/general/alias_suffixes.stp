@@ -1,0 +1,33 @@
+#!/usr/bin/env stap
+# alias_suffixes.stp
+# Uses alias suffixes to track time intervals for a subset of kernel
+# functions. Based on func_time_stats.stp.
+
+global start, intervals
+
+# We can apply a suffix to multiple probe points designated by one alias:
+probe miscellany = syscall.{open,close,read,write} { }
+
+probe miscellany {
+      start[name, tid()] = gettimeofday_us()
+}
+
+# The 'return' suffix is passed on to each of the underlying probe points:
+probe miscellany.return {
+      t = gettimeofday_us(); old_t = start[name, tid()]
+      if (old_t) intervals[name] <<< t - old_t
+      delete start[name, tid()]
+}
+
+probe begin {
+      printf("Collecting data... press Ctrl-C to stop.\n")
+}
+
+probe end {
+      foreach (name in intervals) {
+              printf("intervals for %s -- min:%dus avg:%dus max:%dus count:%d\n",
+                     name, @min(intervals[name]), @avg(intervals[name]),
+                     @max(intervals[name]), @count(intervals[name]))
+              print(@hist_log(intervals[name]))
+      }
+}

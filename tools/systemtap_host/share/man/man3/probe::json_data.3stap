@@ -1,0 +1,46 @@
+'\" t
+.\"     Title: probe::json_data
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: JSON Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::JSON_DATA" "3stap" "March 2016" "SystemTap Tapset Reference" "JSON Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::json_data \- Fires whenever JSON data is wanted by a reader\&.
+.SH "SYNOPSIS"
+.sp
+.nf
+json_data 
+.fi
+.SH "VALUES"
+.PP
+None
+.SH "CONTEXT"
+.PP
+This probe fires when the JSON data is about to be read\&. This probe must gather up data and then call the following macros to output the data in JSON format\&. First, @\fBjson_output_data_start\fR
+must be called\&. That call is followed by one or more of the following (one call for each data item): @\fBjson_output_string_value\fR, @\fBjson_output_numeric_value\fR, @\fBjson_output_array_string_value\fR, and @\fBjson_output_array_numeric_value\fR\&. Finally @\fBjson_output_data_end\fR
+must be called\&.
+.SH SEE ALSO\n 
+.IR tapset::json (3stap)

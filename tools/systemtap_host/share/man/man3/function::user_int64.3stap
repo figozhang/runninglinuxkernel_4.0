@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::user_int64
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: String and data retrieving functions Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::USER_INT64" "3stap" "March 2016" "SystemTap Tapset Reference" "String and data retrieving fun"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::user_int64 \- Retrieves a 64\-bit integer value stored in user space
+.SH "SYNOPSIS"
+.sp
+.nf
+    user_int64:long(addr:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIaddr\fR
+.RS 4
+the user space address to retrieve the 64\-bit integer from
+.RE
+.SH "DESCRIPTION"
+.PP
+Returns the 64\-bit integer value from a given user space address\&. Returns zero when user space data is not accessible\&.
+.SH SEE ALSO\n 
+.IR tapset::uconversions (3stap)

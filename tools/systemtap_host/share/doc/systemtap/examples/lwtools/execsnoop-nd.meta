@@ -1,0 +1,10 @@
+title: Trace process exec() with command line argument details (non-debuginfo)
+name: execsnoop-nd.stp
+author: Brendan Gregg
+keywords: io
+description: This can identify if CPU is consumed by short-lived processes, by tracing new process execution. It works by tracing exec() from the fork()->exec() sequence, which means it will not catch new processes that only fork(). It will also show every exec(), including those if a process re-execs.
+scope: system-wide
+usage: ./execsnoop-nd.stp
+test_support: stap -p4 execsnoop-nd.stp
+test_check: stap -p4 execsnoop-nd.stp
+test_installcheck: stap execsnoop-nd.stp -c "sleep 1"

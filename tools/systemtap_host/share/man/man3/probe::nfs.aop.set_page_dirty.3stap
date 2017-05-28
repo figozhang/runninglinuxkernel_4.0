@@ -1,0 +1,52 @@
+'\" t
+.\"     Title: probe::nfs.aop.set_page_dirty
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Network File Storage Tapsets
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NFS\&.AOP\&.S" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::nfs.aop.set_page_dirty \- NFS client marking page as dirty
+.SH "SYNOPSIS"
+.sp
+.nf
+nfs\&.aop\&.set_page_dirty 
+.fi
+.SH "VALUES"
+.PP
+\fI__page\fR
+.RS 4
+the address of page
+.RE
+.PP
+\fIpage_flag\fR
+.RS 4
+page flags
+.RE
+.SH "DESCRIPTION"
+.PP
+This probe attaches to the generic __set_page_dirty_nobuffers function\&. Thus, this probe is going to fire on many other file systems in addition to the NFS client\&.
+.SH SEE ALSO\n 
+.IR tapset::nfs (3stap)

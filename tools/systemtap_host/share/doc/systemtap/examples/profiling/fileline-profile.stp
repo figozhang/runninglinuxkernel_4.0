@@ -1,0 +1,50 @@
+#! /usr/bin/env stap
+
+%( CONFIG_64BIT == "y" %?
+global profile%[20000], pcount
+%:
+# On a 32-bit platform, the profile array must be smaller, otherwise
+# its allocation will fail on module startup.
+global profile%[5000], pcount
+%)
+// configurable options
+global symbolname = ""
+
+probe timer.profile {
+  pcount <<< 1
+
+  uaddrinfo = ""
+  ufileline = ""
+  if (user_mode()) {
+    ufileline = usymfileline(uaddr())
+    if (strtol(ufileline, 16))
+      uaddrinfo = usymdata(uaddr())
+    else {
+      if (symbolname != "")
+        uaddrinfo = usymname(uaddr())."@"
+      uaddrinfo .= ufileline
+    }
+    profile[uaddrinfo, 0] <<< 1
+  } else {
+     profile["", addr()] <<< 1
+  }
+}
+probe end {
+  printf ("\n--- %d samples recorded:\n", @count(pcount))
+  foreach ([sfl, address] in profile- limit 20) {
+    if (sfl != "")
+      printf ("u:%-60s\t%6d\n", sfl, @count(profile[sfl, address]))
+    else {
+      addrinfo = ""
+      fileline = symfileline(address)
+      if (strtol(fileline, 16))
+        addrinfo = symdata(address)
+      else {
+        if (symbolname != "")
+          addrinfo = symname(address)."@"
+        addrinfo .= fileline
+      }
+      printf ("k:%-60s\t%6d\n", addrinfo, @count(profile[sfl, address]))
+    }
+  }
+}

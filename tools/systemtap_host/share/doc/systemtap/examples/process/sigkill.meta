@@ -1,0 +1,14 @@
+title: Track SIGKILL Signals
+name: sigkill.stp
+version: 1.0
+author: Red Hat
+keywords: signals
+subsystem: signals
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The script traces any SIGKILL signals. When that SIGKILL signal is sent to a process, the script prints out the signal name, the destination executable and process ID, the executable name and user ID that sents the signal.
+arg_1: The name of the signal to look for on selected process.
+test_check: stap -p4 sigkill.stp
+test_installcheck: stap sigkill.stp -c "sleep 1"

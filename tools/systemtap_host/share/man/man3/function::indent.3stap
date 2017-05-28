@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::indent
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Utility functions for using ansi control chars in logs
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::INDENT" "3stap" "March 2016" "SystemTap Tapset Reference" "Utility functions for using an"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::indent \- returns an amount of space to indent
+.SH "SYNOPSIS"
+.sp
+.nf
+    indent:string(delta:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIdelta\fR
+.RS 4
+the amount of space added/removed for each call
+.RE
+.SH "DESCRIPTION"
+.PP
+This function returns a string with appropriate indentation\&. Call it with a small positive or matching negative delta\&. Unlike the thread_indent function, the indent does not track individual indent values on a per thread basis\&.
+.SH SEE ALSO\n 
+.IR tapset::indent (3stap)

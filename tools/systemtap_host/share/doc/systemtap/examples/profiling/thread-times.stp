@@ -1,0 +1,35 @@
+#! /usr/bin/env stap
+
+probe perf.sw.cpu_clock!, timer.profile {
+  // NB: To avoid contention on SMP machines, no global scalars/arrays used,
+  // only contention-free statistics aggregates.
+  tid=tid(); e=execname()
+  if (!user_mode())
+    kticks[e,tid] <<< 1
+  else
+    uticks[e,tid] <<< 1
+  ticks <<< 1
+  tids[e,tid] <<< 1
+}
+
+global uticks%, kticks%, ticks
+
+global tids%
+
+probe timer.s(5), end {
+  allticks = @count(ticks)
+  printf ("%16s %5s %7s %7s (of %d ticks)\n",
+          "comm", "tid", "%user", "%kernel", allticks)
+  foreach ([e,tid] in tids- limit 20) {
+    uscaled = @count(uticks[e,tid])*10000/allticks
+    kscaled = @count(kticks[e,tid])*10000/allticks
+    printf ("%16s %5d %3d.%02d%% %3d.%02d%%\n",
+      e, tid, uscaled/100, uscaled%100, kscaled/100, kscaled%100)
+  }
+  printf("\n")
+
+  delete uticks
+  delete kticks
+  delete ticks
+  delete tids
+}

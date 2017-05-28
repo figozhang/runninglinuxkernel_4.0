@@ -1,0 +1,264 @@
+// Task time query and utility functions.
+// Copyright (C) 2009, 2014 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// <tapsetdescription>
+// Task time query and utility functions provide information about
+// the time resource usage of the current task. These functions provide
+// information about the user time and system time of the current
+// task. And provide utility functions to turn the reported times
+// into miliseconds and create human readable string representations
+// of task time used. The reported times are approximates and should
+// be used for "coarse grained" measurements only. The reported user
+// and system time are only for the current task, not for the process
+// as a whole nor of any time spend by children of the current task.
+// </tapsetdescription>
+
+%{
+#include <linux/sched.h>		/* includes asm/cputime.h */
+#include <linux/time.h>
+
+/* Kernels since 2.6.37 generally have cputime_to_usecs, but not msecs.
+ * (ref: kernel commit d57af9b2142f31a39dcfdeb30776baadfc802827)
+ * Yet note some kernels (RHEL6) may already have both...  */
+#if defined(cputime_to_usecs)
+#if !defined(cputime_to_msecs)
+#define cputime_to_msecs(__ct)		_stp_div64(NULL, cputime_to_usecs(__ct), 1000ULL)
+#endif
+
+/* Kernels before 2.6.37 have cputime_to_msecs, but not usecs. */
+#elif defined(cputime_to_msecs)
+#define cputime_to_usecs(__ct)		(cputime_to_msecs(__ct) * 1000ULL)
+
+/* RHEL4 (2.6.9) kernels have neither, but it's just jiffies anyway. */
+#else
+#define cputime_to_msecs(__ct)		jiffies_to_msecs(__ct)
+#define cputime_to_usecs(__ct)		jiffies_to_usecs(__ct)
+#endif
+%}
+
+/**
+ * sfunction task_utime - User time of the task
+ *
+ * Description: Returns the user time of the current task in cputime.
+ * Does not include any time used by other tasks in this process, nor
+ * does it include any time of the children of this task.
+ */
+function task_utime:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+  STAP_RETVALUE = current->utime;
+%}
+
+/**
+ * sfunction task_utime - User time of the task
+ *
+ * @tid: Thread id of the given task
+ *
+ * Description: Returns the user time of the given task in cputime,
+ * or zero if the task doesn't exist.
+ * Does not include any time used by other tasks in this process, nor
+ * does it include any time of the children of this task.
+ */
+function task_utime:long(tid:long)
+{
+  task = pid2task(tid);
+  if (task != 0)
+    return task->utime;
+  else
+    return 0;
+}
+%(systemtap_v <= "3.0" %?
+function task_utime_tid:long(tid:long)
+{
+  task = pid2task(tid);
+  if (task != 0)
+    return task->utime;
+  else
+    return 0;
+}
+%)
+
+/**
+ * sfunction task_stime - System time of the task
+ *
+ * Description: Returns the system time of the current task in cputime.
+ * Does not include any time used by other tasks in this process, nor
+ * does it include any time of the children of this task.
+ */
+function task_stime:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+  STAP_RETVALUE = current->stime;
+%}
+
+/**
+ * sfunction task_stime - System time of the task
+ *
+ * @tid: Thread id of the given task
+ *
+ * Description: Returns the system time of the given task in cputime,
+ * or zero if the task doesn't exist.
+ * Does not include any time used by other tasks in this process, nor
+ * does it include any time of the children of this task.
+ */
+function task_stime:long(tid:long)
+{
+  task = pid2task(tid);
+  if (task != 0)
+    return task->stime;
+  else
+    return 0;
+}
+%(systemtap_v <= "3.0" %?
+function task_stime_tid:long(tid:long)
+{
+  task = pid2task(tid);
+  if (task != 0)
+    return task->stime;
+  else
+    return 0;
+}
+%)
+
+/**
+ * sfunction task_start_time - Start time of the given task
+ *
+ * @tid: Thread id of the given task
+ *
+ * Description: Returns the start time of the given task in nanoseconds since
+ * boot time or 0 if the task does not exist.
+ */
+function task_start_time:long (tid:long) {
+  task = pid2task(tid);
+  if (task != 0) {
+    if (@defined(@task(0)->real_start_time->tv_sec)) {
+      time_sec = task->real_start_time->tv_sec
+      time_nsec = task->real_start_time->tv_nsec
+      return time_sec * 1000000000 + time_nsec
+    } else {
+      // simple u64 in ns since kernel commit 57e0be041d9e2
+      return task->real_start_time
+    }
+  } else return 0
+}
+
+/**
+ * sfunction cputime_to_msecs - Translates the given cputime into milliseconds
+ * @cputime: Time to convert to milliseconds.
+ */
+function cputime_to_msecs:long (cputime:long)
+%{ /* pure */ /* unprivileged */
+  STAP_RETVALUE = cputime_to_msecs (STAP_ARG_cputime);
+%}
+
+/**
+ * sfunction cputime_to_usecs - Translates the given cputime into microseconds
+ * @cputime: Time to convert to microseconds.
+ */
+function cputime_to_usecs:long (cputime:long)
+%{ /* pure */ /* unprivileged */
+  STAP_RETVALUE = cputime_to_usecs (STAP_ARG_cputime);
+%}
+
+/**
+ * sfunction msecs_to_string - Human readable string for given milliseconds
+ *
+ * @msecs: Number of milliseconds to translate.
+ *
+ * Description: Returns a string representing the number of
+ * milliseconds as a human readable string consisting of "XmY.ZZZs",
+ * where X is the number of minutes, Y is the number of seconds and
+ * ZZZ is the number of milliseconds.
+ */
+function msecs_to_string:string (msecs:long)
+{
+  ms = msecs % 1000;
+  secs = msecs / 1000;
+  mins = secs / 60;
+  secs = secs % 60;
+  return sprintf("%dm%d.%.3ds", mins, secs, ms);
+}
+
+/**
+ * sfunction usecs_to_string - Human readable string for given microseconds
+ *
+ * @usecs: Number of microseconds to translate.
+ *
+ * Description: Returns a string representing the number of
+ * microseconds as a human readable string consisting of "XmY.ZZZZZZs",
+ * where X is the number of minutes, Y is the number of seconds and
+ * ZZZZZZ is the number of microseconds.
+ */
+function usecs_to_string:string (usecs:long)
+{
+  us = usecs % 1000000;
+  secs = usecs / 1000000;
+  mins = secs / 60;
+  secs = secs % 60;
+  return sprintf("%dm%d.%.6ds", mins, secs, us);
+}
+
+/**
+ * sfunction nsecs_to_string - Human readable string for given nanoseconds
+ *
+ * @nsecs: Number of nanoseconds to translate.
+ *
+ * Description: Returns a string representing the number of
+ * nanoseconds as a human readable string consisting of "XmY.ZZZZZZs",
+ * where X is the number of minutes, Y is the number of seconds and
+ * ZZZZZZZZZ is the number of nanoseconds.
+ */
+function nsecs_to_string:string (nsecs:long)
+{
+  ns = nsecs % 1000000000;
+  secs = nsecs / 1000000000;
+  mins = secs / 60;
+  secs = secs % 60;
+  return sprintf("%dm%d.%.9ds", mins, secs, ns);
+}
+
+/**
+ * sfunction cputime_to_string - Human readable string for given cputime
+ *
+ * @cputime: Time to translate.
+ *
+ * Description: Equivalent to calling:
+ * msec_to_string (cputime_to_msecs (cputime).
+ */
+function cputime_to_string:string (cputime:long)
+{
+  return msecs_to_string (cputime_to_msecs (cputime));
+}
+
+/**
+ * sfunction task_time_string - Human readable string of task time usage
+ *
+ * Description: Returns a human readable string showing the user and
+ * system time the current task has used up to now.  For example
+ * "usr: 0m12.908s, sys: 1m6.851s".
+ */
+function task_time_string:string ()
+{
+  return sprintf ("usr: %s, sys: %s",
+                  cputime_to_string (task_utime()),
+                  cputime_to_string (task_stime()));
+}
+
+/**
+ * sfunction task_time_string_tid - Human readable string of task time usage
+ *
+ * @tid: Thread id of the given task
+ *
+ * Description: Returns a human readable string showing the user and
+ * system time the given task has used up to now.  For example
+ * "usr: 0m12.908s, sys: 1m6.851s".
+ */
+function task_time_string_tid:string (tid:long)
+{
+  return sprintf ("usr: %s, sys: %s",
+                  cputime_to_string (task_utime(tid)),
+                  cputime_to_string (task_stime(tid)));
+}

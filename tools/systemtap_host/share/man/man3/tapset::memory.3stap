@@ -1,0 +1,175 @@
+.\" -*- nroff -*-
+.TH TAPSET::MEMORY 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::memory \- systemtap memory tapset
+ 
+.SH DESCRIPTION
+
+ This family of probe points is used to probe memory-related events. 
+
+.TP
+.P
+.TP
+.B vm_fault_contains 
+Test return value for page fault reason
+.IP
+See 
+.IR function::vm_fault_contains (3stap)
+ for details.
+.P
+.TP
+.B vm.pagefault 
+Records that a page fault occurred
+.IP
+ See 
+.IR probe::vm.pagefault (3stap)
+ for details.
+.P
+.TP
+.B vm.pagefault.return 
+Indicates what type of fault occurred
+.IP
+ See 
+.IR probe::vm.pagefault.return (3stap)
+ for details.
+.P
+.TP
+.B addr_to_node 
+Returns which node a given address belongs to within a NUMA system
+.IP
+See 
+.IR function::addr_to_node (3stap)
+ for details.
+.P
+.TP
+.B vm.write_shared 
+Attempts at writing to a shared page
+.IP
+ See 
+.IR probe::vm.write_shared (3stap)
+ for details.
+.P
+.TP
+.B vm.write_shared_copy 
+Page copy for shared page write
+.IP
+ See 
+.IR probe::vm.write_shared_copy (3stap)
+ for details.
+.P
+.TP
+.B vm.mmap 
+Fires when an mmap is requested
+.IP
+ See 
+.IR probe::vm.mmap (3stap)
+ for details.
+.P
+.TP
+.B vm.munmap 
+Fires when an munmap is requested
+.IP
+ See 
+.IR probe::vm.munmap (3stap)
+ for details.
+.P
+.TP
+.B vm.brk 
+Fires when a brk is requested (i.e. the heap will be resized)
+.IP
+ See 
+.IR probe::vm.brk (3stap)
+ for details.
+.P
+.TP
+.B vm.oom_kill 
+Fires when a thread is selected for termination by the OOM killer
+.IP
+ See 
+.IR probe::vm.oom_kill (3stap)
+ for details.
+.P
+.TP
+.B vm.kmalloc 
+Fires when kmalloc is requested
+.IP
+ See 
+.IR probe::vm.kmalloc (3stap)
+ for details.
+.P
+.TP
+.B vm.kmem_cache_alloc 
+Fires when kmem_cache_alloc is requested
+.IP
+ See 
+.IR probe::vm.kmem_cache_alloc (3stap)
+ for details.
+.P
+.TP
+.B vm.kmalloc_node 
+Fires when kmalloc_node is requested
+.IP
+ See 
+.IR probe::vm.kmalloc_node (3stap)
+ for details.
+.P
+.TP
+.B vm.kmem_cache_alloc_node 
+Fires when kmem_cache_alloc_node is requested
+.IP
+ See 
+.IR probe::vm.kmem_cache_alloc_node (3stap)
+ for details.
+.P
+.TP
+.B vm.kfree 
+Fires when kfree is requested
+.IP
+ See 
+.IR probe::vm.kfree (3stap)
+ for details.
+.P
+.TP
+.B vm.kmem_cache_free 
+Fires when kmem_cache_free is requested
+.IP
+ See 
+.IR probe::vm.kmem_cache_free (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::vm_fault_contains (3stap),
+.BR
+.IR \%function::addr_to_node (3stap),
+.BR
+.IR \%probe::vm.pagefault (3stap),
+.BR
+.IR \%probe::vm.pagefault.return (3stap),
+.BR
+.IR \%probe::vm.write_shared (3stap),
+.BR
+.IR \%probe::vm.write_shared_copy (3stap),
+.BR
+.IR \%probe::vm.mmap (3stap),
+.BR
+.IR \%probe::vm.munmap (3stap),
+.BR
+.IR \%probe::vm.brk (3stap),
+.BR
+.IR \%probe::vm.oom_kill (3stap),
+.BR
+.IR \%probe::vm.kmalloc (3stap),
+.BR
+.IR \%probe::vm.kmem_cache_alloc (3stap),
+.BR
+.IR \%probe::vm.kmalloc_node (3stap),
+.BR
+.IR \%probe::vm.kmem_cache_alloc_node (3stap),
+.BR
+.IR \%probe::vm.kfree (3stap),
+.BR
+.IR \%probe::vm.kmem_cache_free (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

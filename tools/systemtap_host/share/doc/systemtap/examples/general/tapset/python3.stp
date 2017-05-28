@@ -1,0 +1,397 @@
+# systemtap tapset for python3
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+
+# Global Python variables
+
+global python3_vars_seen			# which vars we have seen
+global python3_frame_n = 0			# set by iterate_over_frames
+global python3_frame = 0			# set by python3_function_entry
+
+# FUNCTION P3_GET_TYPE
+# OBJ: PyObject
+# RETURNS: string representation of type
+
+function p3_get_type:string (obj) {
+    if (obj == 0)
+	return ""
+    ob_type = @cast (obj, "PyObject", @PYTHON3_LIBRARY)->ob_type
+    if (ob_type == 0)
+	return ""
+    ob_type_name = @cast (ob_type, "PyTypeObject", @PYTHON3_LIBRARY)->tp_name
+    return p3_set_string (ob_type_name)
+}
+
+# FUNCTION GET_FILENAME
+# F_CODE: The python frame code whose filename we are retrieving
+
+function p3_get_filename (f_code)
+{
+    co_filename = @cast (f_code, "PyCodeObject", @PYTHON3_LIBRARY)->co_filename;
+    return get_unicode (co_filename)
+}
+
+
+# FUNCTION P3_GET_NAME
+# F_CODE: The python frame code whose function name we are retrieving
+
+function p3_get_name (f_code)
+{
+    co_name = @cast (f_code, "PyCodeObject", @PYTHON3_LIBRARY)->co_name;
+    return get_unicode (co_name)
+}
+
+# FUNCTION P3_SET_STRING
+# STR_P: pointer to string
+# RETURNS: string as a stap string
+
+function p3_set_string (str_p) {
+    if (str_p == 0)
+	return ""
+    else
+	return user_string (str_p)
+}
+
+function get_unicode:string (utf16) {
+    if (utf16 == 0)
+	return ""
+    compact = @cast (utf16, "PyASCIIObject", @PYTHON3_LIBRARY)->state->compact;
+    ascii = @cast (utf16, "PyASCIIObject", @PYTHON3_LIBRARY)->state->ascii
+    length = @cast (utf16, "PyASCIIObject", @PYTHON3_LIBRARY)->length;
+    if (compact)
+      if (ascii)
+	# this odd incantation is to fetch the data which python3 allocates after the PyASCIIObject struct
+	unip = &@cast (utf16, "PyASCIIObject", @PYTHON3_LIBRARY)[1]->ob_base->ob_refcnt
+      else
+	unip = &@cast (utf16, "PyCompactUnicodeObject", @PYTHON3_LIBRARY)[1]->_base->ob_base->ob_refcnt
+    else
+      unip = &@cast (utf16, "PyUnicodeObject", @PYTHON3_LIBRARY)->data->any
+    
+    
+    if (length == 0 || unip == 0)
+        return ""
+    newstr = user_string (unip)
+    if (! ascii) {
+      newstr = ""
+      # grab every other character for unicode
+      for (i = 0; i < length; i++) {
+    	if (user_char(unip + (i * 2)) == 0)
+    	  break
+    	val = user_string_n(unip + (i * 2), 1)
+    	newstr = newstr . substr(val,0,1)
+      }
+    }
+    
+    return newstr
+}
+
+
+# FUNCTION P3_GET_SEQUENCE_ITEM
+# TUPLE: array of PyObject
+# I: index to retrieve 
+# SEQ_TYPE: PyTupleObject or PyListObject
+# RETURNS: array entry PyObject
+
+function p3_get_sequence_item (tuple, i, seq_type) {
+    if (seq_type == "tuple")
+	ob_items = @cast (tuple, "PyTupleObject", @PYTHON3_LIBRARY)->ob_item;
+    else if (seq_type == "list")
+	ob_items = @cast (tuple, "PyListObject", @PYTHON3_LIBRARY)->ob_item;
+
+    ob_item = user_long (ob_items + (i * uarch_bytes()))
+    return ob_item
+}
+
+# FUNCTION P3_DISPLAY_VALUE
+# VALUE: PyObject
+# PREFIX: prefix string to display
+# SUFFIX: suffix string to display
+
+function p3_display_value (value, prefix, suffix) {
+    if (value == 0) {
+	return 0
+    }
+    value_type_str = p3_get_type (value)
+    if (value_type_str == "str") {
+	value_str = get_unicode (value)
+	printf ("%s\"%s\"%s", prefix, value_str, suffix)
+    }
+    else if (value_type_str == "int") {
+	if (@cast (value, "PyLongObject", @PYTHON3_LIBRARY)->ob_base->ob_size == 1)
+	    printf ("%s%d%s", prefix, user_int(@cast (value, "PyLongObject", @PYTHON3_LIBRARY)[0]->ob_digit), suffix)
+	else if (@cast (value, "PyLongObject", @PYTHON3_LIBRARY)->ob_base->ob_size == 2) {
+	    printf ("%s%#lx", prefix, user_int(@cast (value, "PyLongObject", @PYTHON3_LIBRARY)[0]->ob_digit + 4) >> 2)
+	    printf ("%x%s", user_int(@cast (value, "PyLongObject", @PYTHON3_LIBRARY)[0]->ob_digit) | ((user_int(@cast (value, "PyLongObject", @PYTHON3_LIBRARY)[0]->ob_digit + 4) << 30) & 0xffffffff), suffix)
+	}
+    }
+    else if (value_type_str == "tuple" || value_type_str == "list") {
+	n = @cast (value, "PyTupleObject", @PYTHON3_LIBRARY)->ob_base->ob_size;
+	if (value_type_str == "list") printf (" = [")
+	else printf (" = ")
+	for (i = 0; i < n; i++) 
+	    p3_display_value (p3_get_sequence_item (value, i, value_type_str), " ", ",")
+	if (value_type_str == "list") printf ("]")
+    }
+    else if (value_type_str == "set") {
+	printf (" = {")
+	n = @cast (value, "PySetObject", @PYTHON3_LIBRARY)->used;
+	for (i = 0; i <= n; i++)
+	    p3_display_value (p3_get_set_item (value, i), " ", ",")
+	printf ("}")
+    }
+    else if (value_type_str == "dict") {
+	printf (" = {")
+	n = @cast (value, "PyDictObject", @PYTHON3_LIBRARY)->ma_used;
+	for (i = 0; i <= n; i++) {
+	    dict_hash = p3_get_dict_hash (value, i)
+	    dict_key = p3_get_dict_key (value, i)
+	    dict_value = p3_get_dict_value (value, i)
+	    if (dict_hash == 0 && dict_key == 0)
+		continue
+	    p3_display_value (dict_key, " ", ":")
+	    p3_display_value (dict_value, "", "")
+	}
+	printf (" }")
+    }
+}
+
+# FUNCTION P3_GET_SET_ITEM
+# SET: PySetObject
+# I: set index to retrieve
+# RETURNS: set entry PyObject
+
+function p3_get_set_item (set, i) {
+    entries = @cast (set, "PySetObject", @PYTHON3_LIBRARY)->table;
+    n = @cast (set, "PySetObject", @PYTHON3_LIBRARY)->used;
+    if (i > n)
+	return 0
+  
+    return @cast (entries, "setentry", @PYTHON3_LIBRARY)[i]->key
+}
+
+# FUNCTION P3_GET_DICT_HASH
+# DICT: PySetObject
+# I: set index to retrieve
+# RETURNS: DICT_HASH
+
+function p3_get_dict_hash (dict, i) {
+    entries = @cast (dict, "PyDictObject", @PYTHON3_LIBRARY)->ma_keys;
+    n = @cast (dict, "PyDictObject", @PYTHON3_LIBRARY)->ma_used;
+    if (i > n || entries == 0)
+	return 0
+    return @cast (entries, "PyDictKeysObject", @PYTHON3_LIBRARY)->dk_entries[i]->me_hash
+}
+
+# FUNCTION P3_GET_DICT_KEY
+# DICT: PySetObject
+# I: set index to retrieve
+# RETURNS: DICT_KEY
+
+function p3_get_dict_key (dict, i) {
+    entries = @cast (dict, "PyDictObject", @PYTHON3_LIBRARY)->ma_keys;
+    n = @cast (dict, "PyDictObject", @PYTHON3_LIBRARY)->ma_used;
+    if (i > n || entries == 0)
+	return 0
+    return @cast (entries, "PyDictKeysObject", @PYTHON3_LIBRARY)->dk_entries[i]->me_key
+}
+
+# FUNCTION P3_GET_DICT_VALUE
+# DICT: PySetObject
+# I: set index to retrieve
+# RETURNS: DICT_VALUE
+
+function p3_get_dict_value (dict, i) {
+  if (@cast (dict, "PyDictObject", @PYTHON3_LIBRARY)->ma_values) {
+    # ?? is this correct for split keys and values table
+    return @cast (entries, "PyDictObject", @PYTHON3_LIBRARY)->ma_values[i];
+  }
+  else {
+    # combined keys and values table
+    entries = @cast (dict, "PyDictObject", @PYTHON3_LIBRARY)->ma_keys;
+    n = @cast (dict, "PyDictObject", @PYTHON3_LIBRARY)->ma_used;
+    if (i > n || entries == 0)
+	return 0
+    return @cast (entries, "PyDictKeysObject", @PYTHON3_LIBRARY)->dk_entries[i]->me_value
+  }
+}
+
+# FUNCTION P3_DISPLAY_DICT_VARIABLE
+# DICT: local or global variable name dictionary
+# VARIABLE: variable to retrieve
+# NAMESPACE: local or global
+
+function p3_display_dict_variable (dict, variable, namespace, co_name_str, co_filename_str) {
+    n = @cast (dict, "PyDictObject", @PYTHON3_LIBRARY)->ma_used;
+    for (i = 0; i < n; i++) {
+	dict_key = p3_get_dict_key (dict, i)
+	dict_value = p3_get_dict_value (dict, i)
+	dict_hash = p3_get_dict_hash (dict, i)
+	if (dict_hash == 0 || dict_value == 0)
+	    continue
+#	key_str = p3_set_string (@cast (dict_key, "PyUnicodeObject", @PYTHON3_LIBRARY)->str)
+	key_str = get_unicode (dict_key)
+	key_type_str = p3_get_type (dict_key)
+
+	if (wildcard_match (key_str, variable)) {
+	    foreach ([var, file] in python3_vars_seen) {
+		if (var == key_str
+		    && file == co_filename_str)
+		    return 0
+	    }
+	    printf ("%s %s %s", namespace, key_type_str, key_str)
+	    printf (" in %s at %s", co_name_str, co_filename_str)
+	    p3_display_value (dict_value, " = ", " ")
+	    printf ("\n")
+	    python3_vars_seen[key_str, co_filename_str] = co_name_str
+	}
+    }
+}
+
+
+# FUNCTION ITERATE_OVER_FRAMES
+# FRAME: Pointer to a stack frame
+# FRAME_N: The frame number of this stack frame
+
+function python3_iterate_over_frames (frame, frame_n)
+{
+    if (frame_n != 0) {
+	python3_frame_n += 1
+	frame =  @cast (frame, "PyFrameObject", @PYTHON3_LIBRARY)->f_back
+    }
+    else
+	python3_frame_n = 0
+    return frame
+}
+
+    
+# FUNCTION BACKTRACE_ONE_FRAME
+# FRAME: Pointer to first stack frame
+# MATCH_FILENAME: Pathnames containing this string are ignored.  Default is "/lib/" to
+#     ignore system python libraries
+
+function python3_backtrace_one_frame (frame, match_filename)
+{
+    f_code = @cast (frame, "PyFrameObject", @PYTHON3_LIBRARY)->f_code;
+    co_filename_str = p3_get_filename (f_code)
+    if (isinstr (co_filename_str, "importlib") == 1 || isinstr (co_filename_str, "<string>") == 1 || isinstr (co_filename_str, "/lib64/") == 1)
+	return 0
+    if (match_filename != "" && isinstr (co_filename_str, match_filename) == 1)
+	return 0
+    co_name_str = p3_get_name (f_code)
+    co_firstlineno = @cast (f_code, "PyCodeObject", @PYTHON3_LIBRARY)->co_firstlineno;
+
+    printf ("#%d %s ", python3_frame_n, co_name_str)
+
+    co_varnames = @cast (f_code, "PyCodeObject", @PYTHON3_LIBRARY)->co_varnames;
+    co_argcount = @cast (f_code, "PyCodeObject", @PYTHON3_LIBRARY)->co_argcount;
+    f_localsplus = @cast (frame, "PyFrameObject", @PYTHON3_LIBRARY)->f_localsplus;
+    for (i = 0; i < co_argcount; i++) {
+	if (i == 0) print ("(");
+	arg_name_str = get_unicode (p3_get_sequence_item (co_varnames, i, "tuple"))
+	arg_value = user_long (f_localsplus + (i * uarch_bytes()))
+	arg_type_name_str = p3_get_type (arg_value)
+	printf ("%s:%s ", arg_name_str, arg_type_name_str)
+    }
+
+    if (co_argcount) printf (")");
+
+    printf (" at %s:%d\n", co_filename_str, co_firstlineno)
+}
+    
+# FUNCTION GETVAR_ONE_FRAME
+# FRAME: Pointer to first stack frame
+# MATCH_ARGS: Match function arguments
+# VARIABLE: Variable wildcard to be matched.  Default is "*" to match all variables.
+# MATCH_FILENAME: Pathnames containing this string are ignored.  Default is "/lib/" to
+#     ignore system python libraries
+
+function python3_getvar_one_frame (frame, match_args, variable, match_filename)
+{
+    f_code = @cast (frame, "PyFrameObject", @PYTHON3_LIBRARY)->f_code;
+    co_filename_str = p3_get_filename (f_code)
+    if (isinstr (co_filename_str, "importlib") == 1 || isinstr (co_filename_str, "<string>") == 1 || isinstr (co_filename_str, "/lib64/") == 1)
+	return 0
+    if (match_filename != "" && isinstr (co_filename_str, match_filename) == 0)
+	return 0
+    co_name_str = p3_get_name (f_code)
+    
+    f_globals = @cast (frame, "PyFrameObject", @PYTHON3_LIBRARY)->f_globals;
+    if (f_globals != 0) {
+	p3_display_dict_variable (f_globals, variable, "global", co_name_str, co_filename_str)
+    }
+    f_locals = @cast (frame, "PyFrameObject", @PYTHON3_LIBRARY)->f_locals;
+    if (f_locals != 0) {
+	p3_display_dict_variable (f_locals, variable, "local", co_name_str, co_filename_str)
+    }
+
+    co_varnames = @cast (f_code, "PyCodeObject", @PYTHON3_LIBRARY)->co_varnames;
+    co_argcount = @cast (f_code, "PyCodeObject", @PYTHON3_LIBRARY)->co_argcount;
+    f_localsplus = @cast (frame, "PyFrameObject", @PYTHON3_LIBRARY)->f_localsplus;
+    ob_size = @cast (co_varnames, "PyTypeObject", @PYTHON3_LIBRARY)->ob_base->ob_size;
+    # iterate through the local variable list
+    for (i = 0; i < ob_size; i++) {
+	arg_name_str = get_unicode (p3_get_sequence_item (co_varnames, i, "tuple"))
+	if (! wildcard_match (arg_name_str, variable))
+	    continue
+	arg_value = user_long (f_localsplus + (i * uarch_bytes()))
+	arg_type_name_str = p3_get_type (arg_value)
+	next_var = 0
+	foreach ([var, file] in python3_vars_seen)
+	if (var == arg_name_str && file == co_filename_str)
+	    next_var = 1
+	if (next_var || arg_type_name_str == "")
+	    continue
+	if (i < co_argcount && match_args)
+	    printf ("arg%d ", i + 1)
+	python3_vars_seen[arg_name_str, co_filename_str] = co_name_str
+	printf ("%s %s", arg_type_name_str, arg_name_str)
+	printf (" in %s at %s", co_name_str, co_filename_str)
+	p3_display_value (arg_value, " = ", " ")
+	printf ("\n")
+    }
+}
+
+# FUNCTION PYTHON3_BACKTRACE
+# SKIP_NAME: Pathnames containing this string are ignored.
+
+function python3_backtrace (skip_name)
+{
+    frame = python3_frame
+    for (i = 0; frame != 0; i++) {
+       python3_backtrace_one_frame (frame, skip_name)
+       frame = python3_iterate_over_frames (frame, i)
+    }
+}
+
+# FUNCTION PYTHON3_GET_VARIABLE
+# SKIP_NAME: Pathnames containing this string are ignored.
+
+function python3_get_variable (variable, skip_name)
+{
+    frame = python3_frame
+    for (i = 0; frame != 0; i++) {
+	python3_getvar_one_frame (frame, 1, variable, skip_name)
+	frame = python3_iterate_over_frames (frame, i)
+    }
+}
+
+probe python3.function_entry = process(@PYTHON3_LIBRARY).mark ("function__entry")
+{
+  # fedora and rhel python pass function name and line number, not frame pointer
+  # so grab the frame pointer using debuginfo
+  #  python3_frame = $arg1
+     python3_frame = $f
+}
+
+probe python3.function_return = process(@PYTHON3_LIBRARY).mark ("function__return")
+{
+  # fedora and rhel python pass function name and line number, not frame pointer
+  # unfortunately the frame pointer is not always available in debuginfo
+  # python3_frame = $arg1
+}
+
+probe python.function_entry = python3.function_entry {}
+probe python.function_return = python3.function_return {}

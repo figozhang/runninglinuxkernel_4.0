@@ -1,0 +1,59 @@
+'\" t
+.\"     Title: probe::signal.flush
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Signal Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SIGNAL\&.FLUS" "3stap" "March 2016" "SystemTap Tapset Reference" "Signal Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::signal.flush \- Flushing all pending signals for a task
+.SH "SYNOPSIS"
+.sp
+.nf
+signal\&.flush 
+.fi
+.SH "VALUES"
+.PP
+\fIpid_name\fR
+.RS 4
+The name of the process associated with the task performing the flush
+.RE
+.PP
+\fIsig_pid\fR
+.RS 4
+The PID of the process associated with the task performing the flush
+.RE
+.PP
+\fItask\fR
+.RS 4
+The task handler of the process performing the flush
+.RE
+.PP
+\fIname\fR
+.RS 4
+Name of the probe point
+.RE
+.SH SEE ALSO\n 
+.IR tapset::signal (3stap)

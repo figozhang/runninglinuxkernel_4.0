@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Generate a certificate for the systemtap server and add it to the
+# database of trusted servers for the client.
+#
+# Copyright (C) 2009-2011 Red Hat Inc.
+#
+# This file is part of systemtap, and is free software.  You can
+# redistribute it and/or modify it under the terms of the GNU General
+# Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+# Common environment setup for stap scripts
+
+# Installation directories
+stap_sysconfdir=/home/figo/systemtap_host/etc
+stap_pkglibexecdir=/home/figo/systemtap_host/libexec/systemtap/
+stap_localstatedir=/home/figo/systemtap_host/var
+
+# General configuration
+stap_avahi_service_tag=_stap._tcp
+
+# NSS certificate databases
+if test "X$SYSTEMTAP_DIR" = "X"; then
+    stap_user_ssl_db=$HOME/.systemtap/ssl
+else
+    stap_user_ssl_db=$SYSTEMTAP_DIR/ssl
+fi
+stap_certfile=stap.cert
+
+function stap_get_arch {
+  # PR4186: Copy logic from coreutils uname (uname -i) to squash
+  # i?86->i386.  Actually, copy logic from linux top-level Makefile
+  # to squash uname -m -> $(SUBARCH).
+  #
+  # This logic needs to match the logic in the systemtap_session
+  # constructor in util.cxx (normalize_machine)
+
+  local machine=`uname -m`
+  case $machine in
+      i?86) machine="i386" ;;
+      sun4u) machine="sparc64" ;;
+      arm*) machine="arm" ;;
+      sa1*) machine="arm" ;;
+      s390*) machine="s390" ;;
+      aarch64) machine="arm64" ;;
+      ppc*) machine="powerpc" ;;
+      mips*) machine="mips" ;;
+      sh?) machine="sh" ;;
+      # the default is to just use the output of 'uname -m'
+  esac
+  # NB: see also util.cxx (normalize_machine)
+  
+  echo $machine
+}

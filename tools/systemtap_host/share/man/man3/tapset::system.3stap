@@ -1,0 +1,22 @@
+.\" -*- nroff -*-
+.TH TAPSET::SYSTEM 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::system \- systemtap system tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B system 
+Issue a command to the system
+.IP
+See 
+.IR function::system (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::system (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

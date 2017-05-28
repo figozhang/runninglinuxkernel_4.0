@@ -1,0 +1,256 @@
+/* Dwarfless register access for arm */
+
+%{
+// These functions are largely lifted from arch/arm/kernel/ptrace.c.
+
+static inline unsigned long _stp_kernel_stack_pointer(struct pt_regs *regs)
+{
+	return regs->ARM_sp;
+}
+
+/*
+ * _stp_regs_within_kernel_stack() - check the address in the stack
+ * @regs:      pt_regs which contains kernel stack pointer.
+ * @addr:      address which is checked.
+ *
+ * _stp_regs_within_kernel_stack() checks @addr is within the kernel
+ * stack page(s). If @addr is within the kernel stack, it returns
+ * true. If not, returns false. 
+ */
+bool _stp_regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
+{
+	return ((addr & ~(THREAD_SIZE - 1))  ==
+		(_stp_kernel_stack_pointer(regs) & ~(THREAD_SIZE - 1)));
+}
+
+/*
+ * _stp_regs_get_kernel_stack_nth_addr() - get address of the Nth entry of the stack
+ * @regs:	pt_regs which contains kernel stack pointer.
+ * @n:		stack entry number.
+ *
+ * _stp_regs_get_kernel_stack_nth_addr() returns the address of the @n
+ * th entry of the kernel stack which is specified by @regs. If the @n
+ * th entry is NOT in the kernel stack, this returns 0.
+ */
+long *
+_stp_regs_get_kernel_stack_nth_addr(struct pt_regs *regs, unsigned int n)
+{
+	long *addr = (unsigned long *)_stp_kernel_stack_pointer(regs);
+	addr += n;
+	if (_stp_regs_within_kernel_stack(regs, (unsigned long)addr))
+		return addr;
+	else
+		return 0;
+}
+%}
+
+@__private30 global _reg_offsets[30]
+
+probe init {
+
+	/* Same order as pt_regs */
+	_reg_offsets["r0"] =  0		_reg_offsets["a1"] =  0
+	_reg_offsets["r1"] =  4		_reg_offsets["a2"] =  4
+	_reg_offsets["r2"] =  8		_reg_offsets["a3"] =  8
+	_reg_offsets["r3"] = 12		_reg_offsets["a4"] =  12
+	_reg_offsets["r4"] = 16		_reg_offsets["v1"] =  16
+	_reg_offsets["r5"] = 20		_reg_offsets["v2"] =  20
+	_reg_offsets["r6"] = 24		_reg_offsets["v3"] =  24
+	_reg_offsets["r7"] = 28		_reg_offsets["v4"] =  28
+	_reg_offsets["r8"] = 32		_reg_offsets["v5"] =  32
+	_reg_offsets["r9"] = 36  	_reg_offsets["v6"] =  36
+	_reg_offsets["r10"] = 40	_reg_offsets["v7"] =  40
+	_reg_offsets["fp"] = 44		_reg_offsets["v8"] =  44
+	_reg_offsets["ip"] = 48
+	_reg_offsets["sp"] = 52
+	_reg_offsets["lr"] = 56
+	_reg_offsets["pc"] = 60
+	_reg_offsets["cpsr"] = 64
+	_reg_offsets["orig_r0"] = 68
+}
+
+function _stp_get_register_by_offset:long (offset:long) %{ /* pure */
+	long value;
+	struct pt_regs *regs;
+	if (CONTEXT->user_mode_p) {
+		regs = CONTEXT->uregs;
+	} else {
+		regs = CONTEXT->kregs;
+	}
+	if (!regs) {
+		CONTEXT->last_error = "No registers available in this context";
+		return;
+	}
+	if (STAP_ARG_offset < 0 || STAP_ARG_offset > sizeof(struct pt_regs) - sizeof(long)) {
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+				"Bad register offset: %lld", STAP_ARG_offset);
+		CONTEXT->last_error = CONTEXT->error_buffer;
+		return;
+	}
+	memcpy(&value, ((char *)regs) + STAP_ARG_offset, sizeof(value));
+	STAP_RETVALUE = value;
+%}
+
+function _stp_probing_kernel:long () {
+	return !user_mode();
+}
+
+function arch_bytes:long() %{ /* pure */
+  STAP_RETVALUE = sizeof(long);
+%}
+
+function uarch_bytes:long() {
+  assert(user_mode(), "requires user mode")
+  return 4
+}
+
+/* Return the named register value as a signed value. */
+function register:long (name:string) {
+  assert(registers_valid(), "cannot access CPU registers in this context")
+	offset = _reg_offsets[name]
+  assert(offset != 0 || (name in _reg_offsets), "Unknown register: " . name)
+	return _stp_get_register_by_offset(offset)
+}
+
+/*
+ * Return the named register value as an unsigned value.  Specifically,
+ * don't sign-extend the register value when promoting it to 64 bits.
+ */
+function u_register:long (name:string) {
+	return register(name) & 0xffffffff;
+}
+
+function _stp_get_stack_nth:long (n:long)
+%{ /* pure */
+	unsigned int n = (unsigned int)STAP_ARG_n;
+	struct pt_regs *regs;
+	long *addr;
+
+	STAP_RETVALUE = 0;
+	if (CONTEXT->user_mode_p) {
+		// This function only handles kernel arguments off the stack.
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+			"cannot access function args in this context");
+		CONTEXT->last_error = CONTEXT->error_buffer;
+		return;
+	}
+	regs = CONTEXT->kregs;
+	if (!regs) {
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+			"cannot access function args in this context");
+		CONTEXT->last_error = CONTEXT->error_buffer;
+		return;
+	}
+	
+	/* Get the address of the nth item on the stack. */
+	addr = _stp_regs_get_kernel_stack_nth_addr(regs, n);
+	if (addr == NULL) {
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+			 "cannot access stack arg(%d)", n);
+		CONTEXT->last_error = CONTEXT->error_buffer;
+		return;
+	}
+	STAP_RETVALUE = kread(addr);
+	return;
+
+	if (0) {
+deref_fault: /* branched to from kread() */
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        		 "kernel fault at %#lx accessing stack arg(%d)",
+			 (unsigned long)addr, n);
+    		CONTEXT->last_error = CONTEXT->error_buffer;
+	}
+%}
+
+
+/* Return the value of function arg #argnum (1=first arg) as a signed value.
+ *
+ * We don't yet support extracting arg #5 and beyond, which are passed
+ * on stack
+ */
+function _stp_arg:long (argnum:long) {
+	val = 0
+  assert(!(argnum < 1 || argnum > 7), sprintf("Cannot access arg(%d)", argnum))
+
+	if (argnum == 1)
+		val = register("r0")
+	else if (argnum == 2)
+		val = register("r1")
+	else if (argnum == 3)
+		val = register("r2")
+	else if (argnum == 4)
+		val = register("r3")
+	else
+		val = _stp_get_stack_nth(argnum - 5)
+
+	return val;
+}
+
+/* Return the value of function arg #argnum as a signed int. */
+function int_arg:long (argnum:long) {
+	return _stp_arg(argnum)
+}
+
+/* Return the value of function arg #argnum as an unsigned int. */
+function uint_arg:long (argnum:long) {
+	return _stp_arg(argnum) & 0xffffffff;
+}
+
+function long_arg:long (argnum:long) {
+	return int_arg(argnum)
+}
+
+function ulong_arg:long (argnum:long) {
+	return uint_arg(argnum)
+}
+
+function longlong_arg:long (argnum:long) {
+	/*
+	 * gcc has a few odd rules:
+	 * 1) If argnum == 2, the 64-bit arg will start with arg 3.
+	 * 2) If argnum == nr_regarg (4), gcc puts the whole 64-bit
+	 *    arg on the stack.
+	 *
+	 * Note that following argument numbers will need to be
+	 * adjusted.
+	 */
+	if (argnum == 2 || argnum == 4)
+		argnum++
+	lowbits = uint_arg(argnum)
+	highbits = uint_arg(argnum+1)
+	return ((highbits << 32) | lowbits)
+}
+
+function ulonglong_arg:long (argnum:long) {
+	return longlong_arg(argnum)
+}
+
+function pointer_arg:long (argnum:long) {
+	return ulong_arg(argnum)
+}
+
+function s32_arg:long (argnum:long) {
+	return int_arg(argnum)
+}
+
+function u32_arg:long (argnum:long) {
+	return uint_arg(argnum)
+}
+
+function s64_arg:long (argnum:long) {
+	return longlong_arg(argnum)
+}
+
+function u64_arg:long (argnum:long) {
+	return ulonglong_arg(argnum)
+}
+
+function asmlinkage() %{ /* pure */ %}
+
+function fastcall() %{ /* pure */ %}
+
+function regparm(n:long) %{
+	snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+		"regparm is invalid on arm.");
+	CONTEXT->last_error = CONTEXT->error_buffer;
+%}

@@ -1,0 +1,349 @@
+// dentry tapset
+// Copyright (c) 2009-2015 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+ 
+
+%{
+// Make sure the filesystem "magic" constants we use are defined.
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19))
+#include <linux/magic.h>
+#endif
+#ifndef PIPEFS_MAGIC
+#define PIPEFS_MAGIC            0x50495045
+#endif
+#ifndef SOCKFS_MAGIC
+#define SOCKFS_MAGIC		0x534F434B
+#endif
+#ifndef ANON_INODE_FS_MAGIC
+#define ANON_INODE_FS_MAGIC	0x09041934
+#endif
+#ifndef NSFS_MAGIC
+#define NSFS_MAGIC		0x6e736673
+#endif
+%}
+
+@__private30 function __dentry_IS_ROOT:long(dentry:long)
+{
+        return (@cast(dentry, "dentry")->d_parent == dentry)
+}
+
+
+@__private30 function __dentry_prepend:string(dentry:long,name:string)
+{
+        dname = d_name(dentry)
+
+        /*
+         * In case we are following down a mount point trigger, we can get
+         * multiple instances of a root mount.
+         */
+        c = substr(name, strlen(name)-1, strlen(name)-1)
+        if (dname == "/" && c == "/")
+                return name;
+
+        if (name == "") {
+                return dname;
+        } else {
+                return sprintf("%s/%s", dname, name);
+        }
+}
+
+
+
+/**
+ *   sfunction d_name - get the dirent name
+ *
+ *   Returns the dirent name (path basename).
+ *   @dentry: Pointer to dentry.
+ */
+function d_name:string(dentry:long)
+{
+        s = & @cast(dentry, "dentry")->d_name;
+        return kernel_string_n(s->name, s->len);
+}
+
+
+@__private30 function __inode_first_dentry:long(inode:long)
+{
+        /* i_dentry is an hlist_head on 3.6+, or a list_head before that.  */
+        d_alias = @choose_defined(
+                        @cast(inode, "struct inode")->i_dentry->first,
+                        @cast(inode, "struct inode")->i_dentry->next)
+
+	if (@type_member_defined("struct dentry", d_alias)) {
+        	return & @container_of(d_alias, "struct dentry", d_alias)
+	}
+	else {
+        	return & @container_of(d_alias, "struct dentry", d_u->d_alias)
+	}
+}
+
+
+@__private30 function __inode_vfsmount:long(inode:long)
+{
+        /* s_mounts was added in kernel 3.6, commit b3d9b7a3c.  */
+        if (@type_member_defined("struct super_block", s_mounts)) {
+                mnt_ns = @cast(task_current(), "struct task_struct")->nsproxy->mnt_ns
+                sb = @cast(inode, "struct inode")->i_sb
+
+                /* Look for the mount which matches the current namespace */
+                head = &sb->s_mounts
+                for (pos = head->next; pos != head; pos = pos->next) {
+                        mount = & @container_of(pos, "struct mount", mnt_instance)
+                        if (mount->mnt_ns == mnt_ns)
+                                return & mount->mnt
+                }
+        }
+        return 0
+}
+
+
+/**
+ *   sfunction inode_name - get the inode name
+ * 
+ *   Returns the first path basename associated with the given inode.
+ *   @inode: Pointer to inode.
+ */
+function inode_name:string(inode:long)
+{
+        return reverse_path_walk(__inode_first_dentry(inode))
+}
+
+
+/**
+ *   sfunction inode_path - get the path to an inode
+ * 
+ *   Returns the full path associated with the given inode.
+ *   @inode: Pointer to inode.
+ */
+function inode_path:string(inode:long)
+{
+        dentry = __inode_first_dentry(inode)
+        vfsmount = __inode_vfsmount(inode)
+        if (vfsmount != 0)
+                return task_dentry_path(task_current(), dentry, vfsmount)
+
+        /* This is not really a full path...  */
+        return reverse_path_walk(dentry)
+}
+
+
+/**
+ *   sfunction reverse_path_walk - get the full dirent path
+ *
+ *   Returns the path name (partial path to mount point).
+ *   @dentry: Pointer to dentry.
+ */
+function reverse_path_walk:string(dentry:long)
+{
+        while(1) {
+                name = __dentry_prepend(dentry, name);
+                dentry = @cast(dentry, "dentry")->d_parent;
+                if (__dentry_IS_ROOT(dentry))
+                        return name;
+        }
+}
+
+
+/**
+ *   sfunction real_mount - get the 'struct mount' pointer
+ *
+ *   Returns the 'struct mount' pointer value for a 'struct vfsmount'
+ *   pointer.
+ *   @vfsmnt: Pointer to 'struct vfsmount'
+ */
+function real_mount:long(vfsmnt:long)
+{
+	if (@type_member_defined("mount", mnt_parent)) {
+		/*
+		 * The following is the script language equivalent of:
+		 *
+		 *    return container_of(vfsmnt, struct mount, mnt);
+		 *
+		 * We can't do the above because 'struct mount' is
+		 * defined in a private header (in fs/mount.h).  But,
+		 * we can do the script language equivalent (because
+		 * we've got dwarf info).
+		 *
+		 * More spelled out in C, the above would look like:
+		 *
+		 *    return (vfsmnt - offsetof(struct mount, mnt));
+                 *
+                 * but here we're also making sure it won't wrap around.
+		 */
+		offset = @offsetof("mount", mnt)
+		if (vfsmnt < 0 || vfsmnt > offset)
+			return (vfsmnt - offset)
+	}
+	return 0
+}
+
+/**
+ *   sfunction task_dentry_path - get the full dentry path
+ *
+ *   Returns the full dirent name (full path to the root), like
+ *   the kernel d_path function.
+ *   @task: task_struct pointer.
+ *   @dentry: direntry pointer.
+ *   @vfsmnt: vfsmnt pointer.
+ */
+function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
+{
+	/*
+	 * There are various synthetic filesystems that never get
+	 * mounted. Filesystems needing to implement special "root
+	 * names" do so with dentry->d_op->d_dname(). Unfortunately,
+	 * it isn't really safe for us to call
+	 * dentry->d_op->d_dname(). We can't really validate the
+	 * function pointer or know that it can be called safely in
+	 * the current context.
+	 *
+	 * Some pseudo inodes are mountable.  When they are mounted,
+	 * dentry == vfsmnt->mnt_root.  In that case, we'll just go
+	 * ahead and handle them normally.
+	 */
+	dentry = & @cast(dentry, "dentry")
+	vfsmnt = & @cast(vfsmnt, "vfsmount")
+	if (@type_member_defined("dentry", d_op->d_dname)
+	    && dentry->d_op && dentry->d_op->d_dname
+	    && (!__dentry_IS_ROOT(dentry) || dentry != vfsmnt->mnt_root)) {
+		// The following code hits the majority of synthetic
+		// filesystems that need special handling. As
+		// mentioned earlier, we'd like to call d_dname()
+		// here, but it isn't safe.
+		if (vfsmnt->mnt_sb->s_magic == %{ /* pure */ SOCKFS_MAGIC %}) {
+			return sprintf("socket:[%lu]", dentry->d_inode->i_ino)
+		}
+		else if (vfsmnt->mnt_sb->s_magic
+			 == %{ /* pure */ PIPEFS_MAGIC %}) {
+			return sprintf("pipe:[%lu]", dentry->d_inode->i_ino)
+		}
+		else if (vfsmnt->mnt_sb->s_magic
+			 == %{ /* pure */ ANON_INODE_FS_MAGIC %}) {
+			return sprintf("ANON_INODE:%s", d_name(dentry))
+		}
+		else if (vfsmnt->mnt_sb->s_magic
+			 == %{ /* pure */ NSFS_MAGIC %}) {
+			ns_ops = &@cast(dentry->d_fsdata, "proc_ns_operations")
+			return sprintf("%s:[%lu]", kernel_string(ns_ops->name),
+				       dentry->d_inode->i_ino)
+		}
+		return sprintf("UNKNOWN:[%p]", dentry)
+	}
+
+	# Handle old-school vs. new-school fs_structs.
+	if (@type_member_defined("fs_struct", rootmnt)) {
+		root_dentry = & @cast(task, "task_struct")->fs->root
+		root_vfsmnt = & @cast(task, "task_struct")->fs->rootmnt
+	}
+	else {
+		root_dentry = @cast(task, "task_struct")->fs->root->dentry
+		root_vfsmnt = @cast(task, "task_struct")->fs->root->mnt
+	}
+
+	while (1) {
+		# If we've found the right dentry/vfsmnt, we're done.
+		if (dentry == root_dentry && vfsmnt == root_vfsmnt)
+			break;
+
+		if (dentry == vfsmnt->mnt_root || __dentry_IS_ROOT(dentry)) {
+			if (! @type_member_defined("vfsmount", mnt_parent)) {
+				mnt = & @cast(real_mount(vfsmnt), "mount")
+				if (mnt == 0)
+					return "<unknown>"
+
+				/* Global root? */
+				if (mnt->mnt_parent == vfsmnt)
+					return sprintf("%s%s",
+						       d_name(mnt->mnt_mountpoint),
+						       name)
+
+				dentry = mnt->mnt_mountpoint
+				vfsmnt = & mnt->mnt_parent->mnt
+			}
+			else {
+				/* Global root? */
+				if (vfsmnt->mnt_parent == vfsmnt)
+					return sprintf("%s%s",
+						       d_name(vfsmnt->mnt_mountpoint),
+						       name)
+
+				dentry = vfsmnt->mnt_mountpoint
+				vfsmnt = vfsmnt->mnt_parent
+			}
+			continue;
+		}
+		name = __dentry_prepend(dentry, name);
+		dentry = dentry->d_parent;
+	}
+
+	return sprintf("/%s", name);
+}
+
+
+
+/**
+ *   sfunction d_path - get the full nameidata path
+ *
+ *   Returns the full dirent name (full path to the root), like
+ *   the kernel d_path function.
+ *   @nd: Pointer to nameidata.
+ */
+function d_path:string(nd:long)
+{
+	dentry = @choose_defined(@cast(nd,"nameidata")->path->dentry,
+			         @cast(nd,"nameidata")->dentry)
+	vfsmnt = @choose_defined(@cast(nd,"nameidata")->path->mnt,
+			         @cast(nd,"nameidata")->mnt)
+
+	return sprintf("%s/", task_dentry_path(task_current(), dentry, vfsmnt))
+}
+
+
+
+/**
+ *   sfunction fullpath_struct_nameidata - get the full nameidata path
+ *
+ *   Returns the full dirent name (full path to the root), like
+ *   the kernel (and systemtap-tapset) d_path function, with a "/".
+ *   @nd: Pointer to "struct nameidata".
+ */
+function fullpath_struct_nameidata(nd)
+{
+  return d_path(nd)
+}
+
+
+/**
+ *   sfunction fullpath_struct_path - get the full path
+ *
+ *   Returns the full dirent name (full path to the root), like
+ *   the kernel d_path function.
+ *   @path: Pointer to "struct path".
+ */
+function fullpath_struct_path:string(path:long)
+{
+  return task_dentry_path(task_current(),
+                          @cast(path,"path","kernel:nfs:kernel<linux/path.h>")->dentry,
+                          @cast(path,"path","kernel:nfs:kernel<linux/path.h>")->mnt)
+}
+
+/**
+ *   sfunction fullpath_struct_file - get the full path
+ *
+ *   Returns the full dirent name (full path to the root), like
+ *   the kernel d_path function.
+ *   @task: task_struct pointer.
+ *   @file: Pointer to "struct file".
+ */
+function fullpath_struct_file:string(task:long, file:long)
+{
+  return task_dentry_path(task,
+			  @choose_defined(@cast(file, "file")->f_path->dentry,
+					  @cast(file, "file")->f_dentry),
+			  @choose_defined(@cast(file, "file")->f_path->mnt,
+					  @cast(file, "file")->f_vfsmnt))
+}

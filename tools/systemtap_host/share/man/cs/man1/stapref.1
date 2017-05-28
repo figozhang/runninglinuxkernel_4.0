@@ -1,0 +1,272 @@
+.\" -*- nroff -*-
+.TH STAPREF 1
+.SH JMÉNO
+stapref \- referenční příručka pro skriptovací jazyk systemtapu
+
+.\" macros
+.\" do not nest SAMPLEs
+.de SAMPLE
+.br
+.nr oldin \\n(.i
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POUŽiTÍ
+
+.br
+.B stapref
+
+.SH POPIS
+
+Referenční příručka pro skriptovací jazyk systemtapu.
+
+.SH JAZYK
+Klíčová slova
+.SAMPLE
+\[bu] \fBbreak\fR
+\[bu] \fBcontinue\fR
+\[bu] \fBdelete\fR
+\[bu] \fBelse\fR
+\[bu] \fBexit\fR
+\[bu] \fBforeach\fR
+\[bu] \fBfor\fR
+\[bu] \fBfunction\fR
+\[bu] \fBglobal\fR
+\[bu] \fBprivate\fR
+\[bu] \fBif\fR
+\[bu] \fBin\fR
+\[bu] \fBnext\fR
+\[bu] \fBprobe\fR
+\[bu] \fBreturn\fR
+\[bu] \fBtry/catch\fR
+\[bu] \fBwhile\fR
+.ESAMPLE
+
+Datové typy a operátory
+.SAMPLE
+Celá čísla
+\[bu] var1 = 5
+\[bu] \fBglobal\fR var2 = 10
+
+Řetězce
+\[bu] var1 = "string1"
+\[bu] \fBglobal\fR var2 = "string2"
+
+Asociativní pole
+\[bu] \fBglobal\fR array1[]
+\[bu] \fBglobal\fR array2[SIZE]
+\[bu] array[index] = 5
+
+Kontextové proměnné
+\[bu] \fB$\fRvar
+\[bu] \fB$\fRvar\fB$\fR ("pěkný výpis" řetězce)
+
+Binární číselné operátory
+\[bu] \fB* / % + \- << >> & ^ | && ||\fR
+
+Binární řetězcové operátory
+\[bu] \fB.\fR (spojení řetězců)
+
+Operátory pro číselné přiřazení
+\[bu] \fB= += -= *= /= %= >>= <<= &= ^= |= \fR
+
+Přiřazovací operátory pro řetězce
+\[bu] \fB= .= \fR
+
+Unární číselné operátory
+\[bu] \fB+ \- ! ~ ++ \-\- \fR
+
+Operátory pro porovnávání čísel a řetězců
+\[bu] \fB< > <= >= == != \fR
+
+Operátory pro srovnání proti regulárnímu výrazu
+\[bu] \fB=~ !~ \fR
+
+Ternární operátor
+\[bu] cond \fB?\fR exp1 \fB:\fR exp2
+
+Seskupovací operátor
+\[bu] \fB(\fR expression \fB)\fR
+
+Operátory nad poli
+\[bu] array\fB[\fRindex\fB]\fR (array read/write)
+\[bu] [index] \fB\in\fR array
+
+Agregační operátor.
+\[bu] var \fB<<<\fR value
+.ESAMPLE
+
+Příkazy
+.SAMPLE
+Skok
+\[bu] \fBcontinue\fR
+\[bu] \fBbreak\fR
+\[bu] \fBnext\fR
+\[bu] \fBreturn\fR expression
+\[bu] \fBtry\fR přikaz \fBcatch\fR (zpráva)
+.ESAMPLE
+.SAMPLE
+Příkazy větvení
+\[bu] \fBif\fR (výraz) příkaz
+\[bu] \fBelse\fR příkaz
+.ESAMPLE
+.SAMPLE
+Příkazy pro iterování
+\[bu] \fBforeach\fR (proměnná \fBin\fR pole) příkaz
+\[bu] \fBforeach\fR ([var1,var2,...] \fBin\fR pole) příkaz
+\[bu] \fBfor\fR (výraz; výraz; výraz) příkaz
+\[bu] \fBwhile\fR (výraz) příkaz
+.ESAMPLE
+.SAMPLE
+Deklarace
+\[bu] \fBfunction\fR jméno (proměnná : type, ...) { příkaz }
+\[bu] \fBfunction\fR jméno : type (proměnná : type, ...) { příkaz }
+\[bu] \fBfunction\fR jméno : type (proměnná : type, ...) %{ c_příkaz %}
+\[bu] \fBprobe\fR sondážní_bod { příkaz }
+\[bu] \fBprobe\fR label = sondážní_bod { příkaz }
+.ESAMPLE
+
+Lexikální struktury
+.SAMPLE
+Komentáře
+\[bu] \fB#\fR ... komentář
+\[bu] \fB//\fR ... komentář
+\[bu] \fB/*\fR ... komentář ... \fB*/\fR
+.ESAMPLE
+.SAMPLE
+Značky pro preprocesor
+\[bu] \fB%(\fR výraz \fB%?\fR true_tokens \fB%:\fR false_tokens \fB%)\fR
+\[bu] \fB@define\fR značka (proměnná, ...) %{ příkaz %}
+.ESAMPLE
+
+Vestavěné funkce
+.SAMPLE
+Vestavěné agregační funkce
+\[bu] \fB@avg\fR (proměnná)
+\[bu] \fB@count\fR (proměnná)
+\[bu] \fB@hist_linear\fR (proměnná, N, N, N)
+\[bu] \fB@hist_log\fR (proměnná)
+\[bu] \fB@max\fR (proměnná)
+\[bu] \fB@min\fR (proměnná)
+\[bu] \fB@sum\fR (proměnná)
+.ESAMPLE
+.SAMPLE
+Vestavěné funkce pro výstup
+\[bu] \fBprint\fR (proměnná)
+\[bu] \fBprintf\fR (formát:řetězec, proměnná, ...)
+ \ kde formát má tvar: %[flags][šířka][.přesnost][délka]specifiáktor
+\[bu] \fBprintd\fR (oddělovač:řetězec, proměnná, ...)
+\[bu] \fBprintdln\fR (oddělovač:řetězec, proměnná, ...)
+\[bu] \fBprintln\fR ()
+\[bu] \fBsprint\fR:řetězec (proměnná)
+\[bu] \fBsprintf\fR:řetězec (formát:řetězec, proměnná, ...)
+.ESAMPLE
+.SAMPLE
+Vestavěné funkce pro přístup k proměnným
+\[bu] \fB@cast\fR (variable, "type_name"[, "module"])
+\[bu] \fB@defined\fR (variable)
+.ESAMPLE
+
+Sondážní body
+.SAMPLE
+Některé běžné sondážní body
+\[bu] kernel.function(PATTERN) kernel.function(PATTERN).call
+\[bu] kernel.function(PATTERN).return
+\[bu] kernel.FUNCTION (PATTERN).return.maxactive(VALUE)
+\[bu] kernel.FUNCTION (PATTERN).inline
+\[bu] kernel.FUNCTION (PATTERN).label(LPATTERN)
+\[bu] module(MPATTERN).FUNCTION (PATTERN)
+\[bu] module(MPATTERN).FUNCTION (PATTERN).call
+\[bu] module(MPATTERN).FUNCTION (PATTERN).return.maxactive(VALUE)
+\[bu] module(MPATTERN).FUNCTION (PATTERN).inline
+\[bu] kernel.statement(PATTERN)
+\[bu] kernel.statement(ADDRESS).absolute
+\[bu] module(MPATTERN).statement(PATTERN)
+\[bu] kprobe.FUNCTION (FUNCTION)
+\[bu] kprobe.FUNCTION (FUNCTION).return
+\[bu] kprobe.module(NAME).FUNCTION (FUNCTION)
+\[bu] kprobe.module(NAME).FUNCTION (FUNCTION).return
+\[bu] kprobe.statement(ADDRESS).absolute
+\[bu] process.begin process("PATH").begin
+\[bu] process(PID).begin process.thread.begin
+\[bu] process("PATH").thread.begin
+\[bu] process(PID).thread.begin
+\[bu] process.end
+\[bu] process("PATH").end
+\[bu] process(PID).end
+\[bu] process.thread.end
+\[bu] process("PATH").thread.end
+\[bu] process(PID).thread.end
+\[bu] process("PATH").syscall
+\[bu] process(PID).syscall
+\[bu] process.syscall.return
+\[bu] process("PATH").syscall.return
+\[bu] process(PID).syscall.return
+\[bu] process("PATH").FUNCTION ("NAME")
+\[bu] process("PATH").statement("*@FILE.c:123")
+\[bu] process("PATH").FUNCTION ("*").return
+\[bu] process("PATH").FUNCTION ("myfun").label("foo")
+\[bu] process("PATH").mark("LABEL")
+\[bu] java("PNAME").class("CLASSNAME").method("PATTERN")
+\[bu] java("PNAME").class("CLASSNAME").method("PATTERN").return
+\[bu] java(PID).class("CLASSNAME").method("PATTERN")
+\[bu] java(PID).class("CLASSNAME").method("PATTERN").return
+.ESAMPLE
+
+Funkce standardního tapsetu
+.SAMPLE
+Některé běžnější funkce standardního tapsetu
+\[bu] addr:long ()
+\[bu] backtrace:string ()
+\[bu] caller:string ()
+\[bu] caller_addr:long ()
+\[bu] cmdline_arg:string (N:long)
+\[bu] cmdline_args:string (N:long,m:long,delim:string)
+\[bu] cmdline_str:string ()
+\[bu] env_var:string (name:string)
+\[bu] execname:string ()
+\[bu] int_arg:long (N:long)
+\[bu] isinstr:long(s1:string,s2:string)
+\[bu] long_arg:long (N:long)
+\[bu] modname:string ()
+\[bu] module_name:string ()
+\[bu] pid:long ()
+\[bu] pn:string ()
+\[bu] pointer_arg:string (N:long)
+\[bu] pp:string ()
+\[bu] print_backtrace ()
+\[bu] probefunc:string ()
+\[bu] register:long(name:string)
+\[bu] str_replace:string(prnt_str:string,srch_str:string,rplc_str:string)
+\[bu] stringat:long(str:string,pos:long)
+\[bu] strlen:long(str:string)
+\[bu] strtol:long(str:string,base:long)
+\[bu] substr:string(str:string,start:long,length:long)
+\[bu] user_long:long(addr:long)
+\[bu] user_string:string(addr:long)
+.ESAMPLE
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1)
+
+.SH CHYBY                                                                       
+Použijte projektovou bugzillu, nebo mailing list.                               
+.nh                                                                             
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .          
+.hy                                                                             
+.PP                                                                             
+.IR error::reporting (7stap),                                                   
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs                       
+.hy
+

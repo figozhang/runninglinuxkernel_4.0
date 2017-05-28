@@ -1,0 +1,15 @@
+#! /usr/bin/env stap
+
+global times%,op% /* arrays indexed by client-ip */
+global maxage=300 /* seconds */
+
+probe nfsd.proc.entries, nfsd.entries {
+    times[client_ip] = gettimeofday_s()
+    op[client_ip] = name /* operation name */
+}
+probe end, error, timer.s(10) {
+    printf("\n")
+    foreach (ip in times-)
+        if (times[ip] > (gettimeofday_s()-maxage)) /* recent enough */
+            printf("%s %s %s\n", ctime(times[ip]), ip, op[ip])
+}

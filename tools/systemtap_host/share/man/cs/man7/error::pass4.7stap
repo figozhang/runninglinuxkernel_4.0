@@ -1,0 +1,82 @@
+.\" t
+.TH ERROR::PASS4 7stap
+.SH JMÉNO
+error::pass4 \- chyby procesní fáze 4
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POPIS
+Během procesní fáze 4 (compilation) dochází obvykle jen k několika málo druhům
+chyb:
+
+.TP
+změny verze jádra
+Vložený C kód, který systemtap generuje, nebo obsahuje v rámci tapset skriptů
+by měl být portabilní napříč širokou škálou verzí linuxového jádra.  Nicméně,
+mohou se vyskytnout výjimky, jako například změna typu parametrů jaderné funkce
+a podobně.  Pokud k tomu dojde, může být řešením použít upstream verzi
+systemtapu (git://sourceware.org/git/systemtap.git), která je na takové změny
+obvykle rychle adaptována.  Jinými slovy: \fBPro použití s velmi mladými jádry
+sestavte systemtap ze zdrojových kódů v gitu\fP.  Pokud ani upstream verze
+systemtapu neobsahuje opravu, prosím, nahlašte chybu vývojářům systemtapu.
+
+.TP
+chybný vložený (embedded) C kód
+Vložený C kód ve Vašem guru (-g) skriptu systemtap nekontroluje.  Předává
+jej kompilátoru zcela bez úprav.  Chyby tohoto typu odhalí kompilátor právě v
+procesní fázi 4 během sestavování jaderného modulu systemtapu.
+
+.TP
+nekompratibilní vložený C kód
+Rozhraní mezi C kódem, který systemtap generuje a vloženým C kódem se někdy mění.
+Například před verzí systemtap-1.8 se parametry předávaly pomocí maker
+.IR THIS->foo " and " THIS->__retvalue
+ale od verze 1.8 již pomocí maker
+.IR STAP_ARG_foo " and " STAP_RETVALUE "."
+Upravte svůj vložený C kód tak, aby vyhovoval aktuální syntaxi, nebo použijte
+režim zpětné kompatibility
+.IR "stap --compatible=VERSION ."
+
+.TP
+chyby a záhadné chování kompilátoru
+"Internal compiler error" značí chyby kompilátoru.  Takové chyby
+by měly být nahlášeny vývojářům kompilátoru. K chybovému hlášení připojte
+předzpracovaný
+.IR ".i"
+soubor spolu s kopií dané příkazové řádky kompilátoru.  Pro sesbírání relevantních
+informací, spusťte
+.SAMPLE
+stap -k --vp 0003 -p4 ....
+.ESAMPLE
+Systemtap takto uchová dočasný adresář i příkazovou řádku kompilátoru.  V tomto
+adresáři se nachází hlavní vygenerovaný soubor
+.IR stap_NNNNN_src.c .
+Použijte následující postup pro získání předzpracovaného výstupu:
+.SAMPLE
+make -C /lib/modules/`uname -r`/build M=`pwd` stap_NNNNN_src.i
+.ESAMPLE
+(všimněte si přípony
+.IR .i
+).  Příkazová řádka kompilátoru by měla být uchována v souboru
+.IR ".stap_NNNNN_src.i.cmd" .
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR error::reporting (7stap)

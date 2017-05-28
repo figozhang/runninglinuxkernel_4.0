@@ -1,0 +1,298 @@
+#! /usr/bin/env stap
+#
+# Copyright (C) 2010 Red Hat, Inc.
+# Written by William Cohen <wcohen@redhat.com>
+#
+# This script records the time that a process has spent asleep and attempt
+# to provide a reason for that that sleep. The script needs to be run with the
+# '--all-modules' option to map the backtrace addresses to function names
+# and the function names back to reasons.
+#
+# stap --all-modules latencytap.stp
+
+global priority, reason;
+global traced_pid, sleep_time, dequeue;
+global this_sleep;
+global debug = 0;
+global reason_len;
+
+function log_event:long (p:long)
+{
+  return (!traced_pid || traced_pid == task_pid(p))
+}
+
+#func names from hex addresses
+function func_backtrace:string (ips:string)
+{
+  ret = "";
+  for (ip=tokenize(ips, " "); ip!=""; ip=tokenize("", " "))
+     ret = ret . symname(strtol(ip,16)) . " ";
+  return ret;
+}
+
+# pick out a reason based on the backtrace function names
+function translate:string (bt:string)
+{
+  ip=tokenize(bt, " ");
+  func = symname(strtol(ip,16))
+  pri = 1; rea="";
+  while (ip!="") {
+    p = priority[func]
+    if (p >= pri) {
+      pri = priority[func];
+      rea = reason[func];
+    }
+    ip=tokenize("", " ")
+    func = symname(strtol(ip,16))
+  }
+  return rea;
+}
+
+probe kernel.trace("deactivate_task") !,
+      kernel.function("deactivate_task") {
+  s = task_state($p)
+  # check to see if task is in appropriate state:
+  # TASK_INTERRUPTIBLE      1
+  # TASK_UNINTERRUPTIBLE    2
+  if (log_event($p) && (s & 3)) {
+    dequeue[$p] = gettimeofday_us();
+  }
+}
+
+probe kernel.trace("activate_task") !,
+      kernel.function("activate_task") {
+  if (!log_event($p)) next
+
+  a = gettimeofday_us()
+  d = dequeue[$p]
+  delete dequeue[$p]
+  if (d) {
+    sleep = a - d
+    if (sleep > 0) {
+       this_sleep[$p] = sleep
+#      sleep_time[task_backtrace($p)] <<< sleep
+    }
+  }
+}
+
+#FIXME: It would be nicer to get backtrace information in activate_task probe.
+# This would eliminate the overhead of probing every context switch
+# and this_sleep associate array. However, this needs a properly working
+# task_backtrace() to eliminate this probe.
+probe scheduler.cpu_on {
+   p = task_current()
+   t = this_sleep[p]
+   if (t){
+     delete this_sleep[p]
+     sleep_time[backtrace()] <<< t
+   }
+}
+
+global sort_latencies;
+
+function global_report_latencies() {
+  total = 0
+
+  foreach ([backtrace] in sleep_time) {
+    val = @sum(sleep_time[backtrace]);
+    sort_latencies[backtrace] = val;
+    total += val;
+  }
+
+  ansi_clear_screen();
+  printf("%-*s %12s %12s %12s %7s%%\n",
+         @max(reason_len)+1, "Reason", "Count", "Average(us)", "Maximum(us)", "Percent");
+  foreach ([backtrace] in sort_latencies- limit 20) {
+    #print reason count average max percentage
+    cause = translate (backtrace);
+    # if can't find reason print out a backtrace
+    if (cause == "" && debug)
+      printf("%s\n", func_backtrace(backtrace));
+    printf("%-*s ", @max(reason_len)+1, cause);
+    p = (@sum(sleep_time[backtrace])*100)/total;
+    printf("%12d %12d %12d %7d%%\n",
+    	   @count(sleep_time[backtrace]),
+           @avg(sleep_time[backtrace]),
+           @max(sleep_time[backtrace]),
+	   p);
+  }
+  delete sort_latencies;
+}
+
+probe timer.s(30) {
+  global_report_latencies()
+  delete sleep_time
+}
+
+probe begin {
+  traced_pid = target()
+}
+
+# Set up the translations and priorities for each function.
+# The vast majority of translations were mechanically generated from the
+# latencytop (http://www.latencytop.org/) translation file:
+# /usr/share/latencytop/latencytop.trans .
+
+function explain(symbol,pri,blah) {
+  priority[symbol] = pri
+  reason[symbol] = blah
+  reason_len <<< strlen(blah)
+}
+
+probe begin {
+  explain("SyS_epoll_wait",3,"Waiting for event (epoll)");
+  explain("SyS_flock",3,"flock() on a file");
+  explain("SyS_nanosleep",5,"Application requested delay");
+  explain("SyS_pause",5,"Application requested delay");
+  explain("__bread",2,"Synchronous buffer read");
+  explain("__ext3_get_inode_loc",3,"Reading EXT3 inode");
+  explain("__log_wait_for_space",5,"Waiting for EXT3 journal space");
+  explain("__mark_inode_dirty",1,"Marking inode dirty");
+  explain("__pollwait",2,"Waiting for event (poll)");
+  explain("__stop_machine_run",3,"Freezing the kernel (for module load)");
+  explain("__wait_on_buffer",2,"Waiting for buffer IO to complete");
+  explain("acpi_ec_transaction",3,"ACPI hardware access");
+  explain("acquire_console_sem",3,"Waiting for console access");
+  explain("alloc_page_vma",3,"Allocating a VMA");
+  explain("ata_exec_internal_sg",3,"Executing internal ATA command");
+  explain("ata_scsi_ioctl",3,"ATA/SCSI disk ioctl");
+  explain("bdi_forker_task",2,"bdi-* kernel thread");
+  explain("bdi_sync_supers",1,"Sync superblock");
+  explain("bdi_writeback_task",2,"Flush data to backing device");
+  explain("bdi_writeback_thread",2,"Flush data to backing dev");
+  explain("blk_execute_rq",3,"Submitting block IO");
+  explain("blkdev_direct_IO",3,"Direct block device IO");
+  explain("blkdev_ioctl",2,"block device IOCTL");
+  explain("blocking_notifier_call_chain",1,"Blocking notifier");
+  explain("cdrom_open",3,"opening cdrom device");
+  explain("core_sys_select",2,"Waiting for event (select)");
+  explain("dm_wait_for_completion",2,"Waiting for device mapper ops");
+  explain("do_fork",3,"Fork() system call");
+  explain("do_fsync",5,"fsync() on a file");
+  explain("do_futex",3,"Userspace lock contention");
+  explain("do_generic_mapping_read",2,"Reading file data");
+  explain("do_page_fault",5,"Page fault");
+  explain("do_rmdir",3,"Removing directory");
+  explain("do_sync_write",2,"synchronous write");
+  explain("do_sys_open",2,"Opening file");
+  explain("do_sys_poll",2,"Waiting for event (poll)");
+  explain("do_truncate",3,"Truncating file");
+  explain("do_unlinkat",2,"Unlinking file");
+  explain("evdev_read",5,"Reading keyboard/mouse input");
+  explain("ext3_bread",3,"Synchronous EXT3 read");
+  explain("ext3_create",3,"EXT3 Creating a file");
+  explain("ext3_delete_inode",3,"EXT3 deleting inode");
+  explain("ext3_find_entry",3,"EXT3: Looking for file");
+  explain("ext3_free_branches",3,"Unlinking file on EXT3");
+  explain("ext3_get_branch",3,"Reading EXT3 indirect blocks");
+  explain("ext3_mark_inode_dirty ",3,"EXT3 marking inode dirty");
+  explain("ext3_mkdir",3,"EXT3: Creating a directory");
+  explain("ext3_orphan_add ",3,"EXT3 adding orphan");
+  explain("ext3_read_inode",3,"Reading EXT3 inode");
+  explain("ext3_readdir",3,"Reading EXT3 directory");
+  explain("ext3_unlink ",3,"EXT3 unlinking file");
+  explain("filemap_fault",5,"Page fault");
+  explain("filp_close",3,"Closing a file");
+  explain("generic_delete_inode",3,"Deleting an inode");
+  explain("generic_make_request",3,"Creating block layer request");
+  explain("get_request_wait",3,"Creating block layer request");
+  explain("handle_mm_fault",5,"Page fault");
+  explain("htree_dirblock_to_tree",3,"Reading EXT3 directory htree");
+  explain("i915_gem_throttle_ioctl",3,"Throttling GPU while waiting for commands");
+  explain("i915_irq_wait",3,"Waiting for GPU interrupt");
+  explain("i915_wait_request",2,"Waiting for GPU command to complete");
+  explain("inet_sendmsg",3,"Sending TCP/IP data");
+  explain("inotify_inode_queue_event",3,"Inotify event");
+  explain("input_close_device",3,"Closing input device");
+  explain("journal_commit_transaction",3,"EXT3: committing transaction");
+  explain("journal_get_undo_access",3,"Waiting for EXT3 journal undo operation");
+  explain("journal_get_write_access",3,"EXT3: Waiting for journal access");
+  explain("kauditd_thread",2,"kernel audit daemon");
+  explain("khugepaged",2,"khugepaged() kernel thread");
+  explain("kjournald",2,"kjournald() kernel thread");
+  explain("kjournald2",2,"jdb2() kernel thread");
+  explain("kmsg_read",3,"Reading from dmesg");
+  explain("ksoftirqd",2,"Waking ksoftirqd");
+  explain("kswapd",2,"kswapd() kernel thread");
+  explain("kthreadd",2,"kthreadd kernel thread");
+  explain("kvm_vcpu_ioctl",3,"KVM ioctl");
+  explain("link_path_walk",3,"Following symlink");
+  explain("lock_kernel",3,"Big Kernel Lock contention");
+  explain("lock_super",1,"Superblock lock contention");
+  explain("log_do_checkpoint",3,"EXT3 journal checkpoint");
+  explain("lookup_create",3,"Creating file");
+  explain("md_thread",2,"Raid resync kernel thread");
+  explain("migration_thread",2,"migration() kernel thread");
+  explain("mousedev_close_device",3,"Closing mouse device");
+  explain("mousedev_open",3,"Opening mouse device");
+  explain("mousedev_release",3,"Closing mouse device");
+  explain("page_cache_sync_readahead",3,"Pagecache sync readahead");
+  explain("path_walk",3,"Walking directory tree");
+  explain("pdflush",2,"pdflush() kernel thread");
+  explain("pipe_read",3,"Reading from a pipe");
+  explain("pipe_wait",3,"Waiting for pipe data");
+  explain("pipe_write",3,"Writing to a pipe");
+  explain("proc_delete_inode",3,"Removing /proc file");
+  explain("proc_lookup",3,"Looking up /proc file");
+  explain("proc_reg_read",2,"Reading from /proc file");
+  explain("proc_root_readdir",2,"Reading /proc directory");
+  explain("rcu_gp_kthread",2,"RCU grace period kernel thread");
+  explain("read_block_bitmap",3,"Reading EXT3 block bitmaps");
+  explain("request_module",2,"Loading a kernel module");
+  explain("run_ksoftirqd",2,"Waking ksoftirqd");
+  explain("scsi_cmd_ioctl",3,"SCSI ioctl command");
+  explain("scsi_error_handler",2,"SCSI error handler");
+  explain("scsi_execute_req",3,"Executing raw SCSI command");
+  explain("sd_ioctl",3,"SCSI disk ioctl");
+  explain("shrink_icache_memory",3,"reducing inode cache memory footprint");
+  explain("sigsuspend",3,"waiting for a signal");
+  explain("smpboot_thread_fn",2,"percpu hotplug kernel thread");
+  explain("sock_sendmsg",2,"Sending data over socket");
+  explain("sr_cd_check",3,"Checking CDROM media present");
+  explain("sr_do_ioctl",3,"SCSI cdrom ioctl");
+  explain("sr_media_change",3,"Checking for media change");
+  explain("sync_buffer",3,"Writing buffer to disk (synchronous)");
+  explain("sync_filesystems",5,"Syncing filesystem");
+  explain("sync_inode",3,"(f)syncing an inode to disk");
+  explain("sync_page",3,"Writing a page to disk");
+  explain("sync_sb_inodes",3,"Syncing inodes");
+  explain("synchronize_rcu",3,"Waiting for RCU");
+  explain("sys_epoll_wait",3,"Waiting for event (epoll)");
+  explain("sys_execve",3,"Executing a program");
+  explain("sys_fcntl",2,"FCNTL system call");
+  explain("sys_flock",3,"flock() on a file");
+  explain("sys_futex",3,"Userspace lock contention");
+  explain("sys_getdents",3,"Reading directory content");
+  explain("sys_mkdirat",3,"Creating directory");
+  explain("sys_mmap",3,"mmaping memory");
+  explain("sys_mprotect",3,"mprotect() system call");
+  explain("sys_munmap",3,"unmapping memory");
+  explain("sys_nanosleep",5,"Application requested delay");
+  explain("sys_pause",5,"Application requested delay");
+  explain("sys_wait4",3,"Waiting for a process to die");
+  explain("tcp_connect",3,"TCP/IP connect");
+  explain("tcp_recvmsg",3,"Receiving TCP/IP data");
+  explain("tty_ioctl",2,"TTY IOCTL");
+  explain("tty_poll",3,"Waiting for TTY data");
+  explain("tty_read",3,"Waiting for TTY input");
+  explain("tty_wait_until_sent",3,"Waiting for TTY to finish sending");
+  explain("tty_write",3,"Writing data to TTY");
+  explain("udp_recvmsg",3,"Receiving UDP/IP data");
+  explain("unix_stream_recvmsg",3,"Waiting for data on unix socket");
+  explain("update_atime",3,"Updating inode atime");
+  explain("usb_autoresume_device",2,"Waking up USB device");
+  explain("usb_port_resume",2,"Waking up USB device");
+  explain("usb_stor_control_thread",2,"usb storage control kernel thread");
+  explain("usbdev_open",3,"opening USB device");
+  explain("vfs_create",1,"Creating a file");
+  explain("vfs_read",1,"Reading from file");
+  explain("vfs_lock_file",1,"Locking a file");
+  explain("vfs_readdir",1,"Reading directory content");
+  explain("vfs_rmdir",3,"Removing directory");
+  explain("vfs_stat_fd",3,"stat() operation");
+  explain("vfs_unlink",1,"Unlinking file");
+  explain("vfs_write",1,"Writing to file");
+  explain("vt_waitactive",3,"vt_waitactive IOCTL");
+  explain("worker_thread",2,"kernel workqueue thread");
+  explain("writeback_inodes",3,"Writing back inodes");
+}

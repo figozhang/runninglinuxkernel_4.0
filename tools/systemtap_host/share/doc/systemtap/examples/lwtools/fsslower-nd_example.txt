@@ -1,0 +1,37 @@
+Examples of fsslower-nd.stp, the Linux SystemTap version.
+
+
+This tool prints event-by-event details for each file system synchronous read
+or write slower than a threshold. It works by dynamically traces two common
+file system functions: do_sync_read() and do_sync_write(). Many, but not all,
+file systems and workloads use these functions. Tracing their time provides one
+view of suffered file system latency.
+
+Tracing FS sync reads and writes slower than 5 ms:
+
+# ./fsslower-nd.stp 5
+Tracing FS sync reads and writes slower than 5 ms... Hit Ctrl-C to end.
+TIME     PID    COMM             FUNC           SIZE     LAT(ms)
+22:27:28 2346   randread.pl      do_sync_read   8192          11
+22:27:28 2346   randread.pl      do_sync_read   8192          14
+22:27:28 2346   randread.pl      do_sync_read   8192           6
+22:27:28 2346   randread.pl      do_sync_read   8192           5
+22:27:28 2346   randread.pl      do_sync_read   8192           6
+22:27:28 2346   randread.pl      do_sync_read   8192           5
+22:27:28 2346   randread.pl      do_sync_read   8192          24
+22:27:28 2346   randread.pl      do_sync_read   8192          12
+22:27:28 2346   randread.pl      do_sync_read   8192           9
+22:27:28 2346   randread.pl      do_sync_read   8192           9
+22:27:28 2346   randread.pl      do_sync_read   8192           5
+22:27:28 2346   randread.pl      do_sync_read   8192           8
+22:27:28 2346   randread.pl      do_sync_read   8192          14
+22:27:28 2346   randread.pl      do_sync_read   8192          10
+22:27:28 2346   randread.pl      do_sync_read   8192           6
+22:27:28 2346   randread.pl      do_sync_read   8192           5
+[...]
+
+This shows that the randread.pl process was suffering latency up to 26 ms, when
+issuing do_sync_read()s of 8 Kbytes.
+
+As this is designed to be a non-debuginfo tool, there are not that many details
+available. Investigate further using other tools and custom SystemTap.

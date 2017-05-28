@@ -1,0 +1,325 @@
+// conversions tapset
+// Copyright (C) 2005-2015 Red Hat Inc.
+// Copyright (C) 2007 Intel Corporation.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/**
+ * sfunction kernel_string - Retrieves string from kernel memory
+ * @addr: The kernel address to retrieve the string from
+ *
+ * Description: This function returns the null terminated C string
+ * from a given kernel memory address. Reports an error on string
+ * copy fault.
+ */
+function kernel_string:string (addr:long) %{ /* pure */
+  char *destination = STAP_RETVALUE;
+  kderef_string (destination, STAP_ARG_addr, MAXSTRINGLEN);
+  if (0) {
+deref_fault: /* branched to from deref_string() */
+    /* Why '%1p' below? On newer kernels, the snprintf() function pads
+     * out '(null)' to the same width as other pointers, which looks
+     * really odd in the following error message. Setting a format
+     * width of '1' fixes this. */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel string copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction kernel_string - Retrieves string from kernel memory with alternative error string
+ * @addr: The kernel address to retrieve the string from
+ * @err_msg: The error message to return when data isn't available
+ *
+ * Description: This function returns the null terminated C string
+ * from a given kernel memory address. Reports the given error message
+ * on string copy fault.
+ */
+function kernel_string:string (addr:long, err_msg:string) {
+  try { return kernel_string(addr) } catch { return err_msg }
+}
+%(systemtap_v <= "3.0" %?
+function kernel_string2:string (addr:long, err_msg:string) {
+  try { return kernel_string(addr) } catch { return err_msg }
+}
+%)
+
+/**
+ * sfunction kernel_string_quoted - Retrieves and quotes string from kernel memory
+ *
+ * @addr: the kernel memory address to retrieve the string from
+ *
+ * Description: Returns the null terminated C string from a given kernel
+ * memory address where any ASCII characters that are not printable are
+ * replaced by the corresponding escape sequence in the returned string. Note
+ * that the string will be surrounded by double quotes. If the kernel memory
+ * data is not accessible at the given address, the address itself is returned
+ * as a string, without double quotes.
+ */
+function kernel_string_quoted:string (addr:long)
+%{ /* pure */
+  int rc = 0;
+  if (STAP_ARG_addr != 0)
+    rc = _stp_text_str(STAP_RETVALUE,
+                       (char *)(uintptr_t)STAP_ARG_addr,
+                       MAXSTRINGLEN, MAXSTRINGLEN, 1, 0);
+  if (STAP_ARG_addr == 0 || rc < 0)
+    snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p", (void *)(long)STAP_ARG_addr);
+%}
+
+/**
+ * sfunction kernel_string_n - Retrieves string of given length from kernel memory
+ * @addr: The kernel address to retrieve the string from
+ * @n: The maximum length of the string (if not null terminated)
+ *
+ * Description: Returns the C string of a maximum given length from a
+ * given kernel memory address. Reports an error on string copy fault.
+ */
+function kernel_string_n:string (addr:long, n:long) %{ /* pure */
+  char *destination = STAP_RETVALUE;
+  int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
+  kderef_string (destination, STAP_ARG_addr, len);
+  if (0) {
+deref_fault: /* branched to from deref_string() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel string copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction kernel_string_utf32 - Retrieves UTF-32 string from kernel memory
+ * @addr: The kernel address to retrieve the string from
+ *
+ * Description: This function returns a null terminated UTF-8 string converted
+ * from the UTF-32 string at a given kernel memory address. Reports an error on
+ * string copy fault or conversion error.
+ */
+function kernel_string_utf32:string (addr:long) %{ /* pure */
+  int rc = 0, len = MAXSTRINGLEN;
+  uint32_t c32, *source = (uint32_t*)(intptr_t)STAP_ARG_addr;
+  char *destination = STAP_RETVALUE;
+
+  *destination = '\0';
+  while (len > 1 && (c32 = kread(source))) {
+    if ((rc = _stp_convert_utf32(destination, len, c32)) <= 0) {
+      if (rc < 0) {
+        snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+            "invalid UTF-32 character U+%X at 0x%p", c32, source);
+        CONTEXT->last_error = CONTEXT->error_buffer;
+      }
+      break;
+    }
+    ++source;
+    destination += rc;
+    len -= rc;
+  }
+
+  if (0) {
+deref_fault: /* branched to from deref_string() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+              "kernel string copy fault at 0x%p [man error::fault]", source);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction kernel_string_utf32 - Retrieves UTF-32 string from kernel memory with alternative error string
+ * @addr: The kernel address to retrieve the string from
+ * @err_msg: The error message to return when data isn't available
+ *
+ * Description: This function returns a null terminated UTF-8 string converted
+ * from the UTF-32 string at a given kernel memory address. Reports the given
+ * error message on string copy fault or conversion error.
+ */
+function kernel_string_utf32:string (addr:long, err_msg:string) {
+  try { return kernel_string_utf32(addr) } catch { return err_msg }
+}
+%(systemtap_v <= "3.0" %?
+function kernel_string2_utf32:string (addr:long, err_msg:string) {
+  try { return kernel_string_utf32(addr) } catch { return err_msg }
+}
+%)
+
+/**
+ * sfunction kernel_string_quoted_utf32 - Quote given UTF-32 kernel string.
+ * @addr: The kernel address to retrieve the string from
+ *
+ * Description: This function combines quoting as per @string_quoted
+ * and UTF-32 decoding as per @kernel_string_utf32.
+ */
+function kernel_string_quoted_utf32:string (addr:long) {
+  try { return string_quoted(kernel_string_utf32(addr)) } catch { return sprintf("0x%x", addr) }
+}
+
+
+/**
+ * sfunction kernel_string_utf16 - Retrieves UTF-16 string from kernel memory
+ * @addr: The kernel address to retrieve the string from
+ *
+ * Description: This function returns a null terminated UTF-8 string converted
+ * from the UTF-16 string at a given kernel memory address. Reports an error on
+ * string copy fault or conversion error.
+ */
+function kernel_string_utf16:string (addr:long) %{ /* pure */
+  int rc = 0, len = MAXSTRINGLEN;
+  uint32_t c32;
+  uint16_t c16low, *source = (uint16_t*)(intptr_t)STAP_ARG_addr;
+  char *destination = STAP_RETVALUE;
+
+  *destination = '\0';
+  while (len > 1 && (c32 = kread(source))) {
+    /* Check for a UTF-16 high surrogate, then its low pair, and combine them.
+     * Broken surrogates will just fall through to _stp_convert_utf32 and get
+     * flagged as an error there.  (Or even allowed, if we decide to be lax.)
+     */
+    if (c32 >= 0xD800 && c32 <= 0xDBFF) {
+      ++source;
+      c16low = kread(source);
+      if (c16low >= 0xDC00 && c16low <= 0xDFFF)
+        c32 = 0x10000 + ((c32 & 0x3FF) << 10) + (c16low & 0x3FF);
+      else
+        --source;
+    }
+
+    if ((rc = _stp_convert_utf32(destination, len, c32)) <= 0) {
+      if (rc < 0) {
+        snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+                  "invalid UTF-16 character U+%X at 0x%p", c32, source);
+        CONTEXT->last_error = CONTEXT->error_buffer;
+      }
+      break;
+    }
+    ++source;
+    destination += rc;
+    len -= rc;
+  }
+
+  if (0) {
+deref_fault: /* branched to from deref_string() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+              "kernel string copy fault at 0x%p [man error::fault]", source);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction kernel_string_utf16 - Retrieves UTF-16 string from kernel memory with alternative error string
+ * @addr: The kernel address to retrieve the string from
+ * @err_msg: The error message to return when data isn't available
+ *
+ * Description: This function returns a null terminated UTF-8 string converted
+ * from the UTF-16 string at a given kernel memory address. Reports the given
+ * error message on string copy fault or conversion error.
+ */
+function kernel_string_utf16:string (addr:long, err_msg:string) {
+  try { return kernel_string_utf16(addr) } catch { return err_msg }
+}
+%(systemtap_v <= "3.0" %?
+function kernel_string2_utf16:string (addr:long, err_msg:string) {
+  try { return kernel_string_utf16(addr) } catch { return err_msg }
+}
+%)
+
+
+/**
+ * sfunction kernel_string_quoted_utf16 - Quote given kernel UTF-16 string.
+ * @addr: The kernel address to retrieve the string from
+ *
+ * Description: This function combines quoting as per @string_quoted
+ * and UTF-16 decoding as per @kernel_string_utf16.
+ */
+function kernel_string_quoted_utf16:string (addr:long) {
+  try { return string_quoted(kernel_string_utf16(addr)) } catch { return sprintf("0x%x", addr) }
+}
+
+
+/**
+ * sfunction kernel_long - Retrieves a long value stored in kernel memory
+ * @addr: The kernel address to retrieve the long from
+ *
+ * Description: Returns the long value from a given kernel memory address.
+ * Reports an error when reading from the given address fails.
+ */
+function kernel_long:long (addr:long) %{ /* pure */
+  STAP_RETVALUE = kread((long *) (intptr_t) STAP_ARG_addr);
+  if (0) {
+deref_fault: /* branched to from kread() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel long copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction kernel_int - Retrieves an int value stored in kernel memory
+ * @addr: The kernel address to retrieve the int from
+ *
+ * Description: Returns the int value from a given kernel memory address.
+ * Reports an error when reading from the given address fails.
+ */
+function kernel_int:long (addr:long) %{ /* pure */
+  STAP_RETVALUE = kread((int *) (intptr_t) STAP_ARG_addr);
+  if (0) {
+deref_fault: /* branched to from kread() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel int copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction kernel_short - Retrieves a short value stored in kernel memory
+ * @addr: The kernel address to retrieve the short from
+ *
+ * Description: Returns the short value from a given kernel memory address.
+ * Reports an error when reading from the given address fails.
+ */
+function kernel_short:long (addr:long) %{ /* pure */
+  STAP_RETVALUE = kread((short *) (intptr_t) STAP_ARG_addr);
+  if (0) {
+deref_fault: /* branched to from kread() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel short copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction kernel_char - Retrieves a char value stored in kernel memory
+ * @addr: The kernel address to retrieve the char from
+ *
+ * Description: Returns the char value from a given kernel memory address.
+ * Reports an error when reading from the given address fails.
+ */
+function kernel_char:long (addr:long) %{ /* pure */
+  STAP_RETVALUE = kread((char *) (intptr_t) STAP_ARG_addr);
+  if (0) {
+deref_fault: /* branched to from kread() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel char copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction kernel_pointer - Retrieves a pointer value stored in kernel memory
+ * @addr: The kernel address to retrieve the pointer from
+ *
+ * Description: Returns the pointer value from a given kernel memory
+ * address. Reports an error when reading from the given address
+ * fails.
+ */
+function kernel_pointer:long (addr:long) %{ /* pure */
+  STAP_RETVALUE = (uintptr_t) kread((void **) (uintptr_t) STAP_ARG_addr);
+  if (0) {
+deref_fault: /* branched to from kread() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel pointer copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}

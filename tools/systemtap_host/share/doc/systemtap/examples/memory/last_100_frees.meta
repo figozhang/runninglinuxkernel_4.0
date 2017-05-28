@@ -1,0 +1,6 @@
+title: Log recent free(3) calls.
+name: last_100_frees.stp
+keywords: memory process backtrace
+description: This script reports on the last few free(3) libc calls done by processes (possibly restricted by stap -x/-c), along with a userspace backtrace at those moments.
+test_check: stap -p4 last_100_frees.stp -c "stap -V" -d `which stap` --ldd
+test_installcheck: stap last_100_frees.stp -c "stap -V" -d `which stap` --ldd

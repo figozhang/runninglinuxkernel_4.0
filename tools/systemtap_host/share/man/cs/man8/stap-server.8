@@ -1,0 +1,560 @@
+.\" -*- nroff -*-
+.TH STAP\-SERVER 8
+.SH JMÉNO
+stap\-server \- kompilační server systemtapu
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POUŽITÍ
+
+.br
+[
+.B service
+]
+.B stap\-server
+{
+.B start
+|
+.B stop
+|
+.B restart
+|
+.B condrestart
+|
+.B try\-restart
+|
+.B force\-reload
+|
+.B status
+} [
+.I options
+]
+
+.SH POPIS
+
+Kompilační server systemtapu (stap\-server) je síťová služba.  Přijímá
+zabezpečené SSL spojení od klienta a vykonává požadavky na spuštění příkazu
+.I stap .
+Každý stap\-server inzeruje svoji přítomnost a konfiguraci na lokální síti
+prostřednictvím mDNS (\fIavahi\fR), a tím umožňuje klientům automatickou
+detekci serverů.
+
+
+.PP
+stap\-server nabízí:
+.IP \(bu 4
+síťovou službu umožňující přístup ke kompilačním serverům systemtapu
+.IP \(bu 4
+pohodlné ovládání nakonfigurovaných, nebo "ad-hoc" kompilačních serverů systemtapu
+
+.SH ARGUMENTY
+Musí být určena alespoň jedna z následujících voleb:
+.TP
+.B start
+Spustit servery.  Určené servery budou nastartovány.  Pokud není určen žádný
+server, spustí se nakonfigurované servery.  Pokud není žádný server
+nakonfigurován, spustí se server pro verzi jádra architekturu odpovídající
+hostitelskému stroji.
+
+Pokud je určený server již spuštěn, bude pro něj požadavek na spuštění ignorován.
+Pokud selže start daného serveru, operace skončí chybou.
+
+.TP
+.B stop
+Zastavit server(y).  Určené servery se zastaví.
+Pokud žádný server není určen, zastaví se všechny běžící servery.  Pokud určený
+server neběží, skončí pro něj "stop" akce úspěchem.  Pokud pokus o zastavení
+serveru selže, stap\-server selže též.
+
+.TP
+.B restart
+Zastavit a znovu nastartovat služby.  Specifikované servery se zastaví a znovu
+nastartují.  Pokud není žádný server určen, dojde k pokusu o restart všech
+serverů.  Pokud žádné neběží, bude se 'restart' rovnat pokusu o \fIstart\fR.
+
+.TP
+.B condrestart
+Zastavit a znovu nastartovat služby.  Specifikované servery se zastaví a znovu
+nastartují.  Pokud určený server neběží, nebude nastartován.  Pokud není žádný
+server určen, dojde k pokusu o restart všech běžících serverů.  Pokud žádný server
+neběží, nestane se nic.
+
+.TP
+.B try\-restart
+Tato akce je shodná s \fIcondrestart\fR.
+
+.TP
+.B force\-reload
+Zastavit všechny běžící servery, znovu načíst konfigurační soubory, a restartovat
+služby jako by byl dán příkaz
+.I start .
+
+.TP
+.B status
+Vypsat informaci o stavu serverů.  Vypíše informaci o specifikovaných serverech.
+Pokud nebyl žádný server specifikován, vypíše se informace o stavu všech
+běžících serverů.
+
+.SH VOLBY
+Pro upřesnění argumentů je možno použít následující volby:
+
+.TP
+\fB\-c\fR \fIconfigfile\fR
+Určuje globální konfigurační soubor jako dodatek k výchozímu globálnímu
+konfiguračnímu souboru popsanému níže.  Zadaný soubor bude zpracován po
+výchozím globálním konfiguračním souboru.  Pokud se volba \fB\-c\fR použije
+více než jednou, bude brán zřetel jen na poslední použití.
+
+.TP
+\fB\-a\fR \fIarchitecture\fR
+Tato volba určuje cílovou architekturu serveru a je analogická volbě \fB\-a\fR
+programu \fIstap\fR.  Viz manuálová stránka
+.IR stap (1)
+, která obsahuje podrobnosti.
+
+Výchozí architektura je architektura hostitelského systému.
+
+.TP
+\fB\-r\fR \fIkernel\-release\fR
+Určuje verzi cílového jádra a je analogická volbě \fB\-r\fR programu \fIstap\fR.
+Viz manuálová stránka
+.IR stap (1)
+, která obsahuje podrobnosti.
+Výchozí verze je verze hostitelského systému.
+
+.TP
+\fB\-I\fR \fIpath\fR
+Tato volba určuje dodatečné umístění, ve kterém budou servery hledat tapset
+skripty.  Je analogická volbě \fB\-I\fR příkazu \fIstap\fR.  Viz manuálová stránka
+.IR stap (1)
+, která obsahuje podrobnosti.
+
+.TP
+\fB\-R\fR \fIpath\fR
+Tato volba určuje umístění zdrojových kódů pro překlad jaderného modulu
+systemtapu pro použití systemtap serverů a je analogická volbě \fB\-R\fR
+programu \fIstap\fR.  Viz manuálová stránka
+.IR stap (1)
+, která obsahuje podrobnosti.
+
+.TP
+\fB\-B\fR \fIoptions\fR
+Tato volba určuje volby, které se předají příkazu \fImake\fR při sestavování
+systemtap modulu a je analogická volbě \fB\-B\fR programu \fIstap\fR.
+Viz manuálová stránka
+.IR stap (1)
+, která obsahuje podrobnosti.
+
+.TP
+\fB\-i\fR
+Tato volba je zkratkou pro jeden server pro každou jadernou verzi instalovanou
+v \fI/lib/modules/\fR.  Výše uvedené volby \fB\-I\fR, \fB\-R\fR, \fB\-B\fR a
+\fB\-u\fR se aplikují na každý server, nicméně předchozí volba \fB\-a\fR se bude
+ignorovat a použije se výchozí architektura.
+
+.TP
+\fB\-n\fR \fInickname\fR
+Umožňuje určit server pomocí přezdívky.  Pokud se nastaví \fB\-n\fR, bude použit
+běžící server s danou přezdívkou.  Pokud se takový server nenajde, budou na danou
+přezdívku prohledány konfigurační soubory pro výchozí servery, nebo bude
+prohledána cesta určená v globálním konfiguračním souboru, nebo v konfiguračním
+souboru určeném přepínačem \fB\-c\fR.  Pokud se požadovaný server najde, použijí
+se pro něj přepínače \fB\-a\fR, \fB\-r\fR, \fB\-I\fR, \fB\-R\fR, \fB\-B\fR a
+\fB\-u\fR.  Pokud se žádný server pro danou přezdívku nenajde a akce je
+.I start
+(nebo akce která se tak chová) (viz \fBARGUMENTY\fR), server s danou přezdívkou
+se nastartuje.
+
+.TP
+\fB\-p\fR \fIpid\fR
+Tato volba umožňuje určit server prostřednictvím ID procesu.  Pokud se nastaví
+\fB\-p\fR, bude hledán běžící server s daným PID.  Pokud se takový nenajde,
+vznikne chyba.  Pokud se takový server najde, předají se mu volby
+\fB\-a\fR, \fB\-r\fR, \fB\-I\fR, \fB\-R\fR, \fB\-B\fR a \fB\-u\fR.
+
+.TP
+\fB\-u\fR \fIuser\-name\fR
+Každý kompilační server systemtapu se za normálních okolností spouští pod uživatelem
+\fIstap\-server\fR (pro initscript) nebo jako uživatel, který spouští
+\fIstap\-server\fR,
+pokud neexistuje jiné nastavení (viz sekce SOUBORY).  Tato volba určuje uživatele, pod
+kterým poběží servery.  Takový uživatel musí být členem skupiny \fIstap\-server\fR.
+
+.TP
+\fB\-\-log\fR \fIlogfile\fR
+Tato volba umožňuje nastavit pro každý server separátní log soubor.  Volbu lze
+opakovat a tím nastavit log soubor každému ze specifikovaných serverů zvlášť.
+Pokud je specifikováno více serverů, než voleb \-\-log, použije se pro zbývající
+servery výchozí log soubor (viz sekce \fBSOUBORY\fR).
+
+.TP
+\fB\-\-port\fR \fIport\-number\fR
+Nastaví port pro každý specifikovaný server.  Volbu lze opakovat a určit tak
+port pro všechny specifikované servery.  Pokud je specifikováno více serverů než
+voleb \-\-port, bude pro zbývající servery zvolen náhodný port.
+
+.TP
+\fB\-\-ssl\fR \fIcertificate\-db\-path\fR
+Tato volba umožňuje specifikaci separátní NSS databáze pro každý server, Volbu
+lze opakovat a aplikovat ji na jednotlivé specifikované servery.  Pokud je
+specifikováno více serverů, než voleb \-\-ssl, bude pro zbývající servery
+použita výchozí databáze (viz sekce \fB SOUBORY\fR).
+
+.TP
+\fB\-\-max\-threads\fR \fIthreads\fR
+Určuje počet vláken pro obsluhu současných požadavků.  Pokud \fIthreads\fR == 0,
+budou všechny požadavky obsluhovány sériově v jediném - hlavním vlákně.  Výchozí
+hodnota je počet dostupných jader procesoru.
+
+.SH KONFIGURACE
+
+Pomocí konfiguračních souborů je možné:
+.IP \(bu 4
+určit globální konfiguraci logování, konfigurační soubory serverů, stavové
+soubory a další globální parametry.
+.IP \(bu 4
+určit které servery se nastartují ve výchozím nastavení.
+
+.SH Globální Konfigurace
+
+Globální konfigurační soubor obsahuje
+nastavení globálních proměnných, které ovlivňují celkovou operaci služby.
+Každá řádka začínající znakem '#' se ignoruje.  Všechny ostatní řádky musejí mít
+tvar \fIVARIABLE=VALUE\fR.  Nejde o shell skript.  Celý zbytek řáky za znakem '='
+bude interpretován jako hodnota a ta bude přiřazena příslušné proměnné.
+
+Lze použít následující proměnné:
+
+.TP
+.B CONFIG_PATH
+Absolutní cesta k adresáři, který obsahuje výchozí konfiguraci serverů.
+
+.TP
+.B STAT_PATH
+Absolutní cesta k adresáři se status soubory.
+
+.TP
+.B LOG_FILE
+Absolutní cesta k log souboru.
+
+.TP
+.B STAP_USER
+Uživatel pod kterým stap-server(y) poběží.  Výchozí hodnota je \fIstap\-server\fR
+pro initskript, jinak uživatel, který spouští \fIstap\-server\fR.
+
+.PP
+Následuje příklad globálního konfiguračního souboru:
+.SAMPLE
+CONFIG_PATH=~<user>/my-stap-server-configs
+LOG_FILE=/tmp/stap-server/log
+.ESAMPLE
+
+.SH Individuální konfigurace serveru
+
+Pokud pro akci \fIstart\fR (nebo jí podobnou akci) nebyly specifikovány
+konkrétní servery, budou nastartovány servery odpovídající jednotlivým
+individuálním konfiguračním souborům. Každý konfigurační soubor obsahuje
+nastavení proměnných, které se použijí ke zkonfigurování individuálního
+serveru.
+
+Každá řádka začínající znakem '#' se ignoruje.  Všechny ostatní řádky musí být
+tvaru \fIVARIABLE=VALUE\fR.  Nejde o shell skript.  Celý zbytek řádku za znakem '='
+se interpretuje jako hodnota.
+
+Každý konfigurační soubor musí mít název s příponou \fI.conf\fR.  Viz
+\fIstappaths\fR(7) kde je popsáno výchozí umístění těchto souborů.  Toto výchozí
+umístění může být změněno v globálním konfiguračním souboru pomocí volby
+\fB\-c\fR (viz \fIOPTIONS\fR).
+
+Lze použít následující proměnné:
+.TP
+.B ARCH
+Určuje cílovou architekturu pro daný server a odpovídá přepínači \fB\-a\fR (viz
+\fIVOLBY\fR).  Pokud \fBARCH\fR není nastavena, použije se architektura
+hostitelského stroje jako výchozí.
+
+.TP
+.B RELEASE
+Určuje verzi jádra pro daný server a odpovídá volbě \fB\-r\fR (viz \fIVOLBY\fR).
+Pokud \fBRELEASE\fR není nastavena, použije se release hostitelského stroje jako
+výchozí.
+
+.TP
+.B BUILD
+Určuje volby, které se předají příkazu \fImake\fR při sestavování jaderného
+modulu systemtapu.  Jde o proměnnou typu pole, kde každý prvek odpovídá volbě
+\fB\-B\fR (viz \fIVOLBY\fR).  Pomocí \fBBUILD=STRING\fR se pole vymaže a první
+prvek se nastaví na \fBSTRING\fR.  Pomocí \fBBUILD+=STRING\fR se do pole přidá
+\fBSTRING\fR jako další prvek.
+
+.TP
+.B INCLUDE
+Určuje seznam adresářů, ve kterých bude server hledat tapset skripty.  Jde o
+pole, kde každý prvek odpovídá přepínači \fB\-I\fR, viz \fIVOLBY\fR).
+Prostřednictvím zápisu \fBINCLUDE=PATH\fR  se pole smaže a první jeho prvek se
+nastaví na \fBPATH\fR.  Pomocí zápisu \fBINCLUDE+=PATH\fR se do pole přidá
+\fBPATH\fR jako další prvek.
+
+.TP
+.B RUNTIME
+Určuje adresář, který obsahuje zdrojové soubory potřebné pro sestavení jaderného
+modulu systemtapu.  Odpovídá přepínači \fB\-R\fR (viz \fIVOLBY\fR).
+
+.TP
+.B USER
+Určuje uživaltele, pod kterým server poběží a odpovídá volbě \fB\-u\fR
+(viz \fIVOLBY\fR).
+
+.TP
+.B NICKNAME
+Odpovídá přezdívce pro server a také volbě \fB\-n\fR (viz \fIVOLBY\fR).
+
+.TP
+.B LOG
+Určuje umístění logovacího souboru pro daný server a odpovídá volbě
+\fB\-\-log\fR (viz \fIVOLBY\fR).
+
+.TP
+.B PORT
+Určuje síťový port, na kterém má daný server poslouchat.  Odpovídá volbě
+\fB\-\-port\fR (viz \fIVOLBY\fR).
+
+.TP
+.B SSL
+Určuje umístění certifikační databáze NSS, kterou má daný server použít a
+odpovídá volbě \fB\-\-ssl\fR (viz \fIVOLBY\fR).
+
+.TP
+.B MAXTHREADS
+Určuje maximální počet vláken pro obsluhu současných požadavků daným serverem
+Odpovídá volbě \fB\-\-max\-threads\fR (viz \fIVOLBY\fR).
+
+.PP
+Následuje ukázka konfiguračního souboru:
+.SAMPLE
+ARCH=
+USER=
+RELEASE=
+NICKNAME=native
+.ESAMPLE
+Tím, že ponecháme ARCH, USER, a RELEASE prázdné docílíme toho, že se pro ně
+použijí výchozí hodnoty.
+
+Konkrétnější příklad:
+.SAMPLE
+ARCH=i386
+RELEASE=2.6.18-128.el5
+PORT=5001
+LOG=/path/to/log/file
+.ESAMPLE
+
+Komplikovanější příklad:
+.SAMPLE
+USER=serveruser
+RELEASE=/kernels/2.6.18-92.1.18.el5/build
+INCLUDE=/mytapsets
+INCLUDE+=/yourtapsets
+BUILD='VARIABLE1=VALUE1 VARIABLE2=VALUE2'
+DEFINE=STP_MAXMEMORY=1024
+DEFINE+=DEBUG_TRANS
+RUNTIME=/myruntime
+NICKNAME=my-server
+SSL=/path/to/NSS/certificate/database
+.ESAMPLE
+
+.SH AUTENTIZACE
+Bezpečnost SSL spojení mezi klientem a serverem závisí na správném zacházení
+s certifikáty.
+
+.PP
+Důvěryhodnost daného systemtap serveru nelze určit automaticky bez důvěryhodné
+autority, která vydala certifikát.  To nemusí být praktické pro každodenní
+použití, proto se klienti autentizují proti své vlastní databázi důvěryhodných
+certifikátů.  V tomto kontextu vytvoření relace důvěry znamená přidání
+serverového certifikátu do databáze klienta.
+
+.PP
+Pro initscript lokálního serveru se toto děje automaticky.  Jakmile se nainstaluje
+balíček \fIsystemtap\-server\fR, certifikát serveru pro výchozího uživatele
+(\fIstap\-server\fR) se automaticky vygeneruje a přidá do databáze lokálního
+klienta.  Lokální klient tak automaticky považuje lokální server za důvěryhodný
+"module signer".
+
+.PP
+Je-li stap spuštěn neprivilegovaným uživatelem (t.j. uživatelem, který není
+root, ani člen skupiny stapdev, ale může být členem skupiny stapusr a/nebo
+stapsys) automaticky se použijí volby \fI\-\-use\-server\fR a \fI\-\-privilege\fR.
+To znamená, že neprivilegovaní uživatelé mohou používat lokální stap server v
+neprivilegovaném režimu bez zvláštních nastavení.  Neprivilegovaní uživatelé
+mohou též používat kompilační server prostřednictvím přepínačů
+\fI\-\-use\-server\fR a \fI\-\-privilege\fR, ale samozřejmě nebudou moci zavést
+systemtap modul do jádra (s volbou -p4 se o to systemtap nebude pokoušet).
+
+.PP
+Aby bylo možno použít stap server na vzdáleném stroji, je potřeba nainstalovat
+jeho serverový certifikát do klienta.  Viz volba \fI\-\-trust\-servers\fR v
+manuálové stránce
+.IR stap (1)
+a také soubor README.unprivileged mezi zdrojovými soubory systemtapu.
+
+.SH PŘÍKLADY
+Jednoduché příklady shrnuje manuálová stránka
+.IR stapex (3stap) .
+.PP
+Nastartovat zkonfigurovaný server, nebo výchozí server pokud žádný server není
+zkonfigurovaný:
+.PP
+.B \& $ [ service ] stap\-server start
+.PP
+Nastartovat systemtap server pro každé jádro nainstalované v /lib/modules:
+.PP
+.B \& $ [ service ] stap\-server start \-i
+.PP
+Vypsat informace o běžících serverech:
+.PP
+.B \& $ [ service ] stap\-server status
+.PP
+Nastartovat server s konfigurací podobnou jinému již běžícímu serveru s danou
+přezdívkou NICKNAME, ovšem pro odlišnou architekturu:
+.PP
+.B \& $ [ service ] stap\-server start \-n \fINICKNAME\fB \-a \fIARCH\fR
+.PP
+Nastartovat server pro nenainstalované jádro (křížová kompilace)
+.PP
+.B \& $ [ service ] stap\-server start \-a \fIARCH\fB \-r \fI/BUILDDIR\fR
+.PP
+Zastavit jeden ze serverů odkazem na jeho PID (dle \fBstap\-server status\fR):
+\fBstap\-server status\fR):
+.PP
+.B \& $ [ service ] stap\-server stop \-p \fIPID\fR
+.PP
+
+Spustit skript prostřednictvím kompilačního serveru:
+.PP
+.B \& $ stap SCRIPT \-\-use\-server
+.PP
+Spustit skript jako neprivilegovaný uživatel pomocí kompilačního serveru:
+.PP
+.B \& $ stap SCRIPT
+.PP
+Zastavit všechny kompilační servery:
+.PP
+.B \& $ [ service ] stap\-server stop
+.PP
+Restartovat server po změně globální konfigurace a/nebo když byl přidán nový
+, nebo odebrán, či změněn existující server:
+.PP
+.B \& $ [ service ] stap\-server force-reload
+
+.SH BEZPEČNOST A OCHRANA SOUKROMÍ
+Systemtap je systémový administrační nástroj.  Zpřístupňuje interní datové struktury
+jádra, které mohou obsahovat privátní informace.  Přečtěte si manuálovou stránku
+.IR stap (1)
+která přináší více informací.
+
+.PP
+Jako síťový server by měl stap\-server být aktivován s rozvahou, aby se omezila
+všechna relevantní rizika.  Zvažte následující opatření:
+.TP
+1
+Spouštějte stap\-server pod běžným uživatelem, nikdy ne pod uživatelem root.
+
+Když je stap\-server spuštěn jako služba (t.j. \fBservice stap\-server\fR ...),
+pak výchozí chování je, že všechny servery běží pod uživatelem
+\fIstap\-server\fR.  Při přímém spuštění běží \fBservice stap\-server\fR pod
+uživatelem který jej vyvolal.  V každém případě lze uživatele změnit volbou
+\fI\-u\fR, nebo případně nastavením \fISTAP_USER=\fRusername v globálním
+konfiguračním souboru, nebo nastavením \fIUSER=\fRusername v konfiguračním
+souboru individuálního serveru.  Daný uživatel musí mít právo spustit proces
+pod jiným uživatelem.  Vice informací viz \fIKONFIGURACE\fR.
+
+Zvolený uživatel musí mít také právo zapisovat do logovacího souboru.  Umístění
+logovacího souboru lze upravit nastavením \fILOG_FILE=\fRpath v globálním
+konfiguračním souboru.  Vice informací viz \fIKONFIGURACE\fR.
+
+Zvolený uživatel musí mít právo čtení i zápisu do adresáře obsahujícího status
+soubory.  Toto umístění lze upravit nastavením \fISTAT_PATH=\fRpath v globálním
+konfiguračním souboru.  Vice informací viz \fIKONFIGURACE\fR.
+
+Zvolený uživatel musí mít právo čtení a zápisu pro adresář, kde se sestavuje
+uprobes.ko a související soubory.
+
+Systemtap server nepoběží, pokud zvoleným uživatelem je root.
+
+.TP
+2
+Spusťte stap\-server s omezeními na maximální čas běhu,
+velikost souboru, velikost použité paměti tak, aby ani potenciálně chybné
+vstupy nezpůsobily škody.
+
+Pokud uživatelem, pod kterým server běží, je \fIstap\-server\fR, pak každý
+požadavek server obsluhuje v rámci limitů nastavených v souboru
+\fI~stap-server/.systemtap/rc\fR.  V opačném případě nejsou žádné limity
+nastaveny.
+
+.TP
+3
+Spusťte stap\-server při nastavené proměnné prostřdí TMPDIR, která ukazuje do
+odděleného umístění, kde jsou zapnuty uživatelské kvóty.  Tím se zabrání
+nežádoucímu zaplnění souborového systému.
+
+Výchozí TMPDIR je \fI/tmp/\fR.
+
+.TP
+4
+Aktivujte firewall tak, aby klientské požadavky mohly přicházet jen z relativně
+bezpečných sítí.
+
+Pro automatickou volbu serverů klienty je třeba nainstalovat \fIavahi\fR jak
+na serveru, tak i na klientovi.  Firewall musí propouštět \fImDNS\fR zprávy.
+
+.PP
+
+Kompilační server systemtapu a související nástroje používají k síťové
+komunikaci SSL jak je implementovaná v rámci NSS.  NSS se také používá pro
+správu certifikátů.  Související databáze certifikátů musí být odpovídajícím
+způsobem chráněná, aby nedošlo ke snížení bezpečnosti systému.  Pro navýšení
+bezpečnosti kontroluje systemtap klient správná přístupová oprávnění dříve než
+přistoupí k databázi certifikátů.
+
+.SH SOUBORY
+.TP
+Důležité soubory a jim odpovídající umístění shrnuje manuálová stránka
+stappaths (7).
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR staprun (8),
+.IR stapprobes (3stap),
+.IR stappaths (7),
+.IR stapex (3stap),
+.IR avahi ,
+.IR ulimit (1),
+.IR NSS
+
+.SH CHYBY
+Použijte projektovou bugzillu, nebo mailing list.
+.nh
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .
+.hy
+.PP
+.IR error::reporting (7stap),
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs
+.hy

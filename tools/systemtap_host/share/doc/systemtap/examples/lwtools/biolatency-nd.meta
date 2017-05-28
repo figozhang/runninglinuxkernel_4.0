@@ -1,0 +1,12 @@
+title: Measure block I/O latency distribution (non-debuginfo)
+name: biolatency-nd.stp
+author: Brendan Gregg
+keywords: io
+description: This measures block I/O latency (storage I/O, ie, disk I/O), and shows the distribution as a histogram. This can be useful to identify the characteristics of I/O latency, beyond the averages shown by iostat(1). For example, to study I/O latency outliers, or multi-modal distributions.
+scope: system-wide
+usage: ./biolatency-nd.stp [interval [count]]
+arg_1: Output interval (seconds)
+arg_2: Output count
+test_support: stap -p4 biolatency-nd.stp
+test_check: stap -p4 biolatency-nd.stp
+test_installcheck: stap biolatency-nd.stp 1 1

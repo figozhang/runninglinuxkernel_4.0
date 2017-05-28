@@ -1,0 +1,82 @@
+#! /usr/bin/env stap
+/* This script works similar to ftrace's sched_switch. It displays a list of
+ * processes which get switched in and out of the scheduler. The format of display
+ * is PROCESS_NAME PROCESS_PID CPU TIMESTAMP PID: PRIORITY: PROCESS STATE ->/+
+ *    NEXT_PID : NEXT_PRIORITY: NEXT_STATE NEXT_PROCESS_NAME 
+ * -> indicates that prev process is scheduled out and the next process is 
+ *    scheduled in.
+ * + indicates that prev process has woken up the next process.
+ * The usage is sched_switch.stp <"pid"/"name"> pid/name
+ */
+
+global target_pid
+global target_name
+
+function state_calc(state) {
+	if(state == 0)
+	status = "R"
+	if(state == 1)
+	status = "S"
+	if(state == 2)
+	status = "D"
+	if(state == 4)
+	status = "T"
+	if(state == 8)
+	status = "T"
+	if(state == 16)
+	status = "Z"
+	if(state == 32)
+	status = "EXIT_DEAD"
+	return status
+}
+probe scheduler.wakeup
+{
+	if (target_pid != 0
+	    && task_pid != target_pid
+	    && pid() != target_pid)
+			next
+
+	if (target_name != ""
+	    && task_execname(task) != target_name
+	    && execname() != target_name)
+			next
+
+	printf("%-16s%5d %5d %5d:%5d:%s +   %5d:%5d:%s %-16s\n",
+                execname(), task_cpu(task), gettimeofday_ns(),
+                pid(), task_prio(task_current()), state_calc(task_state(task_current())),
+                task_pid(task), task_prio(task), state_calc(task_state(task)),
+                task_execname(task))
+}
+probe scheduler.ctxswitch
+{
+	if (target_pid != 0
+	    && next_pid != target_pid
+	    && prev_pid != target_pid)
+			next
+
+	if (target_name != ""
+	    && prev_task_name != target_name
+	    && next_task_name != target_name)
+			next
+
+	printf("%-16s%5d %5d %5d:%5d:%s ==> %5d:%5d:%s %-16s\n",prev_task_name,
+		task_cpu(prev_task),gettimeofday_ns(),prev_pid,prev_priority,state_calc(prevtsk_state),next_pid,
+		next_priority,state_calc(nexttsk_state),next_task_name)
+}
+probe begin
+{
+	target_pid = 0
+	target_name = ""
+
+	%( $# == 1 || $# > 2 %?
+		log("Wrong number of arguments, use none, 'pid nr' or 'name proc'")
+		exit()
+	%)
+
+	%( $# == 2 %?
+		if(@1 == "pid") 
+			target_pid = strtol(@2, 10)
+		if(@1 == "name")
+			target_name = @2
+	%)
+}

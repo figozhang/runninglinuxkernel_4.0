@@ -1,0 +1,13 @@
+title: See the amount of wall clock time a process spends in various states
+name: stopwatches.stp
+version: 1.0
+author: William Cohen
+keywords: time
+subsystem: process
+status: experimental
+exit: user-controlled
+output: on-exit
+scope: process
+description: The stopwatch.stp script illustrates how to use multiple stopwatches record how much wallclock time a process spends in kernel- and user-space.  On exit the script prints out the time in seconds, milliseconds, microseconds, and nanoseconds. Note that this output of this script is not directly comparable to the time command because time records the time that the process is actually active in kernel- and user-space.
+test_check: stap -p4 stopwatches.stp
+test_installcheck: stap stopwatches.stp -c "sleep 1"

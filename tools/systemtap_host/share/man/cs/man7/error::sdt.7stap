@@ -1,0 +1,92 @@
+.\" t
+.TH ERROR::SDT 7stap
+.SH JMÉNO
+error::sdt \- chyby značek <sys/sdt.h>
+
+.\" macros
+.de SAMPLE
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+..
+
+
+.SH POPIS
+
+Značky
+.BR <sys/sdt.h>
+
+používané v systemtapu jsou navrženy podle dtrace USDT API, ale mají odlišnou
+implementaci.  Přidávají do "text" segmentu uživatelského programu NOP
+instrukci a do ELF poznámky související metadata, která popisují vlastnosti
+značky, jako její jméno a parametry.  Tyto značky jsou rozpoznatelné různými
+nástroji.  Dokáže je konzumovat nejen systemtap, ale např. i  GDB.  Značky nesou
+informace o typech svých parametrů, a lze do nich vložit spolehlivé sondážní
+body nezávislé na ladicích informacích DWARF.
+
+.PP
+
+Dohledávání parametrů je komplikované: Protože jsou použity gcc inline-assembly
+directivy, ukládají značky STAP_PROBE / DTRACE_PROBE pro každý operand asm
+výraz.  Kompilátoru se předá volné asm omezení "nor", které obvykle funguje
+dobře.  Toto řešení obvykle nenutí kompilátor pracovat s registry, což by
+instrumentovaný program zpomalilo.  Ovšem ne vždy toto řešení funguje zcela bez
+chyb.
+
+.TP
+chyba vyhodnocení za běhu
+GCC může emitovat řetězce které assembler korektně zpracuje (v kontextu
+kompilovaného programu), ale ladicí nástroj může mít s jejich interpretací
+potíž.  Například se operand může odkazovat k lokálnímu symbolu, který se do
+finálního ELF souboru nedostane.  Takový operand je pak nedostupný.  Pokus o
+přístup k příslušnému parametru pak obvykle skončí chybou "SDT asm not
+understood".
+
+.TP
+příliš komplikovaný výraz
+GCC může generovat validní, ale příliš složitou adresaci založenou na
+komplexních datových typech a složité pointerové aritmetice.  Systemtap a/nebo
+GDB nemusejí být schopny takové výrazy správně analyzovat a v případě
+systemtapu bude pak výsledkem chyba "SDT asm not understood".
+
+.TP
+příliš restriktivní omezení
+GCC nemusí být schopné program s "nor" omezením přeložit kvůli nedostatku
+registrů nebo z jiného důvodu.  V takovém případě může nastat chyba jako např.
+"asm operand has impossible constraints".
+
+.PP
+
+Tyto problémy je v zásadě možno obejít dvěma cestami.
+
+.TP
+změnit omezení
+Při kompilaci instrumentovaného programu nastavte makro
+.IR STAP_SDT_ARG_CONSTRAINT
+na jiné omezení.  Různé možnosti uvádí GCC manuál.  Například na mnoha
+architekturách "r" způsobí předávání operandů přes registry a "g" ponechá
+operandy v zásadě bez omezení.
+
+.TP
+použijte debuginfo
+Pokud se instrumentovaný program zkompiluje, může být řešením ponechat v něm
+<sys/sdt.h> značky, ale vyhnout se extrakci parametrů z nich.  V nejhorším
+připadě odstraňte <sys/sdt.h> makra zcela.  Pokud byly ladicí informace
+vygenerovány a jsou k dispozici, systemtap se může odkazovat ke kontextovým
+proměnným namísto k parametrům značek STAP_PROBE.
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR stapprobes (3stap),
+.IR error::dwarf (7stap),
+.IR http://gcc.gnu.org/onlinedocs/gcc/Constraints.html ,
+.IR http://sourceware.org/systemtap/wiki/UserSpaceProbeImplementation ,
+.IR error::reporting (7stap)

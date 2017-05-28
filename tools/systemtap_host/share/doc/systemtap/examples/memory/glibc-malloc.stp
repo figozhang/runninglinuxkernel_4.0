@@ -1,0 +1,128 @@
+#! /usr/bin/env stap
+
+# http://developerblog.redhat.com/2015/01/06/malloc-systemtap-probes-an-example/
+
+
+global sbrk, waits, arenalist, mmap_threshold = 131072, heaplist
+  
+  
+# sbrk accounting
+  
+probe process("/lib*/libc.so.6").mark("memory_sbrk_more")
+{
+  sbrk += $arg2
+}
+  
+probe process("/lib*/libc.so.6").mark("memory_sbrk_less")
+{
+  sbrk -= $arg2
+}
+
+
+# threshold tracking
+
+probe process("/lib*/libc.so.6").mark("memory_mallopt_free_dyn_thresholds")
+{
+  printf("%d: New thresholds: mmap: %ld bytes, trim: %ld bytes\n", tid(), $arg1,
+         $arg2)
+  mmap_threshold = $arg1
+}
+
+
+# arena accounting
+
+probe process("/lib*/libc.so.6").mark("memory_arena_new")
+{
+  printf ("%d: Created new arena\n", tid())
+  arenalist[$arg1, tid()] = 1
+}
+
+probe process("/usr/lib*/libc.so.6").mark("memory_arena_reuse_wait")
+{
+  waits[tid()]++
+}
+
+probe process("/usr/lib*/libc.so.6").mark("memory_arena_reuse")
+{
+  if ($arg2 != 0)
+    {
+      printf ("%d: failed to allocate on own arena, trying another\n", tid())
+      arenalist[$arg1, tid()] = 1
+    }
+}
+
+probe process("/usr/lib*/libc.so.6").mark("memory_arena_reuse_free_list")
+{
+  arenalist[$arg1, tid()] = 1
+}
+
+probe process.thread.end
+{
+  /* Find the thread and mark its arena as unused.  */
+  %( systemtap_v >= "2.6"
+  %?
+    delete arenalist[*, tid()]
+  %:
+    foreach ([a, t] in arenalist)
+      if (t == tid())
+        break
+    delete arenalist[a, t]
+  %)
+}
+
+
+# heap accounting
+
+probe process("/usr/lib*/libc.so.6").mark("memory_heap_new")
+{
+  printf("%d: New heap\n", tid());
+  heaplist[$arg1] = $arg2
+}
+
+probe process("/usr/lib*/libc.so.6").mark("memory_heap_more")
+{
+  heaplist[$arg1] = $arg2
+}
+
+probe process("/usr/lib*/libc.so.6").mark("memory_heap_less")
+{
+  heaplist[$arg1] = $arg2
+}
+
+probe process("/usr/lib*/libc.so.6").mark("memory_heap_free")
+{
+  delete heaplist[$arg1]
+}
+
+
+# reporting
+
+probe begin
+{
+  if (target() == 0) error ("please specify target process with -c / -x")
+}
+
+probe end
+{
+  printf ("malloc information for pid %d\n", target())
+  printf ("Contention: \n")
+  foreach (t in waits)
+  printf ("\t%d: %d waits\n", t, waits[t])
+  
+  print("Active arenas:\n")
+  foreach ([a, t] in arenalist)
+  {
+    if (arenalist[a, t])
+      printf ("\t%d -> %p\n", t, a)
+  }
+  
+  print ("Allocated heaps:\n")
+  foreach (h in heaplist)
+  {
+    if (heaplist[h])
+      printf ("\t%p -> %ld bytes\n", h, heaplist[h])
+  }
+  
+  printf ("Total sbrk: %ld bytes\n", sbrk)
+  printf ("Mmap threshold in the end: %ld kb\n", mmap_threshold / 1024)
+}

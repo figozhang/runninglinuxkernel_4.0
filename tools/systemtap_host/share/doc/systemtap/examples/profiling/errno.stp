@@ -1,0 +1,37 @@
+#! /usr/bin/env stap
+#
+# Copyright (C) 2010 Red Hat, Inc.
+# By Dominic Duval, Red Hat Inc.
+# dduval@redhat.com
+#
+# Monitors errors returned by system calls.
+#
+# USAGE: stap errno.stp
+#
+
+global execname, errors
+
+probe syscall.*.return {
+  errno = $return
+  if ( errno < 0 ) {
+    p = pid()
+    execname[p]=execname();
+    errors[p, errno, name] <<< 1
+  }
+}
+
+probe end {
+  printf("\n")
+  printf("%8s %-32s %-16s %-12s %8s\n",
+    "PID", "Syscall", "Process", "Error", "Count")
+  foreach ([pid, error, thissyscall] in errors- limit 20) {
+    printf("%8d %-32s %-16s %-12s %8d\n",
+      pid,
+      thissyscall, 
+      execname[pid],
+      error ? errno_str(error) : "",
+      @count(errors[pid, error, thissyscall])
+    )
+  }
+}
+

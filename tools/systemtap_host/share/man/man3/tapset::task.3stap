@@ -1,0 +1,242 @@
+.\" -*- nroff -*-
+.TH TAPSET::TASK 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::task \- systemtap task tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B task_current 
+The current task_struct of the current task
+.IP
+See 
+.IR function::task_current (3stap)
+ for details.
+.P
+.TP
+.B task_parent 
+The task_struct of the parent task
+.IP
+See 
+.IR function::task_parent (3stap)
+ for details.
+.P
+.TP
+.B task_state 
+The state of the task
+.IP
+See 
+.IR function::task_state (3stap)
+ for details.
+.P
+.TP
+.B task_execname 
+The name of the task
+.IP
+See 
+.IR function::task_execname (3stap)
+ for details.
+.P
+.TP
+.B task_pid 
+The process identifier of the task
+.IP
+See 
+.IR function::task_pid (3stap)
+ for details.
+.P
+.TP
+.B task_ns_pid 
+The process identifier of the task
+.IP
+See 
+.IR function::task_ns_pid (3stap)
+ for details.
+.P
+.TP
+.B pid2task 
+The task_struct of the given process identifier
+.IP
+See 
+.IR function::pid2task (3stap)
+ for details.
+.P
+.TP
+.B pid2execname 
+The name of the given process identifier
+.IP
+See 
+.IR function::pid2execname (3stap)
+ for details.
+.P
+.TP
+.B task_tid 
+The thread identifier of the task
+.IP
+See 
+.IR function::task_tid (3stap)
+ for details.
+.P
+.TP
+.B task_ns_tid 
+The thread identifier of the task as seen in a namespace
+.IP
+See 
+.IR function::task_ns_tid (3stap)
+ for details.
+.P
+.TP
+.B task_gid 
+The group identifier of the task
+.IP
+See 
+.IR function::task_gid (3stap)
+ for details.
+.P
+.TP
+.B task_ns_gid 
+The group identifier of the task as seen in a namespace
+.IP
+See 
+.IR function::task_ns_gid (3stap)
+ for details.
+.P
+.TP
+.B task_egid 
+The effective group identifier of the task
+.IP
+See 
+.IR function::task_egid (3stap)
+ for details.
+.P
+.TP
+.B task_ns_egid 
+The effective group identifier of the task
+.IP
+See 
+.IR function::task_ns_egid (3stap)
+ for details.
+.P
+.TP
+.B task_uid 
+The user identifier of the task
+.IP
+See 
+.IR function::task_uid (3stap)
+ for details.
+.P
+.TP
+.B task_ns_uid 
+The user identifier of the task
+.IP
+See 
+.IR function::task_ns_uid (3stap)
+ for details.
+.P
+.TP
+.B task_euid 
+The effective user identifier of the task
+.IP
+See 
+.IR function::task_euid (3stap)
+ for details.
+.P
+.TP
+.B task_ns_euid 
+The effective user identifier of the task
+.IP
+See 
+.IR function::task_ns_euid (3stap)
+ for details.
+.P
+.TP
+.B task_prio 
+The priority value of the task
+.IP
+See 
+.IR function::task_prio (3stap)
+ for details.
+.P
+.TP
+.B task_nice 
+The nice value of the task
+.IP
+See 
+.IR function::task_nice (3stap)
+ for details.
+.P
+.TP
+.B task_cpu 
+The scheduled cpu of the task
+.IP
+See 
+.IR function::task_cpu (3stap)
+ for details.
+.P
+.TP
+.B task_open_file_handles 
+The number of open files of the task
+.IP
+See 
+.IR function::task_open_file_handles (3stap)
+ for details.
+.P
+.TP
+.B task_max_file_handles 
+The max number of open files for the task
+.IP
+See 
+.IR function::task_max_file_handles (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::task_current (3stap),
+.BR
+.IR \%function::task_parent (3stap),
+.BR
+.IR \%function::task_state (3stap),
+.BR
+.IR \%function::task_execname (3stap),
+.BR
+.IR \%function::task_pid (3stap),
+.BR
+.IR \%function::task_ns_pid (3stap),
+.BR
+.IR \%function::pid2task (3stap),
+.BR
+.IR \%function::pid2execname (3stap),
+.BR
+.IR \%function::task_tid (3stap),
+.BR
+.IR \%function::task_ns_tid (3stap),
+.BR
+.IR \%function::task_gid (3stap),
+.BR
+.IR \%function::task_ns_gid (3stap),
+.BR
+.IR \%function::task_egid (3stap),
+.BR
+.IR \%function::task_ns_egid (3stap),
+.BR
+.IR \%function::task_uid (3stap),
+.BR
+.IR \%function::task_ns_uid (3stap),
+.BR
+.IR \%function::task_euid (3stap),
+.BR
+.IR \%function::task_ns_euid (3stap),
+.BR
+.IR \%function::task_prio (3stap),
+.BR
+.IR \%function::task_nice (3stap),
+.BR
+.IR \%function::task_cpu (3stap),
+.BR
+.IR \%function::task_open_file_handles (3stap),
+.BR
+.IR \%function::task_max_file_handles (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

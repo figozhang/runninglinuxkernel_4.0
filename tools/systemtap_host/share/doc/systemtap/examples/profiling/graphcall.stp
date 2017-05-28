@@ -1,0 +1,19 @@
+#! /usr/bin/env stap
+
+# When the output of this script is fed to stapgraph, it produces a
+# mousable event line with events at each call of interest. When the
+# event is hovered over, the backtrace is displayed in stapgraph.
+
+probe begin
+{
+    printf("%%DataSet:call 75 ff0000 discreet\n")
+    printf("call %%Title:Calls to %s\n", @2)
+    printf ("call %%XAxisTitle:Time\n")
+    printf ("%%LineEnd:0\n")
+}
+
+probe process(@1).function(@2).call {
+    printf("call %d ", gettimeofday_ms())
+    print_ubacktrace_brief();
+    printf("%c", 0)
+}

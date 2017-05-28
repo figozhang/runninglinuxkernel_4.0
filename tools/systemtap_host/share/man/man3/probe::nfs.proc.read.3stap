@@ -1,0 +1,72 @@
+'\" t
+.\"     Title: probe::nfs.proc.read
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Network File Storage Tapsets
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NFS\&.PROC\&." "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::nfs.proc.read \- NFS client synchronously reads file from server
+.SH "SYNOPSIS"
+.sp
+.nf
+nfs\&.proc\&.read 
+.fi
+.SH "VALUES"
+.PP
+\fIprot\fR
+.RS 4
+transfer protocol
+.RE
+.PP
+\fIserver_ip\fR
+.RS 4
+IP address of server
+.RE
+.PP
+\fIversion\fR
+.RS 4
+NFS version
+.RE
+.PP
+\fIoffset\fR
+.RS 4
+the file offset
+.RE
+.PP
+\fIflags\fR
+.RS 4
+used to set task\->tk_flags in rpc_init_task function
+.RE
+.PP
+\fIcount\fR
+.RS 4
+read bytes in this execution
+.RE
+.SH "DESCRIPTION"
+.PP
+All the nfs\&.proc\&.read kernel functions were removed in kernel commit 8e0969 in December 2006, so these probes do not exist on Linux 2\&.6\&.21 and newer kernels\&.
+.SH SEE ALSO\n 
+.IR tapset::nfs_proc (3stap)

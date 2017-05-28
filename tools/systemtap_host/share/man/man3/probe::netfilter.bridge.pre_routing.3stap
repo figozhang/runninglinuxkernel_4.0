@@ -1,0 +1,190 @@
+'\" t
+.\"     Title: probe::netfilter.bridge.pre_routing
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Networking Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NETFILTER\&.B" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::netfilter.bridge.pre_routing \- \- Called before a bridging packet is routed
+.SH "SYNOPSIS"
+.sp
+.nf
+netfilter\&.bridge\&.pre_routing 
+.fi
+.SH "VALUES"
+.PP
+\fIbr_rid\fR
+.RS 4
+Identity of root bridge
+.RE
+.PP
+\fIoutdev\fR
+.RS 4
+Address of net_device representing output device, 0 if unknown
+.RE
+.PP
+\fInf_stop\fR
+.RS 4
+Constant used to signify a \*(Aqstop\*(Aq verdict
+.RE
+.PP
+\fIbr_bid\fR
+.RS 4
+Identity of bridge
+.RE
+.PP
+\fIbr_max\fR
+.RS 4
+Max age in 1/256 secs
+.RE
+.PP
+\fInf_accept\fR
+.RS 4
+Constant used to signify an \*(Aqaccept\*(Aq verdict
+.RE
+.PP
+\fIllcpdu\fR
+.RS 4
+Address of LLC Protocol Data Unit
+.RE
+.PP
+\fIbr_cost\fR
+.RS 4
+Total cost from transmitting bridge to root
+.RE
+.PP
+\fIoutdev_name\fR
+.RS 4
+Name of network device packet will be routed to (if known)
+.RE
+.PP
+\fIllcproto_stp\fR
+.RS 4
+Constant used to signify Bridge Spanning Tree Protocol packet
+.RE
+.PP
+\fIpf\fR
+.RS 4
+Protocol family \-\- always
+\(lqbridge\(rq
+.RE
+.PP
+\fIindev\fR
+.RS 4
+Address of net_device representing input device, 0 if unknown
+.RE
+.PP
+\fIbr_htime\fR
+.RS 4
+Hello time in 1/256 secs
+.RE
+.PP
+\fInf_queue\fR
+.RS 4
+Constant used to signify a \*(Aqqueue\*(Aq verdict
+.RE
+.PP
+\fIbr_flags\fR
+.RS 4
+BPDU flags
+.RE
+.PP
+\fIbr_fd\fR
+.RS 4
+Forward delay in 1/256 secs
+.RE
+.PP
+\fIbr_vid\fR
+.RS 4
+Protocol version identifier
+.RE
+.PP
+\fIbr_mac\fR
+.RS 4
+Bridge MAC address
+.RE
+.PP
+\fIbr_msg\fR
+.RS 4
+Message age in 1/256 secs
+.RE
+.PP
+\fIbr_prid\fR
+.RS 4
+Protocol identifier
+.RE
+.PP
+\fIbrhdr\fR
+.RS 4
+Address of bridge header
+.RE
+.PP
+\fIbr_type\fR
+.RS 4
+BPDU type
+.RE
+.PP
+\fIbr_poid\fR
+.RS 4
+Port identifier
+.RE
+.PP
+\fInf_stolen\fR
+.RS 4
+Constant used to signify a \*(Aqstolen\*(Aq verdict
+.RE
+.PP
+\fIlength\fR
+.RS 4
+The length of the packet buffer contents, in bytes
+.RE
+.PP
+\fInf_repeat\fR
+.RS 4
+Constant used to signify a \*(Aqrepeat\*(Aq verdict
+.RE
+.PP
+\fIprotocol\fR
+.RS 4
+Packet protocol
+.RE
+.PP
+\fIbr_rmac\fR
+.RS 4
+Root bridge MAC address
+.RE
+.PP
+\fInf_drop\fR
+.RS 4
+Constant used to signify a \*(Aqdrop\*(Aq verdict
+.RE
+.PP
+\fIindev_name\fR
+.RS 4
+Name of network device packet was received on (if known)
+.RE
+.SH SEE ALSO\n 
+.IR tapset::netfilter (3stap)

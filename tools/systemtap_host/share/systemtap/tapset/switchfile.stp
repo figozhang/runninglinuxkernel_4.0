@@ -1,0 +1,20 @@
+// File switching tapset
+// Copyright (C) 2015 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/**
+ * sfunction switch_file - switch to the next output file
+ *
+ * Description: This function sends a signal to the stapio process,
+ * commanding it to rotate to the next output file when output is
+ * sent to file(s).
+ */
+function switch_file() {
+  if (stp_pid() != 0) {
+    system(sprintf("kill -USR2 %d", stp_pid()))
+  }
+}

@@ -1,0 +1,121 @@
+# IA64 system calls
+
+# In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
+# code.  In kernels >= 2.6.33, the arch-specific code just calls
+# generic sys_mmap_pgoff().
+%( kernel_v < "2.6.33" %?
+# mmap
+# sys_mmap (unsigned long addr, unsigned long len, int prot, int flags, int fd, long off)
+#
+probe syscall.mmap = kernel.function("sys_mmap") ?
+{
+        name = "mmap"
+        start = $addr
+        len = $len
+        prot = $prot
+        flags = $flags
+	# Although the kernel gets an unsigned long fd, on the
+	# user-side it is a signed int.  Fix this.
+	fd = __int32($fd)
+        offset = $off
+        argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, $len,
+                _mprotect_prot_str($prot), _mmap_flags($flags),
+		__int32($fd), $off)
+}
+
+probe syscall.mmap.return = kernel.function("sys_mmap").return ?
+{
+        name = "mmap"
+        retstr = return_str(2, $return)
+}
+
+# mmap2
+# sys_mmap2 (unsigned long addr, unsigned long len, int prot, int flags, int fd, long pgoff)
+probe syscall.mmap2 = kernel.function("sys_mmap2") ?
+{
+        name = "mmap2"
+        start = $addr
+        length = $len
+        prot = $prot
+        flags = $flags
+        fd = $fd
+        pgoffset = $pgoff
+        argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr,
+                $len, _mprotect_prot_str($prot), _mmap_flags($flags),
+                $fd, $pgoff)
+}
+probe syscall.mmap2.return = kernel.function("sys_mmap2").return ?
+{
+        name = "mmap2"
+        retstr = return_str(2, $return)
+}
+%)
+
+%( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
+# sigaltstack _______________________________________________
+# asmlinkage long
+# sys_sigaltstack (const stack_t __user *uss, stack_t __user *uoss, long arg2,
+#                  long arg3, long arg4, long arg5, long arg6, long arg7,
+#                  struct pt_regs regs)
+#
+probe syscall.sigaltstack = kernel.function("sys_sigaltstack")
+{
+	name = "sigaltstack";
+%(systemtap_v <= "1.4" %?
+	ss_uaddr = $uss
+	oss_uaddr = $uoss
+%)
+	uss_uaddr = $uss
+	uoss_uaddr = $uoss
+%(systemtap_v < "2.3" %?
+	regs = &$regs
+%)
+	argstr = sprintf("%s, %p", _stp_sigaltstack_u($uss), $uoss)
+}
+probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
+{
+	name = "sigaltstack";
+	retstr = return_str(1, $return)
+}
+%)
+
+# sysctl _____________________________________________________
+#
+# long sys32_sysctl (struct sysctl32 __user *args)
+#
+probe syscall.sysctl32 = kernel.function("sys32_sysctl") ?
+{
+	name = "sysctl"
+	argstr = sprintf("%p", $args)
+}
+probe syscall.sysctl32.return = kernel.function("sys32_sysctl").return ?
+{
+	name = "sysctl"
+	retstr = return_str(1, $return)
+}
+
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). But, it was just a wrapper around generic
+# do_execve(). But, the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+#  long sys_execve (char __user *filename, char __user * __user *argv,
+#		    char __user * __user *envp, struct pt_regs *regs)
+probe syscall.execve = kernel.function("sys_execve").call ?
+{
+	name = "execve"
+	filename = user_string_quoted($filename)
+	args = __get_argv($argv, 0)
+	env_str = __count_envp($envp)
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe syscall.execve.return = kernel.function("sys_execve").return ?
+{
+	name = "execve"
+	retstr = return_str(1, $return)
+}
+%)

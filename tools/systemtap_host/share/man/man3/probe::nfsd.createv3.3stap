@@ -1,0 +1,87 @@
+'\" t
+.\"     Title: probe::nfsd.createv3
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Network File Storage Tapsets
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NFSD\&.CREATE" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::nfsd.createv3 \- NFS server creating a regular file or set file attributes for client
+.SH "SYNOPSIS"
+.sp
+.nf
+nfsd\&.createv3 
+.fi
+.SH "VALUES"
+.PP
+\fIfilelen\fR
+.RS 4
+the length of file name
+.RE
+.PP
+\fIiap_valid\fR
+.RS 4
+Attribute flags
+.RE
+.PP
+\fIiap_mode\fR
+.RS 4
+file access mode
+.RE
+.PP
+\fIfilename\fR
+.RS 4
+file name
+.RE
+.PP
+\fIverifier\fR
+.RS 4
+file attributes (atime,mtime,mode)\&. It\*(Aqs used to reset file attributes for CREATE_EXCLUSIVE
+.RE
+.PP
+\fIfh\fR
+.RS 4
+file handle (the first part is the length of the file handle)
+.RE
+.PP
+\fIclient_ip\fR
+.RS 4
+the ip address of client
+.RE
+.PP
+\fItruncp\fR
+.RS 4
+trunp arguments, indicates if the file shouldbe truncate
+.RE
+.PP
+\fIcreatemode\fR
+.RS 4
+create mode \&.The possible values could be: NFS3_CREATE_EXCLUSIVE, NFS3_CREATE_UNCHECKED, or NFS3_CREATE_GUARDED
+.RE
+.SH "DESCRIPTION"
+.PP
+This probepoints is only called by nfsd3_proc_create and nfsd4_open when op_claim_type is NFS4_OPEN_CLAIM_NULL\&.
+.SH SEE ALSO\n 
+.IR tapset::nfsd (3stap)

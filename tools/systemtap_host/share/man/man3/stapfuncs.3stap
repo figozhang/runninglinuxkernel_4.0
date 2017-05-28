@@ -1,0 +1,23 @@
+.\" t
+.TH STAPFUNCS 3stap 
+.SH NAME
+stapfuncs \- systemtap functions
+
+.SH DESCRIPTION
+Functions in the standard systemtap tapset are individually documented
+in the
+.IR 3stap
+manual section, with the
+.IR function::
+prefix.  Some built-in functions such as
+.IR printf
+are documented on the
+.IR stap (1)
+man page.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR function::* (3stap),
+.IR tapset::* (3stap)

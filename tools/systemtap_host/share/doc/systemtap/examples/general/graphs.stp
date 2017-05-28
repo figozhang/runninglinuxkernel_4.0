@@ -1,0 +1,60 @@
+#! /usr/bin/env stap
+
+# ------------------------------------------------------------------------
+# data collection
+
+# disk I/O stats
+probe begin { qnames["ioblock"] ++; qsq_start ("ioblock") }
+probe ioblock.request { qs_wait ("ioblock") qs_run("ioblock") }
+probe ioblock.end { qs_done ("ioblock") }
+
+# CPU utilization
+probe begin { qnames["cpu"] ++; qsq_start ("cpu") }
+probe scheduler.cpu_on { if (!idle) {qs_wait ("cpu") qs_run ("cpu") }}
+probe scheduler.cpu_off { if (!idle) qs_done ("cpu") }
+
+
+# ------------------------------------------------------------------------
+# utilization history tracking
+
+global N
+probe begin { N = 50 }
+
+global qnames, util, histidx
+
+function qsq_util_reset(q) {
+  u=qsq_utilization (q, 100)
+  qsq_start (q)
+  return u
+}
+
+probe timer.ms(100) {  # collect utilization percentages frequently
+  histidx = (histidx + 1) % N  # into circular buffer
+  foreach (q in qnames)
+    util[histidx,q] = qsq_util_reset(q)
+}
+
+
+# ------------------------------------------------------------------------
+# general gnuplot graphical report generation
+
+probe timer.ms(1000) {
+  # emit gnuplot command to display recent history
+
+  printf ("set yrange [0:100]\n")
+  printf ("plot ")
+  foreach (q in qnames+)
+    {
+      if (++nq >= 2) printf (", ")
+      printf ("'-' title \"%s\" with lines", q)
+    }
+  printf ("\n")
+
+  foreach (q in qnames+) {
+    for (i = (histidx + 1) % N; i != histidx; i = (i + 1) % N)
+      printf("%d\n", util[i,q])
+    printf ("e\n")
+  }
+
+  printf ("pause 1\n")
+}

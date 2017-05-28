@@ -1,0 +1,10 @@
+title: Count syscalls with process details (non-debuginfo)
+name: syscallbypid-nd.stp
+author: Brendan Gregg
+keywords: io
+description: This traces syscalls system-wide, and produces a summary report showing their counts by process ID, process name, and syscall types.
+scope: system-wide
+usage: ./syscallbypid-nd.stp
+test_support: stap -p4 syscallbypid-nd.stp
+test_check: stap -p4 syscallbypid-nd.stp
+test_installcheck: stap syscallbypid-nd.stp -c "sleep 1"

@@ -1,0 +1,120 @@
+This text describes contribution procedures for adding scripts to
+systemtap.examples directory.  Please read before submitting SystemTap
+examples.  Discussions take place on the
+<systemtap@sourceware.org> mailing list.
+
+- general
+
+  The script should do something that normal users of SystemTap might
+  like to do, such as show which processes have system calls that time
+  out or show which memory accesses cause page faults.  Scripts that
+  check that some aspect of SystemTap operates correctly, but would
+  never be used by a regular user should go in one of the other
+  testsuite directories.
+
+- copyright
+
+  You must designate the appropriate copyright holder for your
+  contribution.  The copyright holder is assumed to agree with the
+  general licensing terms (GPLv2+).
+
+- coding style
+
+  Abide by the general formatting of the code for SystemTap.  The
+  code base generally follows the GNU standards in usermode code and
+  the Linux kernel standards in runtime code.
+
+  - Try to keep the lines shorter than 80 characters long.
+  - Make use of SystemTap functions to factor out common idioms in code.
+  - Use tapset probe points rather than raw function names.
+  - Make scripts portable by avoiding probes by file and line number.
+  - Avoid unnecessary use of guru mode (-g) in the examples.
+  - Make the file executable and use the following line at the
+    beginning of the script to select the proper interpreter:
+
+    #! /usr/bin/env stap
+
+- Describe the example
+
+  Each example script has a description in a .meta file that provide
+  an easy-to-parse format that describes various aspect of the example
+  script. The .meta file has the same base name as the example script.
+  The .meta file is parsed to generate a web page listing all the
+  available examples; the webpage is available at:
+  http://sourceware.org/systemtap/examples/.  The .meta file also
+  describes how to run the compiled example script for testing. This
+  ensures that the example is frequently run to verify it works on a
+  wide range of platforms.
+
+  The meta file may contain the following elements. Each element (key
+  and value) are on one line. If a key can have a list of values, the
+  list elements are separated by spaces.  Only fields marked with @
+  below are meaningful enough and used by the index-generator, so
+  a .meta file can be quite small.  The generator script
+      perl examples-index-gen.pl
+  should be run whenever .meta/.txt files are modified.
+
+@ title: Descriptive title for the script (required)
+@ name: the file name for the script, e.g. iotime.stp (required)
+  version: versioning if any fixes and developed can be identified
+           (optional)
+  author: name of author(s), if known (optional)
+  exclusivearch: Stated if the script can only run on some arches
+                 this concept borrowed from rpm, matches types for
+                 rpm: x86 i386 x86_64 ppc ppc64, s390 (optional)
+  requires: Some scripts may require software to be available. In some
+            cases may need version numbering, e.g. kernel >= 2.6
+            Can have multiple "requires:" tags. (optional)
+@ keywords: List of likely words to categorize the script (required)
+            keywords are separated by spaces.  Please don't be
+            unnecessarily innovative with keywords.  Tag really good
+            examples with the "_best" keyword for highlighting in indexes.
+  subsystem: List what part of the kernel the instrumentation probes
+             (optional), similar to keywords
+  application: when user-space probing becomes available (optional)
+               a script might probe a particular application
+               this tag indicates the applicaton
+  status: describes the state of development for the script (optional)
+          proposed      just an idea
+          experimental  an implemented idea, but use at own risk
+          alpha
+          beta
+          production    should be safe to use
+  exit: how long does the script run? (optional)
+        fixed           exits in a fixed amount of time
+        user-controlled       exits with "cntrl-c"
+        event-ended                 exits with some arbitrary event
+  output: what kind of output does the script generate? (optional)
+          trace histogram graph sorted-list batch timed on-exit
+  scope: How much of the processes on the machine does the script
+         watch? (required) system-wide, process or per-socket
+  arg_[0-9]+: Describe what the arguments into the script are.
+              (optional)
+@ description: A text description what the script does. (required)
+  test_support: How to check that the example is applicable.  Run by
+                'sh -c COMMAND'. (e.g. stap -l needed.probe)
+  test_check: How to check that the example compiles.  Run by
+              'sh -c COMMAND'. (e.g. stap -p4 iotime.stp)
+  test_installcheck: How to check that the example runs.  Run by
+                     'sh -c COMMAND'.
+                     (e.g. stap iotime.stp -c "sleep 1")
+@ usage: A sample invocation of the script, if more informative than
+         the test_* ones.
+@        As an alternative, a SAMPLE.txt file beside the .meta/.stp
+         files can be used to give longer freeform usage examples
+         for the script.
+
+
+- Review, revision, and submission of the example script
+
+  When you have a SystemTap script that should be included as an
+  example, submit it to the SystemTap mailing list,
+  systemtap@sourceware.org for review. Even if the script is not
+  ready for submission as an example, feel free to ask questions or
+  discuss the work-in-progress script with other people working with
+  SystemTap.
+
+Note that the check.exp test script checks for an optional tcl file
+that can check to see if the example is applicable to the system,
+somewhat analogous to the 'test_support' key mentioned above.
+

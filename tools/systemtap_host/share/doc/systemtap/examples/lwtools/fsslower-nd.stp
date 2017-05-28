@@ -1,0 +1,129 @@
+#!/usr/bin/stap
+/*
+ * fslower-nd.stp	Trace slow file system sync reads and writes.
+ *			For Linux, uses SystemTap (non-debuginfo).
+ *
+ * USAGE: ./fsslower-nd.stp [min_ms]
+ *
+ * This script uses kernel dynamic tracing of two common file system functions:
+ * do_sync_read() and do_sync_write(). This provides a view of just two file
+ * system request types. There are typically many others: asynchronous I/O,
+ * directory operations, file handle operations, etc, that this script does
+ * not instrument.
+ *
+ * By default, a minimum millisecond threshold of 10 is used.
+ *
+ * From systemtap-lwtools: https://github.com/brendangregg/systemtap-lwtools
+ *
+ * See the corresponding man page (in systemtap-lwtools) for more info.
+ *
+ * Copyright (C) 2015 Brendan Gregg.
+ * Copyright (C) 2015 Red Hat, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * 06-Feb-2015	Brendan Gregg	Created this.
+ */
+
+global ts[65536];	# 65536 is max concurrent I/O
+global sz[65536];	# "
+global min_ms = 10;
+
+probe begin
+{
+	if (argv_1 != "") {
+		min_ms = strtol(argv_1, 10);
+	}
+	printf("Tracing FS sync reads and writes slower than %d ms...", min_ms);
+	printf(" Hit Ctrl-C to end.\n");
+	printf("%-8s %-6s %-16s %-14s %-7s %8s\n", "TIME", "PID", "COMM",
+	    "FUNC", "SIZE", "LAT(ms)");
+}
+
+function hhmmss() {
+	return substr(ctime(gettimeofday_s()), 11, 8);
+}
+
+probe read_funcs, write_funcs
+{
+	sz[tid()] = int_arg(3);
+	ts[tid()] = gettimeofday_ns();
+}
+
+probe read_funcs = kprobe.function("do_sync_read") !, __vfs_read
+{
+}
+probe __vfs_read = kprobe.function("__vfs_read")
+{
+	# Skip the call if new_sync_read() wouldn't be called.
+	file = pointer_arg(1)
+	if (!file || @cast(file, "file")->f_op->read
+	    || !@cast(file, "file")->f_op->read_iter)
+		next
+}
+
+probe write_funcs = kprobe.function("do_sync_write") !, __vfs_write
+{
+}
+probe __vfs_write = kprobe.function("__vfs_write")
+{
+	# Skip the call if new_sync_write() wouldn't be called.
+	file = pointer_arg(1)
+	if (!file || @cast(file, "file")->f_op->write
+	    || !@cast(file, "file")->f_op->write_iter)
+		next
+}
+
+probe kprobe.function("sock_write_iter") !, kprobe.function("sock_aio_write")
+{
+	/* not a file system write */
+	sz[tid()] = 0;
+	ts[tid()] = 0;
+}
+
+probe read_funcs.return, write_funcs.return
+{
+	if (ts[tid()]) {
+		lat = (gettimeofday_ns() - ts[tid()]) / 1000000;
+		if (lat >= min_ms) {
+			printf("%-8s %-6d %-16s %-14s %-7d %8d\n", hhmmss(),
+			    pid(), execname(), ppfunc(), sz[tid()], lat);
+		}
+		delete sz[tid()];
+		delete ts[tid()];
+	}
+}
+
+probe read_funcs.return = kprobe.function("do_sync_read").return !,
+			  __vfs_read.return
+{
+}
+probe __vfs_read.return = kprobe.function("__vfs_read").return
+{
+	# Skip the call if new_sync_read() wouldn't be called.
+	file = @entry(pointer_arg(1))
+	if (!file || @cast(file, "file")->f_op->read
+	    || !@cast(file, "file")->f_op->read_iter)
+		next
+}
+
+probe write_funcs.return = kprobe.function("do_sync_write").return !,
+			   __vfs_write.return
+{
+}
+probe __vfs_write.return = kprobe.function("__vfs_write")
+{
+	# Skip the call if new_sync_write() wouldn't be called.
+	file = pointer_arg(1)
+	if (!file || @cast(file, "file")->f_op->write
+	    || !@cast(file, "file")->f_op->write_iter)
+		next
+}

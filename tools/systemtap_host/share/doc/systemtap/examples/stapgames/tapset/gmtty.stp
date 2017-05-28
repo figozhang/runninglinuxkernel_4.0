@@ -1,0 +1,48 @@
+# TTY related routines for games
+# Copyright (C) 2011 Masami Hiramatsu <masami.hiramatsu@gmail.com>
+#
+# This file is free software and is distributed under the terms of the GNU
+# General Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+global GM_tty_ws_row, GM_tty_ws_col, GM_tty_name
+
+# Initialize current TTY -- must be called from begin
+function game_tty_init:long ()
+{
+	tty = @cast(task_current(), "task_struct")->signal->tty
+	if (tty) {
+		namep = @cast(tty,"tty_struct")->name
+		GM_tty_name = kernel_string(namep)
+		GM_tty_ws_col = @cast(tty, "tty_struct")->winsize->ws_col
+		GM_tty_ws_row = @cast(tty, "tty_struct")->winsize->ws_row
+	}
+	return tty
+}
+
+probe begin(-100) {
+	if (game_tty_init() == 0) {
+		print("Failed to get current tty\n")
+		exit()
+	}
+}
+
+probe game.tty.resize = kernel.function("tty_do_resize") {
+	if (kernel_string($tty->name) == GM_tty_name) {
+		row = $ws->ws_row
+		col = $ws->ws_col
+	}
+}
+
+probe game.tty.resize {
+	GM_tty_ws_row = row
+	GM_tty_ws_col = col
+}
+
+function game_tty_ws_row:long () {
+	return GM_tty_ws_row
+}
+
+function game_tty_ws_col:long () {
+	return GM_tty_ws_col
+}

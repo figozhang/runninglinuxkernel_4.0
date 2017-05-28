@@ -1,0 +1,92 @@
+# plimit.stp
+# Copyright (C) 2006 Red Hat, Inc., Eugene Teo <eteo@redhat.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+
+# Example:
+# $ stap -g plimit.stp `pgrep udevd`
+# OR
+# $ stap -g plimit.stp -x `pgrep udevd`
+
+#
+# plimit.stp  prints a variety of resource limits for a given pid.
+#
+
+%{ 
+   #include <linux/sched.h>
+   #include <linux/list.h>
+%}
+
+function getrlimit:string (rlim:long, pid:long) %{ /* pure */
+	struct task_struct *p;
+	struct list_head *_p, *_n;
+	static char cur_buf[24], max_buf[24];
+	long int cur, max;
+
+	list_for_each_safe(_p, _n, &current->tasks) {
+		p = list_entry(_p, struct task_struct, tasks);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
+		cur = p->signal->rlim[STAP_ARG_rlim].rlim_cur;
+		max = p->signal->rlim[STAP_ARG_rlim].rlim_max;
+#else
+		cur = p->rlim[STAP_ARG_rlim].rlim_cur;
+		max = p->rlim[STAP_ARG_rlim].rlim_max;
+#endif
+		if (p->pid == (int)STAP_ARG_pid) {
+			if (cur == -1 && max == -1)
+				strcat(STAP_RETVALUE, "unlimited  unlimited");
+			else if (cur == -1)
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%-9s  %-9ld",
+					"unlimited", max);
+			else if (max == -1)
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%-9ld  %-9s",
+					cur, "unlimited");
+			else
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%-9ld  %-9ld",
+					cur, max);
+		}
+	}
+%}
+
+function task_execname_by_pid:string (pid:long) %{ /* pure */
+	struct task_struct *p;
+	struct list_head *_p, *_n;
+	list_for_each_safe(_p, _n, &current->tasks) {
+		p = list_entry(_p, struct task_struct, tasks);
+		if (p->pid == (int)STAP_ARG_pid) 
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%s", p->comm);
+	}
+%}
+
+probe begin {
+%( $# < 1
+        %? pid = target()
+        %: pid = $1
+%)
+   
+   if (pid == 0) error ("Please provide valid target process-id as $1 or -x PID");
+   
+	printf("%d:  -%s\n", pid, task_execname_by_pid(pid))
+	/* include/asm-generic/resource.h */
+   	printf(" resource                    current    maximum\n")
+	printf("coredump(blocks)            %s\n", getrlimit(4,  pid))
+	printf("data(bytes)                 %s\n", getrlimit(2,  pid))
+	printf("max nice                    %s\n", getrlimit(13, pid))
+	printf("file size(blocks)           %s\n", getrlimit(1,  pid))
+	printf("pending signals             %s\n", getrlimit(11, pid))
+	printf("max locked memory(bytes)    %s\n", getrlimit(8,  pid))
+	printf("max memory size(bytes)      %s\n", getrlimit(5,  pid))
+	printf("open files                  %s\n", getrlimit(7,  pid))
+	printf("POSIX message queues(bytes) %s\n", getrlimit(12, pid))
+	printf("max rt priority             %s\n", getrlimit(14, pid))
+	printf("stack size(bytes)           %s\n", getrlimit(3,  pid))
+	printf("cpu time(seconds)           %s\n", getrlimit(0,  pid))
+	printf("max user processes          %s\n", getrlimit(6,  pid))
+	printf("virtual memory(bytes)       %s\n", getrlimit(9,  pid))
+	printf("file locks                  %s\n", getrlimit(10, pid))
+
+	exit()
+}

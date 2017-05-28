@@ -1,0 +1,259 @@
+// scsi tapset
+// Copyright (C) 2005, 2006, 2009 IBM Corp.
+// Copyright (C) 2014 Red Hat
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// This family of probe points is used to probe SCSI activities.
+// </tapsetdescription>
+%{
+#include <linux/types.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_host.h>
+#include <linux/timer.h>
+#include <linux/blkdev.h>
+%}
+
+function describe_data_direction:string(state:long)
+%{ /* pure */
+	switch ((long)STAP_ARG_state) {
+		case DMA_BIDIRECTIONAL:  strlcpy(STAP_RETVALUE, "BIDIRECTIONAL", MAXSTRINGLEN); break;
+		case DMA_TO_DEVICE:      strlcpy(STAP_RETVALUE, "TO_DEVICE",     MAXSTRINGLEN); break;
+		case DMA_FROM_DEVICE:    strlcpy(STAP_RETVALUE, "FROM_DEVICE",   MAXSTRINGLEN); break;
+		case DMA_NONE:           strlcpy(STAP_RETVALUE, "NONE",          MAXSTRINGLEN); break;
+		default:                 strlcpy(STAP_RETVALUE, "[INVALID]",     MAXSTRINGLEN);
+	}
+%}
+
+function describe_device_state:string(state:long)
+%{ /* pure */
+	switch ((long)STAP_ARG_state) {
+		case SDEV_CREATED:       strlcpy(STAP_RETVALUE, "CREATED",       MAXSTRINGLEN); break;
+		case SDEV_RUNNING:       strlcpy(STAP_RETVALUE, "RUNNING",       MAXSTRINGLEN); break;
+		case SDEV_CANCEL:        strlcpy(STAP_RETVALUE, "CANCEL",        MAXSTRINGLEN); break;
+		case SDEV_DEL:           strlcpy(STAP_RETVALUE, "DEL",           MAXSTRINGLEN); break;
+		case SDEV_QUIESCE:       strlcpy(STAP_RETVALUE, "QUIESCE",       MAXSTRINGLEN); break;
+		case SDEV_OFFLINE:       strlcpy(STAP_RETVALUE, "OFFLINE",       MAXSTRINGLEN); break;
+#ifdef SDEV_BLOCK
+		case SDEV_BLOCK:         strlcpy(STAP_RETVALUE, "BLOCK",         MAXSTRINGLEN); break;
+#endif
+#ifdef SDEV_CREATED_BLOCK
+		case SDEV_CREATED_BLOCK: strlcpy(STAP_RETVALUE, "CREATED_BLOCK", MAXSTRINGLEN); break;
+#endif
+		default:                 strlcpy(STAP_RETVALUE, "[INVALID]",     MAXSTRINGLEN);
+	}
+%}
+/**
+  * probe scsi.ioentry - Prepares a SCSI mid-layer request
+  * @disk_major: The major number of the disk (-1 if no information)
+  * @disk_minor: The minor number of the disk (-1 if no information)
+  * @device_state: The current state of the device
+  * @device_state_str: The current state of the device, as a string
+  * @req_addr: The current struct request pointer, as a number
+  */
+probe scsi.ioentry.scsilib =
+      module("scsi_mod").function("scsi_prep_fn")!, kernel.function("scsi_prep_fn")? { }
+probe scsi.ioentry.sd =
+      module("sd_mod").function("sd_prep_fn")!, kernel.function("sd_prep_fn")? { }
+probe scsi.ioentry.sr =
+      module("sr_mod").function("sr_prep_fn")!, kernel.function("sr_prep_fn")? { }
+
+probe scsi.ioentry = scsi.ioentry.* ?
+{
+        req_addr = @choose_defined($req, $rq);
+	if(@cast(req_addr,"request")->rq_disk == 0)  {
+		disk_major = -1
+		disk_minor = -1
+	} else {
+		disk_major = @cast(req_addr,"request")->rq_disk->major
+		disk_minor = @cast(req_addr,"request")->rq_disk->first_minor
+	}
+	device_state = get_devstate_from_req($q)
+	device_state_str = describe_device_state(device_state)
+}
+
+/**
+ * probe scsi.iodispatching - SCSI mid-layer dispatched low-level SCSI command
+ * @host_no: The host number
+ * @channel: The channel number
+ * @lun: The lun number
+ * @dev_id: The scsi device id
+ * @device_state: The current state of the device
+ * @device_state_str: The current state of the device, as a string
+ * @data_direction: The data_direction specifies whether this command is from/to the device
+ *		0 (DMA_BIDIRECTIONAL), 1 (DMA_TO_DEVICE),
+ *		2 (DMA_FROM_DEVICE), 3 (DMA_NONE)
+ * @data_direction_str: Data direction, as a string
+ * @request_buffer: The request buffer address
+ * @request_bufflen: The request buffer length
+ * @req_addr: The current struct request pointer, as a number
+ */
+probe scsi.iodispatching
+	= module("scsi_mod").function("scsi_dispatch_cmd")!,
+	  kernel.function("scsi_dispatch_cmd")?
+{
+	host_no = $cmd->device->host->host_no
+	channel = $cmd->device->channel
+	lun = $cmd->device->lun
+	dev_id = $cmd->device->id
+	device_state = $cmd->device->sdev_state
+	device_state_str = describe_device_state(device_state)
+	data_direction = $cmd->sc_data_direction
+	data_direction_str = describe_data_direction(data_direction)
+	request_buffer = @choose_defined($cmd->sdb->table->sgl,
+					 $cmd->request_buffer)
+	request_bufflen = @choose_defined($cmd->sdb->length,
+					  $cmd->request_bufflen)
+	req_addr = $cmd->request
+}
+
+/**
+ * probe scsi.iodone - SCSI command completed by low level driver and enqueued into the done queue.
+ * @host_no: The host number
+ * @channel: The channel number
+ * @lun: The lun number
+ * @dev_id: The scsi device id
+ * @device_state: The current state of the device
+ * @device_state_str: The current state of the device, as a string
+ * @data_direction: The data_direction specifies whether this command is
+ * 		from/to the device.
+ * @data_direction_str: Data direction, as a string
+ * @req_addr: The current struct request pointer, as a number
+ * @scsi_timer_pending: 1 if a timer is pending on this request
+ */
+probe scsi.iodone
+	= kernel.trace("scsi_dispatch_cmd_done")!,
+	  module("scsi_mod").function("scsi_done")!,
+	  kernel.function("scsi_done")?
+
+{
+	# Why is the @cast() needed here? When the probe alias uses
+	# the "scsi_dispatch_cmd_done" tracepoint, the type info isn't
+	# in scope. 
+	host_no = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->host->host_no
+	channel = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->channel
+	lun = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->lun
+	dev_id = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->id
+	device_state = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->sdev_state
+	device_state_str = describe_device_state(device_state)
+	data_direction = $cmd->sc_data_direction
+	data_direction_str = describe_data_direction(data_direction)
+	req_addr = $cmd->request
+	scsi_timer_pending = scsi_timer_pending($cmd);
+}
+
+/**
+ * probe scsi.iocompleted - SCSI mid-layer running the completion processing for block device I/O requests
+ * @host_no: The host number
+ * @channel: The channel number
+ * @lun: The lun number
+ * @dev_id: The scsi device id
+ * @device_state: The current state of the device
+ * @device_state_str: The current state of the device, as a string
+ * @data_direction: The data_direction specifies whether this command is from/to
+ * 		the device
+ * @data_direction_str: Data direction, as a string
+ * @goodbytes: The bytes completed
+ * @req_addr: The current struct request pointer, as a number
+ */
+// mid-layer processes the completed IO
+probe scsi.iocompleted
+	= module("scsi_mod").function("scsi_io_completion")!,
+	  kernel.function("scsi_io_completion")?
+{
+	host_no = $cmd->device->host->host_no
+	channel = $cmd->device->channel
+	lun = $cmd->device->lun
+	dev_id = $cmd->device->id
+	device_state = $cmd->device->sdev_state
+	device_state_str = describe_device_state(device_state)
+	data_direction = $cmd->sc_data_direction
+	data_direction_str = describe_data_direction(data_direction)
+	req_addr = $cmd->request
+	goodbytes = $good_bytes
+}
+
+function timer_pending:long(timer:long)
+{
+	return (@choose_defined(@cast(timer, "timer_list")->entry->next,
+				@cast(timer, "timer_list")->base) != 0)
+}
+
+function scsi_timer_pending:long(cmd:long)
+{
+%( kernel_v >= "2.6.28" %?
+	return timer_pending(&@cast(cmd, "scsi_cmnd", "kernel:scsi_mod")->request->q->timeout)
+%:
+	return timer_pending(&@cast(cmd, "scsi_cmnd", "kernel:scsi_mod")->eh_timeout)
+%)
+}
+
+function get_devstate_from_req:long(var:long)
+{
+	sdev = @cast(var, "request_queue", "kernel:scsi_mod")->queuedata
+	return @cast(sdev, "scsi_device", "kernel:scsi_mod")->sdev_state
+}
+
+/**
+ * probe scsi.ioexecute - Create mid-layer SCSI request and wait for the result
+ * @host_no: The host number
+ * @channel: The channel number
+ * @lun: The lun number
+ * @dev_id: The scsi device id
+ * @device_state: The current state of the device
+ * @device_state_str: The current state of the device, as a string
+ * @data_direction: The data_direction specifies whether this command is
+ * 		from/to the device.
+ * @data_direction_str: Data direction, as a string
+ * @request_buffer: The data buffer address
+ * @request_bufflen: The data buffer buffer length
+ * @timeout: Request timeout in seconds
+ * @retries: Number of times to retry request
+ */
+probe scsi.ioexecute
+	= module("scsi_mod").function("scsi_execute")!,
+	  kernel.function("scsi_execute")?
+{
+	host_no = $sdev->host->host_no
+	channel = $sdev->channel
+	lun = $sdev->lun
+	dev_id = $sdev->id
+	device_state = $sdev->sdev_state
+	device_state_str = describe_device_state(device_state)
+	data_direction = $data_direction
+	data_direction_str = describe_data_direction(data_direction)
+	request_buffer = $buffer
+	request_bufflen = $bufflen
+	timeout = $timeout
+	retries = $retries
+}
+
+/**
+ * probe scsi.set_state - Order SCSI device state change
+ * @host_no: The host number
+ * @channel: The channel number
+ * @lun: The lun number
+ * @dev_id: The scsi device id
+ * @old_state: The current state of the device
+ * @old_state_str: The current state of the device, as a string
+ * @state: The new state of the device
+ * @state_str: The new state of the device, as a string
+ */
+probe scsi.set_state
+	= module("scsi_mod").function("scsi_device_set_state")!,
+	  kernel.function("scsi_device_set_state")?
+{
+	state = $state
+	state_str = describe_device_state(state)
+
+	host_no = $sdev->host->host_no
+	channel = $sdev->channel
+	lun = $sdev->lun
+	dev_id = $sdev->id
+	old_state = $sdev->sdev_state
+	old_state_str = describe_device_state(old_state)
+}

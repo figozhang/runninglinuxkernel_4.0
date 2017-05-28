@@ -1,0 +1,7 @@
+title: Keep track of NFS server statistics
+name: nfsd-recent.stp
+keywords: nfs statistics
+subsystem: network
+description: This script tracks all nfsd server operations by client_ip address, and periodically lists those clients that have made recent requests.  It's a way of finding out which nfs clients might be considered still connected.
+test_check: stap -p4 nfsd-recent.stp
+test_installcheck: stap nfsd-recent.stp -c "sleep 1"

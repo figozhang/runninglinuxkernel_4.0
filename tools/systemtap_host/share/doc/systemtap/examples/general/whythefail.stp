@@ -1,0 +1,68 @@
+#! /usr/bin/env stap
+
+/* Print a trace of the the last few statements (file:line numbers,
+ along with selected local variables) that were executed within a
+ given function, if it ends up returning with a given condition.  (No
+ trace is shown for functions that return with the condition false,
+ demonstrating use of speculation tapset.)
+
+ Usage:
+ stap whythefail.stp PROC_OR_KERNEL FUNCTION_NAME CONDITION_EXPRESSION [$VARIABLE$]
+
+ PROC_OR_KERNEL:   the first part of the probe point, e.g.:
+                           'kernel' 'module("foo")' or 'process("bar")'
+ FUNCTION_NAME:    the function name (assumed non-recursive)
+ CONDITION:        expression to evaluate at function return, e.g.:
+                           '$return != 0' or '1' or 'randint(100)<20'
+ VARIABLE:         optional context-variable string to print at each statement, e.g.:
+                           '$a_var$' or '@var("global")$' or (default) '$$vars'
+
+ If the script is invoked with -c CMD or -x PID, probes are filtered
+ for that process target-set (it and its descendants).
+
+ e.g.:
+ stap whythefail.stp kernel do_mlock '$return < 0'
+*/
+
+
+global specs%
+global counts
+
+probe $1 . function(@2) . call {
+  if (target() && !target_set_pid(pid())) next;
+  specs[tid()] = speculation()
+  counts["entry"] <<< 1
+}
+
+probe $1 . statement(@2 "@*:*") {
+  if (target() && !target_set_pid(pid())) next;
+  tokenize(pp(),"@");
+  fileline=tokenize("","@");
+  file=tokenize(fileline,":\"");
+  line=tokenize("",":\"");
+  speculate(specs[tid()], sprintf("%s[%d] %s:%s %s\n",
+                                  execname(), tid(), file, line,
+                                  %( $# >= 4
+                                     %? @4.": ".@choose_defined($4,"?")
+                                     %: "$$vars: ".$$vars %) ))
+  counts["statement"] <<< 1
+}
+
+probe $1 . function(@2) . return {
+  if (target() && !target_set_pid(pid())) next;
+  if ($3) {
+      printf("\n%s[%d] %s function(%s) $return: %s\n", execname(), tid(), @1, @2, $return$)
+      commit(specs[tid()])
+      counts["exit-hit"] <<< 1
+    } else {
+      discard(specs[tid()])
+      counts["exit-miss"] <<< 1
+    }
+}
+
+probe end,error {
+  printf("\nstatistics:\n")
+  foreach (reason+ in counts) {
+    printf("%s count: %d\n", reason, @count(counts[reason]))
+  }
+}

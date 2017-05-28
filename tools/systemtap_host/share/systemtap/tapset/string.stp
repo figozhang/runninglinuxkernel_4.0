@@ -1,0 +1,195 @@
+// Standard string functions tapset.
+// Copyright (C) 2009-2015 Red Hat, Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/**
+ * sfunction strlen - Returns the length of a string
+ *
+ * @s: the string
+ *
+ * Description: This function returns the length of the string, which
+ * can be zero up to MAXSTRINGLEN.
+ */
+function strlen:long(s:string)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
+	STAP_RETURN(strlen(STAP_ARG_s));
+%}
+
+/**
+ * sfunction substr - Returns a substring
+ *
+ * @str: the string to take a substring from
+ * @start: starting position of the extracted string (first character is 0)
+ * @length: length of string to return
+ *
+ * Description: Returns the substring of the given string at the given
+ * start position with the given length (or smaller if the length of the
+ * original string is less than start + length, or length is bigger than
+ * MAXSTRINGLEN).
+ */
+function substr:string(str:string,start:long, length:long)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
+	int64_t length = clamp_t(int64_t, STAP_ARG_length + 1, 0, MAXSTRINGLEN);
+	if (STAP_ARG_start >= 0 && STAP_ARG_start < strlen(STAP_ARG_str))
+		strlcpy(STAP_RETVALUE, STAP_ARG_str + STAP_ARG_start, length);
+%}
+
+/**
+ * sfunction stringat - Returns the char at a given position in the string
+ *
+ * @str: the string to fetch the character from
+ * @pos: the position to get the character from  (first character is 0)
+ *
+ * Description: This function returns the character at a given position in
+ * the string or zero if the string doesn't have as many characters. Reports
+ * an error if pos is out of bounds.
+ */
+function stringat:long(str:string, pos:long)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
+	if (STAP_ARG_pos >= 0 && STAP_ARG_pos < strlen(STAP_ARG_str))
+                STAP_RETURN(STAP_ARG_str[STAP_ARG_pos]);
+	else {
+		STAP_RETVALUE = 0;
+#if STAP_COMPAT_VERSION >= STAP_VERSION(2,3) // PR15044
+                STAP_ERROR("Position out of bounds");
+#endif
+	}
+%}
+
+/**
+ * sfunction isinstr - Returns whether a string is a substring of another string
+ *
+ * @s1: string to search in
+ * @s2: substring to find
+ *
+ * Description: This function returns 1 if string @s1 contains @s2,
+ * otherwise zero. 
+ */
+function isinstr:long(s1:string,s2:string)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
+	STAP_RETURN (strstr(STAP_ARG_s1,STAP_ARG_s2) != NULL);
+%}
+
+/**
+ * sfunction text_str - Escape any non-printable chars in a string
+ *
+ * @input: the string to escape
+ *
+ * Description: This function accepts a string argument, 
+ * and any ASCII characters that are not
+ * printable are replaced by the corresponding escape sequence in the
+ * returned string.
+ */
+function text_str:string(input:string) 
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
+	if (_stp_text_str(STAP_RETVALUE, STAP_ARG_input, 0, 0, 0, 0) < 0) {
+		STAP_RETVALUE[0] = '\0';
+	}
+%}
+
+/**
+ * sfunction text_strn - Escape any non-printable chars in a string
+ *
+ * @input: the string to escape
+ * @len: maximum length of string to return (0 implies MAXSTRINGLEN)
+ * @quoted: put double quotes around the string. If input string is
+ * truncated it will have "..." after the second quote
+ *
+ * Description: This function accepts a string of designated length,
+ * and any ASCII characters that are not
+ * printable are replaced by the corresponding escape sequence in the
+ * returned string.
+ */
+function text_strn:string(input:string, len:long, quoted:long)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
+	int64_t len = clamp_t(int64_t, STAP_ARG_len, 0, MAXSTRINGLEN);
+	if (_stp_text_str(
+			STAP_RETVALUE, STAP_ARG_input, 0, len, STAP_ARG_quoted, 0) < 0) {
+		STAP_RETVALUE[0] = '\0';
+	}
+%}
+
+
+/**
+ * sfunction - str_replace Replaces all instances of a substring with another
+ *
+ * @prnt_str: the string to search and replace in
+ * @srch_str: the substring which is used to search in @prnt_str string
+ * @rplc_str: the substring which is used to replace @srch_str
+ *
+ * Description: This function returns the given string with
+ * substrings replaced.
+ */
+function str_replace:string (prnt_str:string, srch_str:string, rplc_str:string)
+%{ /* pure */ /* unprivileged */
+	char *ptr = STAP_ARG_prnt_str;
+	char *ptr_base = STAP_ARG_prnt_str;
+	int strlen_srch_str = strlen(STAP_ARG_srch_str);
+
+	STAP_RETVALUE[0] = '\0';
+	if(strlen_srch_str == 0) {
+                STAP_RETURN (ptr_base);
+	}
+
+	while((ptr = strstr(ptr, STAP_ARG_srch_str)) != NULL) {
+
+		*ptr = '\0';
+		strlcat(STAP_RETVALUE, ptr_base, MAXSTRINGLEN);
+		strlcat(STAP_RETVALUE, STAP_ARG_rplc_str, MAXSTRINGLEN);
+		ptr = ptr + strlen_srch_str;
+		ptr_base = ptr;
+	}
+
+	strlcat(STAP_RETVALUE, ptr_base, MAXSTRINGLEN);
+	return;
+%}
+
+/**
+ * sfunction - strtol - Convert a string to a long
+ *
+ * @str: string to convert
+ * @base: the base to use
+ * 
+ * Description: This function converts the string representation of a number to an integer. 
+ * The @base parameter indicates the number base to assume for the string (eg. 16 for hex, 8 for octal, 2 for binary).
+ */
+function strtol:long(str:string, base:long)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
+	STAP_RETURN(simple_strtol(STAP_ARG_str, NULL, STAP_ARG_base));
+%}
+
+/**
+ * sfunction isdigit - Checks for a digit
+ *
+ * @str: string to check
+ *
+ * Description: Checks for a digit (0 through 9) as the first
+ * character of a string.  Returns non-zero if true, and a zero if
+ * false.
+ */
+function isdigit:long(str:string)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
+ 	STAP_RETURN(isdigit(STAP_ARG_str[0]));
+%}
+
+
+/**
+ * sfunction string_quoted - Quotes a given string
+ * @str: The kernel address to retrieve the string from
+ *
+ * Description: Returns the quoted string version of the given string,
+ * with characters where any ASCII characters that are not printable
+ * are replaced by the corresponding escape sequence in the returned
+ * string. Note that the string will be surrounded by double quotes.
+ */
+function string_quoted:string (str:string)
+%{ /* pure */ /* unmodified-fnargs */
+  /* This can't fail, since the input string is already in stap context space. */
+  (void) _stp_text_str(STAP_RETVALUE,
+                       (char *)(uintptr_t)STAP_ARG_str,
+                       MAXSTRINGLEN, MAXSTRINGLEN, 1, 0);
+%}

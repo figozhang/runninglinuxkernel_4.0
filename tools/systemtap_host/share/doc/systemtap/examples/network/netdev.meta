@@ -1,0 +1,13 @@
+title: Trace Activity on Network Devices
+name: netdev.stp
+version: 1.0
+author: Breno Leitao
+keywords: network traffic
+subsystem: network
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The netdev.stp script traces configuration and transmit/receive activity on network devices.
+test_check: stap -p4 netdev.stp
+test_installcheck: stap netdev.stp -c "sleep 1"

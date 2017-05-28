@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::symdata
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Context Functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::SYMDATA" "3stap" "March 2016" "SystemTap Tapset Reference" "Context Functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::symdata \- Return the kernel symbol and module offset for the address
+.SH "SYNOPSIS"
+.sp
+.nf
+    symdata:string(addr:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIaddr\fR
+.RS 4
+The address to translate
+.RE
+.SH "DESCRIPTION"
+.PP
+Returns the (function) symbol name associated with the given address if known, the offset from the start and size of the symbol, plus module name (between brackets)\&. If symbol is unknown, but module is known, the offset inside the module, plus the size of the module is added\&. If any element is not known it will be omitted and if the symbol name is unknown it will return the hex string for the given address\&.
+.SH SEE ALSO\n 
+.IR tapset::context-symbols (3stap)
