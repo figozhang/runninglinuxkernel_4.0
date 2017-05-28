@@ -36,10 +36,20 @@
    $ make –j4 
    
    运行ARM64内核：
-   $ qemu-system-aarch64 -machine virt -cpu cortex-a57 -machine type=virt -nographic -m 2048 –smp 2
-      -kernel arch/arm64/boot/Image --append "rdinit=/linuxrc console=ttyAMA0"
+   $ qemu-system-aarch64 -machine virt -cpu cortex-a57 -machine type=virt -nographic -m 2048 –smp 2 -kernel arch/arm64/boot/Image --append "rdinit=/linuxrc console=ttyAMA0"
       
    调试内核请见pdf文档。
+   
+3. SystemTap实验
+   内置编译好SystemTap工具. ARM版本的内置在_install_arm32目录下, host工具内置在 tools/systemtap-host目录下.
+   另外, modules_tools/systemtap目录下面有一些例子.
+   
+   编译hello-world.stp
+   $ sudo /home/figo/work/runninglinuxkernel_4.0/runninglinuxkernel_4.0/tools/systemtap_host/bin/stap -gv -a arm -r /home/figo/work/runninglinuxkernel_4.0/runninglinuxkernel_4.0/ -B CROSS_COMPILE=arm-linux-gnueabi- -m hello-world.ko hello-world.stp
+   $ cp hello-world.ko _install_arm32
+   $ make
+   $ qemu-system-arm -M vexpress-a9 -m 1024M -kernel arch/arm/boot/zImage  -append "rdinit=/linuxrc console=ttyAMA0 loglevel=8" -dtb arch/arm/boot/dts/vexpress-v2p-ca9.dtb -nographic
+     #在qemu里运行 staprun hello-world.ko
 
 
 
