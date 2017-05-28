@@ -1,0 +1,129 @@
+#! /usr/bin/env stap
+#
+# Note that there are 2 sets of filemap kernel tracepoints:
+#
+# - older kernels RHEL5 (2.6.18) - RHEL6 (2.6.32): mm_filemap_fault,
+#   mm_filemap_cow, mm_filemap_unmap mm_filemap_userunmap
+# - newer kernels: mm_filemap_add_to_page_cache,
+#   mm_filemap_delete_from_page_cache
+#
+# This script attempts to handle them both.
+
+global traced_pid, command
+global allocation, free
+
+global old_set_hits
+global file_fault, file_cow, file_uunmap, file_kunmap
+global file_page_cache_add, file_page_cache_delete
+
+function log_event:long ()
+{
+  return (!traced_pid || traced_pid == pid())
+}
+
+probe kernel.{trace("mm_page_alloc")!, trace("mm_page_allocation")} {
+  if (!log_event()) next
+  allocation[pid()] <<< 1
+  command[pid()] = execname()
+}
+
+probe kernel.{trace("mm_page_free")!, trace("mm_page_free_direct")} {
+  if (!log_event()) next
+  free[pid()] <<< 1
+}
+
+probe kernel.trace("mm_filemap_fault")? {
+  if (!log_event()) next
+  old_set_hits <<< 1
+  file_fault[pid()] <<< 1
+}
+
+probe kernel.trace("mm_filemap_cow")? {
+  if (!log_event()) next
+  old_set_hits <<< 1
+  file_cow[pid()] <<< 1
+}
+
+probe kernel.trace("mm_filemap_unmap")? {
+  if (!log_event()) next
+  old_set_hits <<< 1
+  file_kunmap[pid()] <<< 1
+}
+
+probe kernel.trace("mm_filemap_userunmap")? {
+  if (!log_event()) next
+  old_set_hits <<< 1
+  file_uunmap[pid()] <<< 1
+}
+
+probe kernel.trace("mm_filemap_add_to_page_cache")? {
+  if (!log_event()) next
+  file_page_cache_add[pid()] <<< 1
+}
+
+probe kernel.trace("mm_filemap_delete_from_page_cache")? {
+  if (!log_event()) next
+  file_page_cache_delete[pid()] <<< 1
+}
+
+probe never {
+  # Do a few initializations to let stap know what the global
+  # variable types are. Note that since we're in a "never"
+  # probe, these initializations will never actually happen.
+  traced_pid = 0
+  old_set_hits <<< 1
+  file_fault[0] <<< 1
+  file_cow[0] <<< 1
+  file_uunmap[0] <<< 1
+  file_kunmap[0] <<< 1
+  file_page_cache_add[0] <<< 1
+  file_page_cache_delete[0] <<< 1
+}
+
+probe begin {
+  printf("Starting data collection\n")
+  if (target())
+    printf("mode Specific Pid, traced pid: %d\n\n", target())
+  else
+    printf("mode - All Pids\n\n")
+}
+
+probe end {
+  printf("Terminating data collection\n")
+
+  # We'll either have hits from the old set of filemap tracepoints
+  # (mm_filemap_fault, mm_filemap_cow, mm_filemap_unmap,
+  # mm_filemap_userunmap) or the new set of filemap tracepoints
+  # (mm_filemap_add_to_page_cache,
+  # mm_filemap_delete_from_page_cache). Print out the set that got
+  # hits. 
+  if (@count(old_set_hits)) {
+    printf("%-16s %6s %9s %9s %8s %8s %8s %8s\n",
+	   "Command", "Pid", "Alloc", "Free",
+	   "F_fault", "F_cow", "F_kunmap", "F_uunmap")
+    printf("%-16s %6s %9s %9s %8s %8s %8s %8s\n",
+	   "-------", "---", "-----", "----",
+	   "-------", "-----", "--------", "--------")
+  }
+  else {
+    printf("%-16s %6s %9s %9s %8s %8s\n",
+	   "Command", "Pid", "Alloc", "Free", "CacheAdd", "CacheDel")
+    printf("%-16s %6s %9s %9s %8s %8s\n",
+	   "-------", "---", "-----", "----", "--------", "--------")
+  }
+
+  foreach (pid in allocation-) {
+    if (@count(old_set_hits))
+      printf("%-16s %6d %9d %9d %8d %8d %8d %8d\n",
+	     command[pid], pid,
+	     @count(allocation[pid]), @count(free[pid]),
+	     @count(file_fault[pid]), @count(file_cow[pid]),
+	     @count(file_kunmap[pid]), @count(file_uunmap[pid]))
+    else
+      printf("%-16s %6d %9d %9d %8d %8d\n",
+	     command[pid], pid,
+	     @count(allocation[pid]), @count(free[pid]),
+	     @count(file_page_cache_add[pid]),
+	     @count(file_page_cache_delete[pid]))
+  }
+}

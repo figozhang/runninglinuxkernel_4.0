@@ -1,0 +1,71 @@
+#! /usr/bin/env stap
+
+global traced_pid, command
+global allocation, free
+global anon_fault, anon_usrfree, anon_pgin, anon_cow, anon_unmap
+
+function log_event:long ()
+{
+  return (!traced_pid || traced_pid == pid())
+}
+
+probe kernel.{trace("mm_page_alloc")!, trace("mm_page_allocation")} {
+  if (!log_event()) next
+  allocation[pid()] <<< 1
+  command[pid()] = execname()
+}
+
+probe kernel.{trace("mm_page_free")!, trace("mm_page_free_direct")} {
+  if (!log_event()) next
+  free[pid()] <<< 1
+}
+
+probe kernel.trace("mm_anon_fault") {
+  if (!log_event()) next
+  anon_fault[pid()] <<< 1
+}
+
+probe kernel.trace("mm_anon_pgin") {
+  if (!log_event()) next
+  anon_pgin[pid()] <<< 1
+}
+
+probe kernel.trace("mm_anon_cow") {
+  if (!log_event()) next
+  anon_cow[pid()] <<< 1
+}
+
+probe kernel.trace("mm_anon_unmap") {
+  if (!log_event()) next
+  anon_unmap[pid()] <<< 1
+}
+
+probe kernel.trace("mm_anon_userfree") {
+  if (!log_event()) next
+  anon_usrfree[pid()] <<< 1
+}
+
+probe begin {
+  printf("Starting data collection\n")
+  if (target())
+    printf("mode Specific Pid, traced pid: %d\n\n", target())
+  else
+    printf("mode - All Pids\n\n")
+}
+
+probe end {
+  printf("Terminating data collection\n")
+  printf("%-16s %6s %8s %7s %7s %7s %7s %7s %7s\n",
+         "Command", "Pid", "Alloc", "Free", "A_fault",
+          "A_ufree", "A_pgin", "A_cow", "A_unmap")
+  printf("%-16s %6s %8s %7s %7s %7s %7s %7s %7s\n",
+         "-------", "---", "-----", "----", "-------",
+         "-------", "------", "-----", "-------")
+  foreach (pid in allocation-)
+    printf("%-16s %6d %8d %7d %7d %7d %7d %7d %7d\n",
+           command[pid], pid,
+           @count(allocation[pid]), @count(free[pid]),
+           @count(anon_fault[pid]), @count(anon_usrfree[pid]),
+           @count(anon_pgin[pid]), @count(anon_cow[pid]),
+           @count(anon_unmap[pid]))
+}

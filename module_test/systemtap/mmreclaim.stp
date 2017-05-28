@@ -1,0 +1,185 @@
+#! /usr/bin/env stap
+#
+# Note that there are 2 sets of reclaim kernel tracepoints:
+#
+# - older kernels RHEL5 (2.6.18) - RHEL6 (2.6.32):
+#   mm_directreclaim_reclaimall, mm_pagereclaim_shrinkinactive,
+#   mm_pagereclaim_free, mm_pagereclaim_pgout,
+#   mm_pagereclaim_shrinkactive_a2a,
+#   mm_pagereclaim_shrinkinactive_i2a,
+#   mm_pagereclaim_shrinkactive_a2i,
+#   mm_pagereclaim_shrinkinactive_i2i
+#
+# - newer kernels: mm_vmscan_direct_reclaim_end
+#   mm_vmscan_lru_shrink_inactive, mm_vmscan_memcg_reclaim_end,
+#   mm_vmscan_memcg_softlimit_reclaim_end 
+#
+# This script attempts to handle them both.
+
+global traced_pid, command
+
+global old_set_hits
+global reclaims, t_reclaims
+global direct_reclaims, t_direct_reclaims
+global freed, t_freed
+global reactivate, t_reactivate
+global deactivate, t_deactivate
+global pgout, t_pgout
+
+global inactive_reclaims, t_inactive_reclaims
+global cgroup_reclaims, t_cgroup_reclaims
+global softlimit_reclaims, t_softlimit_reclaims
+
+function log_event:long ()
+{
+  return (!traced_pid || traced_pid == pid())
+}
+
+probe kernel.trace("mm_directreclaim_reclaimall")? {
+  if (!log_event()) next
+  old_set_hits <<< 1
+  direct_reclaims[pid()] <<< 1
+  t_direct_reclaims <<< 1
+}
+
+probe kernel.trace("mm_pagereclaim_shrinkinactive")? {
+  if (!log_event()) next
+  old_set_hits <<< 1
+  reclaims[pid()] <<< $reclaimed
+  t_reclaims <<< $reclaimed
+  command[pid()] = execname()
+}
+
+probe kernel.trace("mm_pagereclaim_free")? {
+  if (!log_event()) next
+  old_set_hits <<< 1
+  freed[pid()] <<< 1
+  t_freed <<< 1
+}
+
+probe kernel.trace("mm_pagereclaim_pgout")? {
+  if (!log_event()) next
+  old_set_hits <<< 1
+  pgout[pid()] <<< 1
+  t_pgout <<< 1
+}
+
+probe kernel.{trace("mm_pagereclaim_shrinkactive_a2a"),
+              trace("mm_pagereclaim_shrinkinactive_i2a")}? {
+  if (!log_event()) next
+  old_set_hits <<< 1
+  reactivate[pid()] <<< 1
+  t_reactivate <<< 1
+}
+
+probe kernel.{trace("mm_pagereclaim_shrinkactive_a2i"),
+              trace("mm_pagereclaim_shrinkinactive_i2i")}? {
+  if (!log_event()) next
+  old_set_hits <<< 1
+  deactivate[pid()] <<< 1
+  t_deactivate <<< 1
+}
+
+probe kernel.trace("mm_vmscan_direct_reclaim_end")? {
+  if (!log_event()) next
+  command[pid()] = execname()
+  direct_reclaims[pid()] <<< $nr_reclaimed
+  t_direct_reclaims <<< $nr_reclaimed
+}
+
+probe kernel.trace("mm_vmscan_lru_shrink_inactive")? {
+  if (!log_event()) next
+  command[pid()] = execname()
+  inactive_reclaims[pid()] <<< $nr_reclaimed
+  t_inactive_reclaims <<< $nr_reclaimed
+}
+
+probe kernel.trace("mm_vmscan_memcg_reclaim_end")? {
+  if (!log_event()) next
+  command[pid()] = execname()
+  cgroup_reclaims[pid()] <<< $nr_reclaimed
+  t_cgroup_reclaims <<< $nr_reclaimed
+}
+
+probe kernel.trace("mm_vmscan_memcg_softlimit_reclaim_end")? {
+  if (!log_event()) next
+  command[pid()] = execname()
+  softlimit_reclaims[pid()] <<< $nr_reclaimed
+  t_softlimit_reclaims <<< $nr_reclaimed
+}
+
+probe never {
+  # Do a few initializations to let stap know what the global
+  # variable types are. Note that since we're in a "never"
+  # probe, these initializations will never actually happen.
+  traced_pid = 0
+  command[0] = ""
+  old_set_hits <<< 1
+  reclaims[0] <<< 1
+  t_reclaims <<< 1
+  direct_reclaims[0] <<< 1
+  t_direct_reclaims <<< 1
+  freed[0] <<< 1
+  t_freed <<< 1
+  reactivate[0] <<< 1
+  t_reactivate <<< 1
+  deactivate[0] <<< 1
+  t_deactivate <<< 1
+  pgout[0] <<< 1
+  t_pgout <<< 1
+  inactive_reclaims[0] <<< 1
+  t_inactive_reclaims <<< 1
+  cgroup_reclaims[0] <<< 1
+  t_cgroup_reclaims <<< 1
+  softlimit_reclaims[0] <<< 1
+  t_softlimit_reclaims <<< 1
+}
+
+probe begin {
+  printf("Starting data collection\n")
+  if (target())
+    printf("mode Specific Pid, traced pid: %d\n\n", target())
+  else
+    printf("mode - All Pids\n\n")
+}
+
+probe end {
+  printf("Terminating data collection\n")
+  if (@count(old_set_hits)) {
+    printf("%-16s %6s %8s %8s %8s %10s %8s %8s\n",
+	   "Command", "Pid", "Direct", "Activate", "Deactive",
+	   "Reclaims", "Pgout", "Freed")
+    printf("%-16s %6s %8s %8s %8s %10s %8s %8s\n",
+	   "-------", "-----", "------", "--------", "--------",
+	   "-----", "-----", "-----")
+  }
+  else {
+    printf("%-16s %6s %8s %8s %8s %9s\n",
+	   "Command", "Pid", "Direct", "Cgroup", "Inactive", "SoftLimit")
+    printf("%-16s %6s %8s %8s %8s %9s\n",
+	   "-------", "-----", "------", "------", "--------", "---------")
+  }
+  foreach (pid in reclaims-) {
+    if (@count(old_set_hits))
+      printf("%-16s %6d %8d %8d %8d %10d %8d %8d\n",
+	     command[pid], pid,
+	     @count(direct_reclaims[pid]), @count(reactivate[pid]),
+	     @count(deactivate[pid]), @sum(reclaims[pid]),
+	     @count(pgout[pid]), @count(freed[pid]))
+    else
+      printf("%-16s %6d %8d %8d %8d %9d\n",
+	     command[pid], pid,
+	     @sum(direct_reclaims[pid]), @sum(cgroup_reclaims[pid]),
+	     @sum(inactive_reclaims[pid]), @sum(softlimit_reclaims[pid]))
+  }
+  printf("\n")
+  if (@count(old_set_hits))
+    printf("%-23s %8d %8d %8d %10d %8d %8d\n", "Totals",
+	   @count(t_direct_reclaims), @count(t_reactivate),
+	   @count(t_deactivate), @sum(t_reclaims),
+	   @count(t_pgout), @count(t_freed))
+  else
+    printf("%-23s %8d %8d %8d %9d\n", "Totals",
+	   @sum(t_direct_reclaims), @sum(t_cgroup_reclaims),
+	   @sum(t_inactive_reclaims), @sum(t_softlimit_reclaims))
+}
