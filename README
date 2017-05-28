@@ -45,6 +45,7 @@
    
    编译hello-world.stp
    $ sudo /home/figo/work/runninglinuxkernel_4.0/runninglinuxkernel_4.0/tools/systemtap_host/bin/stap -gv -a arm -r /home/figo/work/runninglinuxkernel_4.0/runninglinuxkernel_4.0/ -B CROSS_COMPILE=arm-linux-gnueabi- -m hello-world.ko hello-world.stp
+   (注意,上述有两个地方需要使用绝对路径)
    $ cp hello-world.ko _install_arm32
    $ make
    $ qemu-system-arm -M vexpress-a9 -m 1024M -kernel arch/arm/boot/zImage  -append "rdinit=/linuxrc console=ttyAMA0 loglevel=8" -dtb arch/arm/boot/dts/vexpress-v2p-ca9.dtb -nographic
