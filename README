@@ -21,7 +21,7 @@
    编译ARM32内核：
    $ export ARCH=arm
    $ export CROSS_COMPILE=arm-linux-gnueabi-
-   $ sudo mknod _install_arm32/dev/console c 5 1
+   $ sudo mknod _install_arm32/dev/console c 5 1  (注意，不要遗漏该步骤)
    $ make vexpress_defconfig
    $ make bzImage –j4 
    $ make dtbs
@@ -33,7 +33,7 @@
    编译ARM64内核：
    $ export ARCH=arm64
    $ export CROSS_COMPILE= aarch64-linux-gnu-
-   $ sudo mknod _install_arm64/dev/console c 5 1
+   $ sudo mknod _install_arm64/dev/console c 5 1  (注意，不要遗漏该步骤)
    $ make defconfig
    $ make –j4 
    
