@@ -1,5 +1,8 @@
         Linux kernel v4.0 code for <奔跑吧Linux内核>
 
+敬请关注《奔跑吧Linux内核》，即将和大家见面。
+微信号：runninglinuxkernel
+微博/微信公众号：奔跑吧Linux内核
 
 1. 目的：
     * 《奔跑吧linux内核》第6章里提供了一个使用QEMU来单步调试ARM32/ARM64的Linux内核的实验平台，但是默认内核编译的时候默认使用“-02”的GCC编译优化选项，
