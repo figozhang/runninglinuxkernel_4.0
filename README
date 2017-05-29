@@ -37,6 +37,10 @@
    $ make defconfig
    $ make –j4 
    
+   注意: 由于ubuntu 16.04里没有aarch64的gdb, 建议下载和安装 linaro官方网站上编译好的工具链:
+   https://releases.linaro.org/components/toolchain/binaries/5.4-2017.01/aarch64-linux-gnu/gcc-linaro-5.4.1-2017.01-i686_aarch64-linux-gnu.tar.xz
+   
+   
    运行ARM64内核：
    $ qemu-system-aarch64 -machine virt -cpu cortex-a57 -machine type=virt -nographic -m 2048 –smp 2 -kernel arch/arm64/boot/Image --append "rdinit=/linuxrc console=ttyAMA0"
       
