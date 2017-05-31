@@ -16,13 +16,15 @@
 2. 使用方法：
    本实验是在Ubuntu 16.04上完成的，使用其他版本的Linux发行版遇到编译问题请自行解决了。
    
-   $ sudo apt-get install qemu libncurses5-dev gcc-arm-linux-gnueabi build-essential gdb-arm-none-eabi gcc-aarch64-linux-gnu eclipse-cdt
+   $ sudo apt-get install qemu libncurses5-dev gcc-arm-linux-gnueabi build-essential gdb-arm-none-eabi gcc-aarch64-linux-gnu eclipse-cdt libdw-dev systemtap systemtap-runtime
    
    编译ARM32内核：
    $ export ARCH=arm
    $ export CROSS_COMPILE=arm-linux-gnueabi-
-   $ sudo mknod _install_arm32/dev/console c 5 1  (注意，不要遗漏该步骤)
-   $ make vexpress_defconfig
+   $ cd _install_arm32/dev/
+   $ sudo mknod console c 5 1  (注意，不要遗漏该步骤)
+   $ cd runninglinuxkernel_4.0
+   $ make vexpress_defconfig (在runninglinuxkernel_4.0目录下输入make命令)
    $ make bzImage –j4 
    $ make dtbs
    
@@ -33,8 +35,10 @@
    编译ARM64内核：
    $ export ARCH=arm64
    $ export CROSS_COMPILE= aarch64-linux-gnu-
-   $ sudo mknod _install_arm64/dev/console c 5 1  (注意，不要遗漏该步骤)
-   $ make defconfig
+   $ cd _install_arm64/dev
+   $ sudo mknod console c 5 1  (注意，不要遗漏该步骤)
+   $ cd runninglinuxkernel_4.0 
+   $ make defconfig (在runninglinuxkernel_4.0目录下输入make命令)
    $ make –j4 
    
    注意: 由于ubuntu 16.04里没有aarch64的gdb, 建议下载和安装 linaro官方网站上编译好的工具链:
