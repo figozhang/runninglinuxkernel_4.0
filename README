@@ -61,6 +61,41 @@
    $ make
    $ qemu-system-arm -M vexpress-a9 -m 1024M -kernel arch/arm/boot/zImage  -append "rdinit=/linuxrc console=ttyAMA0 loglevel=8" -dtb arch/arm/boot/dts/vexpress-v2p-ca9.dtb -nographic
      #在qemu里运行 staprun hello-world.ko
+     
+===============================================================================================================
+
+ 补充：
+    《奔跑吧Linux内核》是基于ARM32/ARM64为蓝本的，有的小伙伴也希望能以“-O0”来编译x86的kernel image，笨叔叔修改了一下以满足这些小伙伴的需求。
+    
+    编译i386 kernel image：
+        $ export ARCH=x86
+        $ cd _install_x86/dev/
+        $ sudo mknod console c 5 1  (注意，不要遗漏该步骤, 只需要一次即可)
+        $ cd runninglinuxkernel_4.0
+        $ make i386_defconfig (在runninglinuxkernel_4.0目录下输入make命令)
+        $ make bzImage –j4 
+
+     运行i386内核：
+       $ qemu-system-i386 -kernel arch/x86/boot/bzImage -append "rdinit=/linuxrc console=ttyS0" -nographic
+       
+       
+      编译x86_64 kernel image：
+        $ export ARCH=x86)64
+        $ cd _install_x86/dev/
+        $ sudo mknod console c 5 1  (注意，不要遗漏该步骤, 只需要一次即可)
+        $ cd runninglinuxkernel_4.0
+        $ make x86_64_defconfig (在runninglinuxkernel_4.0目录下输入make命令)
+        $ make bzImage –j4 
+
+     运行x86_64内核：
+       $ qemu-system-x86_64 -kernel arch/x86/boot/bzImage -append "rdinit=/linuxrc console=ttyS0" -nographic
+       
+       另外在使用gdb+qemu调试x86_64内核时，出现“Remote 'g' packet reply is too long”的错误，解决办法如下：
+              下载gdb-7.8源代码，修改./gdb/remote.c +6066去掉如下几行：重新编译gdb
+                       /* Further sanity checks, with knowledge of the architecture.  */
+                //  if (buf_len > 2 * rsa->sizeof_g_packet)
+                       //  error (_("Remote 'g' packet reply is too long: %s"), rs->buf);
+
 
 
 
