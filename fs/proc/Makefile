@@ -2,6 +2,8 @@
 # Makefile for the Linux proc filesystem routines.
 #
 
+CFLAGS_vmcore.o = -O
+
 obj-y   += proc.o
 
 proc-y			:= nommu.o task_nommu.o

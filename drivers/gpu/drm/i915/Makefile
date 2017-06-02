@@ -2,6 +2,8 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
+CFLAGS_i915_gem.o = -O
+
 ccflags-y := -Iinclude/drm
 
 # Please keep these build lists sorted!

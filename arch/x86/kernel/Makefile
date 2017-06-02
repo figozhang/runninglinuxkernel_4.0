@@ -4,6 +4,16 @@
 
 extra-y                := head_$(BITS).o head$(BITS).o head.o vmlinux.lds
 
+CFLAGS_process_64.o = -O
+CFLAGS_signal.o = -O
+CFLAGS_traps.o = -O
+CFLAGS_process.o = -O
+CFLAGS_i387.o = -O
+CFLAGS_xsave.o = -O
+
+CFLAGS_process_32.o = -O
+
+
 CPPFLAGS_vmlinux.lds += -U$(UTS_MACHINE)
 
 ifdef CONFIG_FUNCTION_TRACER

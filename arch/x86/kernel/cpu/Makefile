@@ -3,6 +3,10 @@
 #
 
 # Don't trace early stages of a secondary CPU boot
+
+
+CFLAGS_proc.o = -O
+
 ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_common.o = -pg
 CFLAGS_REMOVE_perf_event.o = -pg

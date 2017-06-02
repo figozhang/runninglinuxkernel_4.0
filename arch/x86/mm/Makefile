@@ -6,7 +6,7 @@ nostackp := $(call cc-option, -fno-stack-protector)
 CFLAGS_physaddr.o		:= $(nostackp)
 CFLAGS_setup_nx.o		:= $(nostackp)
 
-CFLAGS_fault.o := -I$(src)/../include/asm/trace
+CFLAGS_fault.o := -I$(src)/../include/asm/trace -O
 
 obj-$(CONFIG_X86_PAT)		+= pat_rbtree.o
 obj-$(CONFIG_SMP)		+= tlb.o

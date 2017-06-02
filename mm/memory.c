@@ -71,7 +71,9 @@
 
 #include "internal.h"
 
+#if defined CONFIG_ARM || defined CONFIG_ARM64
 EXPORT_SYMBOL(copy_to_user_page);
+#endif
 
 #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
 #warning Unfortunate NUMA and NUMA Balancing config, growing page-frame for last_cpupid.
