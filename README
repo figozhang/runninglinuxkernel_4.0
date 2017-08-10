@@ -1,8 +1,18 @@
         Linux kernel v4.0 code for <奔跑吧Linux内核>
 
-敬请关注《奔跑吧Linux内核》，即将和大家见面。
 微信号：runninglinuxkernel
 微博/微信公众号：奔跑吧Linux内核
+
+《奔跑吧Linux内核》经过了2个多月的等待，已经在几大网店上开启预售啦！
+京东：http://item.jd.com/12152745.html?dist=jd
+
+亚马逊：https://www.amazon.cn/dp/B074JV6WGN/ref=sr_1_1?ie=UTF8&qid=1502099486&sr=8-1
+
+异步社区：http://www.epubit.com.cn/book/details/4835
+
+当当：http://product.dangdang.com/25138842.htm
+
+最新样章下载： http://www.epubit.com.cn/book/details/4835， 点击“下载PDF样章”
 
 1. 目的：
     * 《奔跑吧linux内核》第6章里提供了一个使用QEMU来单步调试ARM32/ARM64的Linux内核的实验平台，但是默认内核编译的时候默认使用“-02”的GCC编译优化选项，
@@ -80,7 +90,7 @@
        
        
       编译x86_64 kernel image：
-        $ export ARCH=x86)64
+        $ export ARCH=x86_64
         $ cd _install_x86/dev/
         $ sudo mknod console c 5 1  (注意，不要遗漏该步骤, 只需要一次即可)
         $ cd runninglinuxkernel_4.0
