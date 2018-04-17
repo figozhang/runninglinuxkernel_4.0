@@ -1,0 +1,7 @@
+It is the share folder between host and your rootfs.
+you can put the related modules files "helloworld.ko"
+And directly insmod on your geust
+
+run mount command on VM:
+$ mount -t 9p -o trans=virtio kmod_mount /mnt
+
