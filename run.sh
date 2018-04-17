@@ -24,7 +24,6 @@ case $1 in
 		qemu-system-x86_64 -kernel arch/x86/boot/bzImage \
 				   -append "rdinit=/linuxrc console=ttyS0" -nographic \
 				   --virtfs local,id=kmod_dev,path=$PWD/kmodules,security_model=none,mount_tag=kmod_mount \
-				   -enable-kvm \
 				   $DBG ;;
 	x86)
 		if [ ! -c $LROOT/$ROOTFS_X86/$CONSOLE_DEV_NODE ]; then
@@ -34,7 +33,6 @@ case $1 in
 		qemu-system-i386 -kernel arch/x86/boot/bzImage \
 				 -append "rdinit=/linuxrc console=ttyS0" -nographic \
 				 --virtfs local,id=kmod_dev,path=$PWD/kmodules,security_model=none,mount_tag=kmod_mount \
-				 -enable-kvm \
 				 $DBG ;;
 	arm32)
 		if [ ! -c $LROOT/$ROOTFS_ARM32/$CONSOLE_DEV_NODE ]; then
