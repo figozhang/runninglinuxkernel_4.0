@@ -78,7 +78,16 @@ https://shop115683645.taobao.com/
    $ make
    $ qemu-system-arm -M vexpress-a9 -m 1024M -kernel arch/arm/boot/zImage  -append "rdinit=/linuxrc console=ttyAMA0 loglevel=8" -dtb arch/arm/boot/dts/vexpress-v2p-ca9.dtb -nographic
      #在qemu里运行 staprun hello-world.ko
-     
+
+4. 目录结构
+
+| 目录 | 描述 |
+|:----:|:----:|
+| kernel/linux-4.0 | kernel 源代码和构建目录 |
+| filesystem | 文件系统目录 |
+| script | 脚本目录 |
+| doc | 文档目录 |
+
 ===============================================================================================================
 
  补充：
