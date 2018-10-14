@@ -2,7 +2,7 @@ mkdir -p /sys
 mkdir -p /tmp
 mkdir -p /proc
 mkdir -p /mnt
-mkdir -p /lib/modules/4.0.0+
+mkdir -p /lib/modules/`uname -r`
 /bin/mount -a
 mkdir -p /dev/pts
 mount -t devpts devpts /dev/pts

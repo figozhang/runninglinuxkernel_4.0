@@ -48,6 +48,11 @@ https://shop115683645.taobao.com/
    运行ARM32内核：
    $ qemu-system-arm -M vexpress-a9 -smp 4 -m 1024M -kernel arch/arm/boot/zImage  -append "rdinit=/linuxrc console=ttyAMA0 loglevel=8" 
        -dtb arch/arm/boot/dts/vexpress-v2p-ca9.dtb -nographic
+
+   使用 initrd 镜像
+   $ qemu-system-arm -M vexpress-a9 -smp 4 -m 1024M -kernel arch/arm/boot/zImage  -append "root=/dev/ram rdinit=/linuxrc console=ttyAMA0 loglevel=8" 
+       -initrd ./filesystem/initrdfs/arm/rootfs.cpio.gz
+       -dtb arch/arm/boot/dts/vexpress-v2p-ca9.dtb -nographic
    
    编译ARM64内核：
    $ export ARCH=arm64
@@ -65,6 +70,8 @@ https://shop115683645.taobao.com/
    运行ARM64内核：
    $ qemu-system-aarch64 -machine virt -cpu cortex-a57 -machine type=virt -nographic -m 2048 –smp 2 -kernel arch/arm64/boot/Image --append "rdinit=/linuxrc console=ttyAMA0"
       
+   使用 initrd 镜像
+   $ qemu-system-aarch64 -machine virt -cpu cortex-a57 -machine type=virt -nographic -m 2048 –smp 2 -kernel arch/arm64/boot/Image --append "root=/dev/ram rdinit=/linuxrc console=ttyAMA0" -initrd ./filesystem/initrdfs/arm64/rootfs.cpio.gz
    调试内核请见pdf文档。
    
 3. SystemTap实验
@@ -88,6 +95,12 @@ https://shop115683645.taobao.com/
 | script | 脚本目录 |
 | doc | 文档目录 |
 
+`filesystem` 中在原有 `ramfs` 基础上制作了 `initramfs` 镜像,
+可以无需指定 `CONFIG_INITRAMFS_SOURCE`
+而在 `qemu` 运行时指定 `initrd` 参数加载 `initramfs` 镜像即可
+
+具体信息 [参见](./filesystem/README.MD)
+
 ===============================================================================================================
 
  补充：
@@ -104,6 +117,8 @@ https://shop115683645.taobao.com/
      运行i386内核：
        $ qemu-system-i386 -kernel arch/x86/boot/bzImage -append "rdinit=/linuxrc console=ttyS0" -nographic
        
+     使用 initrd 镜像
+       $ qemu-system-i386 -kernel arch/x86/boot/bzImage -append "root=/dev/ram rdinit=/linuxrc console=ttyS0" -initrd ./filesystem/initrdfs/x86/rootfs.cpio.gz -nographic
        
       编译x86_64 kernel image：
         $ export ARCH=x86_64
@@ -114,7 +129,11 @@ https://shop115683645.taobao.com/
         $ make bzImage –j4 
 
      运行x86_64内核：
+     
        $ qemu-system-x86_64 -kernel arch/x86/boot/bzImage -append "rdinit=/linuxrc console=ttyS0" -nographic
+
+     使用 initrd 镜像
+       $ qemu-system-x86_64 -kernel arch/x86/boot/bzImage -append "root=/dev/ram rdinit=/linuxrc console=ttyS0" -initrd ./filesystem/initrdfs/x86_64/rootfs.cpio.gz -nographic
        
        另外在使用gdb+qemu调试x86_64内核时，出现“Remote 'g' packet reply is too long”的错误，解决办法如下：
               下载gdb-7.8源代码，修改./gdb/remote.c +6066去掉如下几行：重新编译gdb
