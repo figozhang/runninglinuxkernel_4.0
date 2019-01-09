@@ -1,0 +1,54 @@
+Example using LTTng TMF Eclipse Plugin with Example SystemTap Script proc_snoop.stp
+
+1. Installing the Plugin
+	- Follow instructions given below to setup and run the LTTng parsing library 
+	and TMF eclipse plugin:
+		- Parsing library: http://wiki.eclipse.org/Linux_Tools_Project/LTTng
+		- TMF eclipse plugin: http://lttng.org/eclipse
+
+
+2. Importing the Parser
+	- Once you have it up and running in eclipse, open the LTTng perspective. 
+		- Window > Open Perspective > Other... > LTTng
+
+	- Open the TMF/Projects view. 
+		- Window > Show View > Other... > TMF > Projects
+
+	- Open Manage Custom Parsers page
+		- Click the downward pointing arrow in the top right corner of the 
+		TMF/Projects view. 
+
+	- Import the proc_snoop_parser.xml parser from:
+		systemtap/testsuite/systemtap.examples/process/proc_snoop_parser.xml
+
+
+3. Running the Script
+	- Create a folder somewhere to store the tracefile.
+		- e.g. $ mkdir ~/Desktop/tracefile
+
+	- Run the proc_snoop.stp script and pipe the output to a file in the above 
+	folder. Let it run for a few seconds so you get a number of lines of output, 
+	then stop it with ctrl-c. Look in the file and make sure there are less than 
+	50,000 lines before continuing. If there are more (or none) run the script 
+	again, adjusting the running time accordingly. 
+
+	$ stap systemtap/testsuite/systemtap.examples/
+	process/proc_snoop.stp > ~/Desktop/tracefile/tracefile.txt
+
+
+4. Parsing the File
+	- In the TMF/Projects view, right click and choose "Import Trace".
+	- Right click again, and choose "New Experiment". Name it and click "OK".
+	- Right click on the new experiment and choose "Select Traces". Choose 
+	tracefile.txt.
+	- In the new experiment, right click on tracefile.txt and choose 
+		- Select Parser > Custom > Proc_Snoop_Parser
+	- Double Click on the tracefile to parse it. It will show up in a neatly 
+	parsed list.
+
+	NOTE: Due to the limitations of the custom text parser, the views
+	that use timestamp information will not function properly with this
+	script. Currently, to be able to use those views, timestamps must be in
+	the form of the SimpleDateFormat class- they cannot be just a large, 
+	increasing number such as 43928472. 
+

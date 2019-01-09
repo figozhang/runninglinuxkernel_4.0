@@ -1,0 +1,69 @@
+'\" t
+.\"     Title: probe::nfs.proc.remove
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Network File Storage Tapsets
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NFS\&.PROC\&." "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::nfs.proc.remove \- NFS client removes a file on server
+.SH "SYNOPSIS"
+.sp
+.nf
+nfs\&.proc\&.remove 
+.fi
+.SH "VALUES"
+.PP
+\fIfh\fR
+.RS 4
+file handle of parent dir
+.RE
+.PP
+\fIfilelen\fR
+.RS 4
+length of file name
+.RE
+.PP
+\fIversion\fR
+.RS 4
+NFS version (the function is used for all NFS version)
+.RE
+.PP
+\fIfilename\fR
+.RS 4
+file name
+.RE
+.PP
+\fIserver_ip\fR
+.RS 4
+IP address of server
+.RE
+.PP
+\fIprot\fR
+.RS 4
+transfer protocol
+.RE
+.SH SEE ALSO\n 
+.IR tapset::nfs_proc (3stap)

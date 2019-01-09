@@ -1,0 +1,23 @@
+/*
+ * smacro try_assign - Assign the evaluation of the try-catch
+ *
+ * @assign_to: Where the evaluated value is stored in.
+ * @try_body: Expression making up the try body.
+ * @catch_body: Epxression making up the catch body.
+ *
+ * Description: Executes a try catch statement. If there was no error,
+ * a provided variable is assigned to the evaluation of the try body,
+ * otherwise to the evaluation of the catch body. This assumes that the try and
+ * catch body are meant to return a value. If they do not, then do not use this
+ * macro. If either of the bodies do not return a value, then a compilation
+ * error occurs.
+ *
+ */
+
+@define try_assign(assign_to, try_body, catch_body) %(
+  try {
+    @assign_to = @try_body
+  } catch {
+    @assign_to = @catch_body
+  }
+%)

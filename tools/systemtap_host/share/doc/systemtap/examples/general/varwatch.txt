@@ -1,0 +1,65 @@
+varwatch.stp - Watch a Variable Changing Value in a Thread
+
+  This script places a set of probes (specified by $1), each of which monitors
+  the state of some context $variable expression (specified by $2).  Whenever
+  the value changes, with respect to the active thread, the event is traced.
+
+$ stap -w varwatch.stp 'kernel.function("sys_*@fs/open.c:*")' \
+'$$parms' -c "ls > /dev/null"
+
+sh[32715] kernel.function("SyS_access@fs/open.c:395") $$parms:
+filename=0x7f340e5cb750 mode=0x4
+sh[32715] kernel.function("SyS_open@fs/open.c:992") $$parms:
+filename=0x7f340e5ca048 flags=0x80000 mode=0x1
+sh[32715] kernel.function("SyS_close@fs/open.c:1053") $$parms:
+fd=0x3
+sh[32715] kernel.function("SyS_close@fs/open.c:1058") $$parms:
+fd=?
+sh[32715] kernel.function("SyS_open@fs/open.c:992") $$parms:
+filename=0x7f340e7c22cb flags=0x80000 mode=0x7f340e7d0168
+sh[32715] kernel.function("SyS_close@fs/open.c:1053") $$parms:
+fd=0x3
+sh[32715] kernel.function("SyS_close@fs/open.c:1058") $$parms:
+fd=?
+sh[32715] kernel.function("SyS_open@fs/open.c:992") $$parms:
+filename=0x7f340e7c9e89 flags=0x80000 mode=0x7f340e7d0168
+sh[32715] kernel.function("SyS_close@fs/open.c:1053") $$parms:
+fd=0x3
+sh[32715] kernel.function("SyS_close@fs/open.c:1058") $$parms:
+fd=?
+sh[32715] kernel.function("SyS_open@fs/open.c:992") $$parms:
+filename=0x7f340e7caf39 flags=0x80000 mode=0x7f340e7d0168
+sh[32715] kernel.function("SyS_close@fs/open.c:1053") $$parms:
+fd=0x3
+sh[32715] kernel.function("SyS_close@fs/open.c:1058") $$parms:
+fd=?
+sh[32715] kernel.function("SyS_open@fs/open.c:992") $$parms:
+filename=0x4a8ddf flags=0x802 mode=0x6eb0c8
+sh[32715] kernel.function("SyS_close@fs/open.c:1053") $$parms:
+fd=0x3
+sh[32715] kernel.function("SyS_close@fs/open.c:1058") $$parms:
+fd=?
+sh[32715] kernel.function("SyS_open@fs/open.c:992") $$parms:
+filename=0x7f340df403d0 flags=0x80000 mode=0x7f340e17a768
+sh[32715] kernel.function("SyS_close@fs/open.c:1053") $$parms:
+fd=0x3
+sh[32715] kernel.function("SyS_close@fs/open.c:1058") $$parms:
+fd=?
+sh[32715] kernel.function("SyS_open@fs/open.c:992") $$parms:
+filename=0x7f340df3d2ea flags=0x80000 mode=0x1b6
+sh[32715] kernel.function("SyS_close@fs/open.c:1053") $$parms:
+fd=0x3
+sh[32715] kernel.function("SyS_close@fs/open.c:1058") $$parms:
+fd=?
+sh[32715] kernel.function("SyS_open@fs/open.c:992") $$parms:
+filename=0x7f340df3ea80 flags=0x0 mode=0x0
+sh[32715] kernel.function("SyS_close@fs/open.c:1053") $$parms:
+fd=0x3
+sh[32715] kernel.function("SyS_close@fs/open.c:1058") $$parms:
+fd=?
+[...]
+
+The output monitors the parameters to functions sys_*. This can
+be narrowed down to follow a certain function, in this example
+maybe sys_close, throughout a process's lifetime.
+

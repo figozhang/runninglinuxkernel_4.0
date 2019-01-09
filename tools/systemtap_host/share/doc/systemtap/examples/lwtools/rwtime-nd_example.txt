@@ -1,0 +1,80 @@
+Examples of rwtime-nd.stp, the Linux SystemTap version.
+
+
+rwtime-nd.stp measures syscall read() and write() times, summarizing them
+as histograms. A process name can be specified. For example, to measure
+read() and write() latency from processes named "node":
+
+# ./rwtime-nd.stp node
+Tracing read/write syscalls for processes named "node"... Hit Ctrl-C to end.
+^C
+syscall read latency (ns):
+value |-------------------------------------------------- count
+  512 |                                                     0
+ 1024 |                                                     0
+ 2048 |                                                     2
+ 4096 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@     278
+ 8192 |                                                     1
+16384 |                                                     5
+32768 |                                                     0
+65536 |                                                     0
+
+syscall write latency (ns):
+ value |-------------------------------------------------- count
+  4096 |                                                     0
+  8192 |                                                     0
+ 16384 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@      135
+ 32768 |@@                                                   8
+ 65536 |                                                     0
+131072 |                                                     0
+
+Those reads and writes were very fast, between 4 and 32 microseconds.
+
+
+Here's an example with much higher latencies: processes named "bash":
+
+# ./rwtime-nd.stp bash
+Tracing read/write syscalls for processes named "bash"... Hit Ctrl-C to end.
+^C
+syscall read latency (ns):
+      value |-------------------------------------------------- count
+        256 |                                                    0
+        512 |                                                    0
+       1024 |@                                                   1
+       2048 |@                                                   1
+       4096 |                                                    0
+       8192 |                                                    0
+      16384 |                                                    0
+      32768 |@                                                   1
+      65536 |@@@@@@                                              6
+     131072 |@@@@@@@@@@@                                        11
+     262144 |                                                    0
+     524288 |                                                    0
+            ~
+    2097152 |                                                    0
+    4194304 |                                                    0
+    8388608 |@                                                   1
+   16777216 |                                                    0
+   33554432 |@                                                   1
+   67108864 |@@@                                                 3
+  134217728 |@@@@@@@@@                                           9
+  268435456 |@@@                                                 3
+  536870912 |@@                                                  2
+ 1073741824 |@@                                                  2
+ 2147483648 |                                                    0
+ 4294967296 |@                                                   1
+ 8589934592 |                                                    0
+17179869184 |                                                    0
+
+syscall write latency (ns):
+value |-------------------------------------------------- count
+  512 |                                                    0
+ 1024 |                                                    0
+ 2048 |@@@@@@@@@@@@@@@@@@@@@                              21
+ 4096 |@@@@@@@@@@@@@@@@@@@@@@                             22
+ 8192 |@@@@@@@@@@@@@@@@@@                                 18
+16384 |                                                    0
+32768 |                                                    0
+
+The high read time, with a mode between 134 and 268 milliseconds, corresponds
+to inter-keystroke latency as the bash shell reads keystrokes.

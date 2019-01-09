@@ -1,0 +1,13 @@
+title: Monitoring Attribute Changes to a File
+name: inodewatch2.stp
+version: 1.0
+author: anonymous
+keywords: io
+subsystem: io
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description:  The inodewatch2.stp script outputs the executable name, process id, and attributes each time the attributes are changed on the specified inode on the specified major/minor device.
+test_check: stap -p4 inodewatch2.stp 0x08 0x01 100
+test_installcheck: stap inodewatch2.stp 0x08 0x01 100 -c "sleep 1"

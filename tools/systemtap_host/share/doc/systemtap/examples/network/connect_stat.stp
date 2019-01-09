@@ -1,0 +1,31 @@
+#! /usr/bin/env stap
+
+############################################################
+# connect_stat.stp
+# Author: Robin Hack <rhack@redhat.com>
+# An example script show process tree of process
+# which tried to call connect with specific ip address
+############################################################
+
+function process_tree (ip:string) {
+    cur_proc = task_current();
+    parent_pid = task_pid(task_parent (cur_proc));
+
+    printf ("%s: ", ip);
+    while (parent_pid != 0) {
+        printf ("%s (%d),%d,%d -> ", task_execname(cur_proc), task_pid(cur_proc), task_uid(cur_proc),task_gid (cur_proc));
+        cur_proc = task_parent(cur_proc);
+        parent_pid = task_pid(task_parent (cur_proc));
+    }
+    # init process
+    if (task_pid (cur_proc) == 1) {
+        printf ("%s (%d),%d,%d\n", task_execname(cur_proc), task_pid(cur_proc), task_uid(cur_proc),task_gid (cur_proc));
+    }
+}
+
+probe syscall.connect {
+    if ((uaddr_af !~ "AF_INET*") || (uaddr_ip != @1)) {
+        next;
+    }
+    process_tree (uaddr_ip);
+}

@@ -1,0 +1,14 @@
+title: System-Wide Shared Futex Contention
+name: futexes2.stp
+version: 1.0
+author: jistone
+keywords: syscall locking futex
+subsystem: locking
+status: production
+exit: user-controlled
+output: sorted-list on-exit
+scope: system-wide
+description: The script watches just shared futex syscalls on the system. On exit the futex's key, the number of contentions, and the average time for each contention on the futex are printed from lowest pid number to highest.
+test_support: stap -l 'kernel.function("futex_wait_setup")'
+test_check: stap -p4 futexes2.stp
+test_installcheck: stap futexes2.stp -c "sleep 1"

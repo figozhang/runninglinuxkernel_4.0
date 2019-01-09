@@ -1,0 +1,23 @@
+#! /usr/bin/env stap
+/*
+ * func_time_stats.stp
+ * usage: func_time_stats.stp function_probe
+ */
+
+global start, intervals
+
+probe $1 { start[tid()] = gettimeofday_us() }
+probe $1.return
+{
+  t = gettimeofday_us() 
+  old_t = start[tid()]
+  if (old_t) intervals <<< t - old_t
+  delete start[tid()]
+}
+probe end
+{
+  printf("intervals min:%dus avg:%dus max:%dus count:%d\n",
+         @min(intervals), @avg(intervals), @max(intervals),
+         @count(intervals))
+  print(@hist_log(intervals));
+}

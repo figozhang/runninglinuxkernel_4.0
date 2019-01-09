@@ -1,0 +1,38 @@
+#!/usr/bin/env stap
+# badname.stp
+# Prevent the creation of files with undesirable names.
+# Source: http://blog.cuviper.com/2009/04/08/hacking-linux-filenames/
+
+# return non-zero if the filename should be blocked
+function filter:long (name:string)
+{
+  return isinstr(name, "XXXbadnameXXX")
+}
+
+global squash_inode_permission
+
+# We really want to probe may_create(). But, may_create() is now
+# always inlined, and stap can't find its arguments. So, we have to
+# probe may_create()'s callers.
+
+probe kernel.{function("vfs_create"), function("vfs_mknod"),
+              function("vfs_mkdir"), function("vfs_symlink"),
+              function("vfs_link"), function("vfs_rename")}
+{
+  # screen out the conditions which may_create will fail anyway
+  if (@choose_defined($dentry->d_inode, $new_dentry->d_inode)
+      || @choose_defined($dir->i_flags, $new_dir->i_flags) & %{ S_DEAD %}) next
+
+  # check that the new file meets our naming rules
+  if (filter(kernel_string(@choose_defined($dentry->d_name->name,
+					   $new_dentry->d_name->name))))
+    squash_inode_permission[tid()] = 1
+}
+
+probe kernel.function("inode_permission@fs/namei.c").return !,
+      kernel.function("permission@fs/namei.c").return
+{
+  if (!$return && squash_inode_permission[tid()])
+    $return = -13 # -EACCES (Permission denied)
+  delete squash_inode_permission[tid()]
+}

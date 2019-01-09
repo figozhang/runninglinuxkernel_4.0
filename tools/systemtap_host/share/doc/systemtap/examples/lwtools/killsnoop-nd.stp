@@ -1,0 +1,48 @@
+#!/usr/bin/stap
+/*
+ * killsnoop-nd.stp	Trace process signals.
+ *			For Linux, uses SystemTap (non-debuginfo).
+ *
+ * Copyright (C) 2015 Brendan Gregg.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * 24-Jun-2014	Brendan Gregg	Created this.
+ */
+
+global target;
+global signal;
+
+probe begin
+{
+	printf("%-6s %-12s %-5s %-6s %6s\n", "FROM", "COMMAND", "SIG", "TO",
+	    "RESULT");
+}
+
+probe nd_syscall.kill
+{
+	/*
+	 * I could use the @entry shortcut on the return probe instead, but
+	 * wanted a full example of using global arrays directly.
+	 */
+	target[tid()] = uint_arg(1);
+	signal[tid()] = uint_arg(2);
+}
+
+probe nd_syscall.kill.return
+{
+	if (target[tid()] != 0) {
+		printf("%-6d %-12s %-5d %-6d %6d\n", pid(), execname(),
+		    signal[tid()], target[tid()], int_arg(1));
+		delete target[tid()];
+		delete signal[tid()];
+	}
+}

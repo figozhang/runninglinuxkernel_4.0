@@ -1,0 +1,7 @@
+title: Show Process Ancestry for IP Connections
+name: connect_stat.stp
+keywords: network socket process
+subsystem: network
+description: The connect_stat.stp script prints a task's entire ancestry (parent process name/uid/gid) whenever it attempts an outgoing socket connection to a given IP address.
+test_check: stap -p4 connect_stat.stp 127.0.0.1
+test_installcheck: stap connect_stat.stp 127.0.0.1 -c "sleep 1"

@@ -1,0 +1,13 @@
+title: Collect Slab Allocation Statistics
+name: vm.tracepoints.stp
+version: 1.0
+author: Rajasekhar
+keywords: memory statistics
+subsystem: memory
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The script will probe all memory slab/slub allocations and collects information about the size of the object (bytes requested) and user-space process in execution. When run over a period of time, it helps to correlate kernel-space memory consumption owing to user-space processes.
+test_check: stap -p4 vm.tracepoints.stp
+test_installcheck: stap vm.tracepoints.stp -c "sleep 10"

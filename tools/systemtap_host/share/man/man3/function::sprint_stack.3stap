@@ -1,0 +1,55 @@
+'\" t
+.\"     Title: function::sprint_stack
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Context Functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::SPRINT_STA" "3stap" "March 2016" "SystemTap Tapset Reference" "Context Functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::sprint_stack \- Return stack for kernel addresses from string
+.SH "SYNOPSIS"
+.sp
+.nf
+    sprint_stack:string(stk:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIstk\fR
+.RS 4
+String with list of hexadecimal (kernel) addresses
+.RE
+.SH "DESCRIPTION"
+.PP
+Perform a symbolic lookup of the addresses in the given string, which is assumed to be the result of a prior call to
+\fBbacktrace\fR\&.
+.PP
+Returns a simple backtrace from the given hex string\&. One line per address\&. Includes the symbol name (or hex address if symbol couldn\*(Aqt be resolved) and module name (if found)\&. Includes the offset from the start of the function if found, otherwise the offset will be added to the module (if found, between brackets)\&. Returns the backtrace as string (each line terminated by a newline character)\&. Note that the returned stack will be truncated to MAXSTRINGLEN, to print fuller and richer stacks use print_stack\&.
+.SH "NOTE"
+.PP
+it is recommended to use
+\fBsprint_syms\fR
+instead of this function\&.
+.SH SEE ALSO\n 
+.IR tapset::context-symbols (3stap)

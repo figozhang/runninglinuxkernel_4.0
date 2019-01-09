@@ -1,0 +1,84 @@
+.\" t
+.TH ERROR::PASS4 7stap 
+.SH NAME
+error::pass4 \- systemtap pass-4 errors
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH DESCRIPTION
+Errors that occur during pass 4 (compilation) have generally only a few
+causes:
+
+.TP
+kernel or OS version changes
+The systemtap runtime and embedded-C fragments in the tapset library
+are designed to be portable across a wide range of OS versions.  However,
+incompatibilities can occur when some OS changes occur, such as kernel
+modifications that change functions, types, or macros referenced 
+by systemtap.  Upstream (git://sourceware.org/git/systemtap.git) builds
+of systemtap are often quickly updated to include relevant fixes, so try
+getting or making an updated build.  Reworded: \fBbuild systemtap from git
+for use with very young kernels\fP.
+If the issue persists, report the problem to the systemtap developers.
+
+.TP
+buggy embedded-C code
+Embedded-C code in your own guru-mode script cannot be checked by systemtap,
+and is passed through verbatim to the compiler.  Errors in such snippets of
+code may be found during the pass-4 compiler invocation, though may be hard
+to identify by the compiler errors.
+
+.TP
+incompatible embedded-C code
+The interface standards between systemtap-generated code and embedded-C code
+occasionally change.  For example, before version 1.8, arguments were passed
+using macros
+.IR THIS->foo " and " THIS->__retvalue
+but from version 1.8 onward, using
+.IR STAP_ARG_foo " and " STAP_RETVALUE "."
+Adjust your embedded-C code to current standards, or use the
+.IR "stap --compatible=VERSION"
+option to make systemtap use a different one.
+
+.TP
+compiler bugs and mysteries
+Messages such as "internal compiler error" suggest compiler problems.  These
+should be reported to the compiler developers in the form of a preprocessed
+.IR ".i"
+file, plus the compiler command line.  To gather relevant information, run
+.SAMPLE
+stap -k --vp 0003 -p4 ....
+.ESAMPLE
+Systemtap will report the saved temporary directory, and the compiler
+command line it attempted.  Go to the directory to find he main generated
+file
+.IR stap_NNNNN_src.c .
+Force the compiler to produce a preprocessed file with:
+.SAMPLE
+make -C /lib/modules/`uname -r`/build M=`pwd` stap_NNNNN_src.i
+.ESAMPLE
+(note the
+.IR .i
+suffix), and the compiler command line should be in the file
+.IR ".stap_NNNNN_src.i.cmd" .
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR error::reporting (7stap)

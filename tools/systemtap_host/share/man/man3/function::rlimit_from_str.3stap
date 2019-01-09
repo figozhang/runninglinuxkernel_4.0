@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::rlimit_from_str
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: RLIMIT Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::RLIMIT_FRO" "3stap" "March 2016" "SystemTap Tapset Reference" "RLIMIT Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::rlimit_from_str \- Symbolic string associated with resource limit code
+.SH "SYNOPSIS"
+.sp
+.nf
+    rlimit_from_str:long(lim_str:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIlim_str\fR
+.RS 4
+The string representation of limit
+.RE
+.SH "DESCRIPTION"
+.PP
+This function returns the number associated with the given string, such as 0 for the string RLIMIT_CPU, or \-1 for an out\-of\-range value\&.
+.SH SEE ALSO\n 
+.IR tapset::rlimit (3stap)

@@ -1,0 +1,1027 @@
+// Signal tapset
+// Copyright (C) 2006 IBM Corp.
+// Copyright (C) 2006 Intel Corporation.
+// Copyright (C) 2008-2014 Red Hat, Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+//
+//
+// <tapsetdescription>
+//  This family of probe points is used to probe signal activities.
+//  Since there are so many signals sent to processes at any given
+//  point, it is advisable to filter the information according to the
+//  requirements.  For example, filter only for a particular signal
+//  (if sig==2) or for a particular process (if pid_name==stap).
+// </tapsetdescription>
+
+/**
+ * probe signal.send - Signal being sent to a process
+ * Arguments:
+ * @sig: The number of the signal
+ * @sig_name: A string representation of the signal
+ * @sig_pid: The PID of the process receiving the signal
+ * @pid_name: The name of the signal recipient
+ * @si_code: Indicates the signal type
+ * @task: A task handle to the signal recipient
+ * @sinfo: The address of siginfo struct
+ * @shared: Indicates whether the signal is shared by the thread group
+ * @send2queue: Indicates whether the signal is sent to an existing
+ * sigqueue (deprecated in SystemTap 2.1)
+ * @name: The name of the function used to send out the signal
+ *
+ * Context:
+ *  The signal's sender.
+ *
+ */
+probe signal.send = __signal.send.signal_generate !,
+		    __signal.send.send_sigqueue,
+%( kernel_v > "2.6.25" %?
+		    __signal.send.send_signal ?
+%:
+		    __signal.send.group_send_sig_info ?,
+		    __signal.send.send_group_sigqueue ?,
+		    __signal.send.specific_send_sig_info ?
+%)
+{
+    sig_name = _signal_name(sig)
+    sig_pid = task_pid(task)
+    pid_name = task_execname(task)
+
+    if (sinfo == 2)			# 2 == SEND_SIG_FORCED
+        si_code ="SIGSTOP or SIGKILL"
+    else if (sinfo > 0)
+        si_code="SI_KERNEL (SIGFPE, SIGSEGV, SIGTRAP, SIGCHLD, SIGPOLL)"
+    else if (sinfo <= 0)
+        si_code="SI_USER or SI_TIMER or SI_ASYNCIO"
+}
+
+probe __signal.send.signal_generate = kernel.trace("signal_generate") ?
+{
+    name = "signal_generate"
+    sig = $sig
+    task = $task
+    sinfo = $info
+    shared = (@choose_defined($group, 0) == 0) ? 0 : 1
+%( systemtap_v <= "2.1" %?
+    send2queue = 0
+%)
+}
+
+probe __signal.send.send_sigqueue = kernel.function("send_sigqueue")
+{
+    name = "send_sigqueue"
+    task = @choose_defined($t, $p)
+    sig = @choose_defined($q->info->si_signo, $sig)
+    sinfo = @choose_defined($q->info, 0)
+    shared = 0
+%( systemtap_v <= "2.1" %?
+    send2queue = 1
+%)
+}
+
+probe __signal.send.send_signal =
+		kernel.function("__send_signal") !,
+		kernel.function("send_signal") ?
+{
+    if (@defined($group)) {
+	name = "__send_signal"
+	shared = ($group == 0) ? 0 : 1
+    }
+    else {
+	name = "send_signal"
+	shared = 0
+    }
+    sig = $sig
+    task = $t
+    sinfo = $info
+%( systemtap_v <= "2.1" %?
+    send2queue = 0
+%)
+}
+
+probe __signal.send.group_send_sig_info =
+		kernel.function("__group_send_sig_info")
+{
+    name = "__group_send_sig_info"
+    sig = $sig
+    task = $p
+    sinfo = $info
+    shared = 1
+%( systemtap_v <= "2.1" %?
+    send2queue = 0
+%)
+}
+
+probe __signal.send.send_group_sigqueue =
+		kernel.function("send_group_sigqueue") ?
+{
+    name = "send_group_sigqueue"
+    sig = $sig
+    task = $p
+    sinfo = 0 # $q->info
+    shared = 1
+%( systemtap_v <= "2.1" %?
+    send2queue = 1
+%)
+}
+
+probe __signal.send.specific_send_sig_info =
+		kernel.function("specific_send_sig_info").call ?
+{
+    name = "specific_send_sig_info"
+    sig = $sig
+    task = $t
+    sinfo = $info
+    shared = 0
+%( systemtap_v <= "2.1" %?
+    send2queue = 0
+%)
+}
+
+%( systemtap_v <= "2.1" %?
+/**
+ * probe signal.send.return - Signal being sent to a process completed (deprecated in SystemTap 2.1)
+ * @retstr: The return value to either __group_send_sig_info, specific_send_sig_info, or send_sigqueue
+ * @shared: Indicates whether the sent signal is shared by the thread group.
+ * @send2queue: Indicates whether the sent signal was sent to an existing sigqueue
+ * @name: The name of the function used to send out the signal
+ *
+ * Context:
+ * The signal's sender. (correct?)
+ *
+ * Possible __group_send_sig_info and
+ * specific_send_sig_info return values are as follows;
+ *
+ * 0 -- The signal is successfully sent to a process,
+ * which means that, (1) the signal was ignored by the receiving process,
+ * (2) this is a non-RT signal and the system already has one queued, and
+ * (3) the signal was successfully added to the sigqueue of the receiving process.
+ *
+ * -EAGAIN -- The sigqueue of the receiving process is
+ * overflowing, the signal was RT, and the signal was sent by a user using something other
+ * than kill().
+ *
+ * Possible send_group_sigqueue and
+ * send_sigqueue return values are as follows;
+ *
+ * 0 -- The signal was either successfully added into the
+ * sigqueue of the receiving process, or a SI_TIMER entry is already
+ * queued (in which case, the overrun count will be simply incremented).
+ *
+ * 1 -- The signal was ignored by the receiving process.
+ *
+ * -1 -- (send_sigqueue only) The task was marked
+ * exiting, allowing * posix_timer_event to redirect it to the group
+ * leader.
+ *
+ */
+probe signal.send.return = __signal.send.send_sigqueue.return,
+%( kernel_v > "2.6.25" %?
+			   __signal.send.send_signal.return ?
+%:
+			   __signal.send.group_send_sig_info.return ?,
+			   __signal.send.send_group_sigqueue.return ?,
+			   __signal.send.specific_send_sig_info.return ?
+%)
+{
+    retstr = return_str(1, $return)
+}
+
+// - return 0 if the signal is either sucessfully added into the
+//   sigqueue of receiving process or a SI_TIMER entry is already
+//   queued so just increment the overrun count
+//
+// - return 1 if this signal is ignored by receiving process
+//
+// - return -1 if the task is marked exiting, so posix_timer_event
+//   can redirect it to the group leader
+
+probe __signal.send.send_sigqueue.return =
+		kernel.function("send_sigqueue").return ?
+{
+    name = "send_sigqueue"
+    shared = 0
+    send2queue = 1
+}
+
+probe __signal.send.send_signal.return =
+		kernel.function("__send_signal").return !,
+		kernel.function("send_signal").return ?
+{
+    if (@defined($group)) {
+	name = "__send_signal"
+	shared = ($group == 0) ? 0 : 1
+    }
+    else {
+	name = "send_signal"
+	shared = 0
+    }
+    send2queue = 0
+}
+
+// Return values for "__group_send_sig_info" and "specific_send_sig_info"
+//
+// - return 0 if  the signal is successfully sent to a process,
+//   which means the following:
+//     <1> the signal is ignored by receiving process
+//     <2> this is a non-RT signal and we already have one queued
+//     <3> the signal is successfully added into the sigqueue of
+//        receiving process
+//
+// - return -EAGAIN if the sigqueue is overflow the signal was RT
+//   and sent by user using something other than kill()
+
+probe __signal.send.group_send_sig_info.return =
+		kernel.function("__group_send_sig_info").return
+{
+    name = "__group_send_sig_info"
+    shared = 1
+    send2queue = 0
+}
+
+probe __signal.send.specific_send_sig_info.return =
+		kernel.function("specific_send_sig_info").return ?
+{
+    name = "specific_send_sig_info"
+    shared = 0
+    send2queue = 0
+}
+
+// - return 0 if the signal is either successfully added into the
+//   sigqueue of receiving process or a SI_TIMER entry is already
+//   queued so just increment the overrun count
+//
+// - return 1 if this signal is ignored by receiving process
+
+probe __signal.send.send_group_siggueue.return =
+		kernel.function("send_group_sigqueue").return ?
+{
+    name = "send_group_sigqueue"
+    shared = 1
+    send2queue = 1
+}
+%)
+
+/**
+ * probe signal.checkperm - Check being performed on a sent signal
+ * @sig: The number of the signal
+ * @sig_name: A string representation of the signal
+ * @sig_pid: The PID of the process receiving the signal
+ * @pid_name: Name of the process receiving the signal
+ * @si_code: Indicates the signal type
+ * @task: A task handle to the signal recipient
+ * @sinfo: The address of the siginfo structure
+ * @name: Name of the probe point
+ */
+probe signal.checkperm = kernel.function("check_kill_permission")
+{
+    sig = $sig
+    task = $t
+    sinfo = $info
+    name = "checkperm"
+
+    sig_name = _signal_name($sig)
+    sig_pid = task_pid(task)
+    pid_name = task_execname(task)
+
+    if (sinfo == 2)
+        si_code ="SIGSTOP or SIGKILL"
+    else if (sinfo > 0)
+        si_code="SI_KERNEL (SIGFPE, SIGSEGV, SIGTRAP, SIGCHLD, SIGPOLL)"
+    else if (sinfo <= 0)
+        si_code="SI_USER or SI_TIMER or SI_ASYNCIO"
+}
+
+/**
+ * probe signal.checkperm.return - Check performed on a sent signal completed
+ * @name: Name of the probe point
+ * @retstr: Return value as a string
+ */
+probe signal.checkperm.return =
+		kernel.function("check_kill_permission").return ?
+{
+    name = "checkperm"
+    retstr = return_str(1, $return)
+}
+
+
+/**
+ * probe signal.wakeup - Sleeping process being wakened for signal
+ * @sig_pid: The PID of the process to wake
+ * @pid_name: Name of the process to wake
+ * @resume: Indicates whether to wake up a task in a
+ * STOPPED or TRACED state
+ * @state_mask: A string representation indicating the mask
+ * of task states to wake. Possible values are
+ * TASK_INTERRUPTIBLE, TASK_STOPPED,
+ * TASK_TRACED, TASK_WAKEKILL, and TASK_INTERRUPTIBLE.
+ */
+probe __signal.wakeup.signal_wake_up_state
+	= kernel.function("signal_wake_up_state")
+{
+    resume = ($state == 0) ? 0 : 1;
+    if ($state & %{ /* pure */ __TASK_STOPPED %} != 0) {
+	state_mask .= " | TASK_STOPPED"
+    }
+    if ($state & %{ /* pure */ __TASK_TRACED %} != 0) {
+	state_mask .= " | TASK_TRACED"
+    }
+    if ($state & %{ /* pure */ TASK_WAKEKILL %} != 0) {
+	state_mask .= " | TASK_WAKEKILL"
+    }
+    state_mask = "TASK_INTERRUPTIBLE" . state_mask
+}
+probe __signal.wakeup.signal_wake_up = kernel.function("signal_wake_up")
+{
+    resume = $resume
+    if (resume == 0) {
+	state_mask = "TASK_INTERRUPTIBLE"
+    } else {
+	state_mask = "TASK_INTERRUPTIBLE | TASK_STOPPED | TASK_TRACED"
+    }
+}
+probe signal.wakeup = __signal.wakeup.signal_wake_up_state !,
+		      __signal.wakeup.signal_wake_up
+{
+    name = "wakeup"
+    sig_pid = $t->pid
+    pid_name = kernel_string($t->comm)
+}
+
+
+/**
+ * probe signal.check_ignored - Checking to see signal is ignored
+ * @sig_pid: The PID of the process receiving the signal
+ * @pid_name: Name of the process receiving the signal
+ * @sig: The number of the signal
+ * @sig_name: A string representation of the signal
+ */
+probe signal.check_ignored = kernel.function("sig_ignored")
+{
+    name = "check_ignored"
+    sig_pid = $t->pid
+    pid_name = kernel_string($t->comm)
+    sig = $sig
+    sig_name = _signal_name($sig)
+}
+
+/**
+ * probe signal.check_ignored.return - Check to see signal is ignored completed
+ * @name: Name of the probe point
+ * @retstr: Return value as a string
+ */
+
+/* On newer kernels, sig_ignored() is inline, so we can't do a return
+ * probe.  So, instead we'll probe prepare_signal(), which is the only
+ * caller of sig_ignored(). */
+probe __signal.check_ignored.sig_ignored.return =
+	kernel.function("sig_ignored").return
+{
+    retstr = return_str(1, $return)
+}
+probe __signal.check_ignored.prepare_signal.return =
+	kernel.function("prepare_signal").return
+{
+    /* The prepare_signal() function inverts the return value of
+     * sig_ignored(). */
+    retstr = return_str(1, !$return)
+}
+probe signal.check_ignored.return =
+	__signal.check_ignored.sig_ignored.return !, 
+	__signal.check_ignored.prepare_signal.return
+{
+    name = "check_ignored"
+}
+
+
+// probe signal.handle_stop
+//  For now, just comment it out since at the time handle_stop_signal()
+//  is called, it doesn't know whether current signal is STOP/COUNT.
+//  So the calling of handle_stop_signal() doesn't mean that the Kernel
+//  is now processing the STOP/COUNT signal
+//
+/*
+probe signal.handle_stop = kernel.function("handle_stop_signal")
+{
+    sig_pid = $p->pid
+    pid_name = kernel_string($p->comm)
+    sig_info = $sig
+    sig_name = _signal_name($sig)
+}
+*/
+
+
+/**
+ * probe signal.force_segv - Forcing send of SIGSEGV
+ * @sig_pid: The PID of the process receiving the signal
+ * @pid_name: Name of the process receiving the signal
+ * @sig: The number of the signal
+ * @sig_name: A string representation of the signal
+ * @name: Name of the probe point
+ */
+probe signal.force_segv = _signal.force_segv.*
+{
+    name = "force_segv"
+}
+
+probe _signal.force_segv.part1 = kernel.function("force_sigsegv")
+{
+    sig_pid = $p->pid
+    pid_name = kernel_string($p->comm)
+    sig = $sig
+    sig_name = _signal_name($sig)
+}
+
+probe _signal.force_segv.part2 = kernel.function("force_sigsegv_info") ?
+{
+    sig_pid = pid()
+    pid_name = execname()
+    sig = $sig
+    sig_name = _signal_name($sig)
+}
+
+/**
+ * probe signal.force_segv.return - Forcing send of SIGSEGV complete
+ * @name: Name of the probe point
+ * @retstr: Return value as a string
+ */
+probe signal.force_segv.return =
+		kernel.function("force_sigsegv").return,
+		kernel.function("force_sigsegv_info").return ?
+{
+    name = "force_segv"
+    retstr = return_str(1, $return)
+}
+
+
+/**
+ * probe signal.syskill - Sending kill signal to a process
+ * @name: Name of the probe point
+ * @sig: The specific signal sent to the process
+ * @sig_name: A string representation of the signal
+ * @sig_pid: The PID of the process receiving the signal
+ * @pid_name: The name of the signal recipient
+ * @task: A task handle to the signal recipient
+ */
+probe signal.syskill = syscall.kill
+{
+    name = "syskill"
+    sig_name = _signal_name($sig)
+    sig_pid = $pid
+    task = pid2task($pid)
+    pid_name = task? task_execname(task): ""
+}
+
+/**
+ * probe signal.syskill.return - Sending kill signal completed
+ */
+probe signal.syskill.return = syscall.kill.return
+{
+    name = "syskill"
+}
+
+/**
+ * probe signal.sys_tkill - Sending a kill signal to a thread
+ * @name: Name of the probe point
+ * @sig_pid: The PID of the process receiving the kill signal
+ * @pid_name: The name of the signal recipient
+ * @sig: The specific signal sent to the process
+ * @sig_name: A string representation of the signal
+ * @task: A task handle to the signal recipient
+ *
+ * The tkill call is analogous to kill(2),
+ * except that it also allows a process within a specific thread group to
+ * be targeted. Such processes are targeted through their unique
+ * thread IDs (TID).
+ */
+probe signal.systkill = syscall.tkill
+{
+    name = "systkill"
+    sig_name = _signal_name($sig)
+    sig_pid = $pid
+    task = pid2task($pid)
+    pid_name = task? task_execname(task): ""
+}
+
+/**
+ * probe signal.systkill.return - Sending kill signal to a thread completed
+ * @name: Name of the probe point
+ * @retstr: The return value to either __group_send_sig_info,
+ */
+probe signal.systkill.return = syscall.tkill.return
+{
+    name = "systkill"
+}
+
+/**
+ * probe signal.sys_tgkill - Sending kill signal to a thread group
+ * @name: Name of the probe point
+ * @sig_pid: The PID of the thread receiving the kill signal
+ * @pid_name: The name of the signal recipient
+ * @tgid: The thread group ID of the thread receiving the kill signal
+ * @sig: The specific kill signal sent to the process
+ * @sig_name: A string representation of the signal
+ * @task: A task handle to the signal recipient
+ *
+ * The tgkill call is similar to tkill,
+ * except that it also allows the caller to specify the thread group ID of
+ * the thread to be signalled. This protects against TID reuse.
+ */
+probe signal.systgkill = syscall.tgkill
+{
+    name = "systgkill"
+    sig_name = _signal_name($sig)
+    sig_pid = $pid
+    task = pid2task($pid)
+    pid_name = task? task_execname(task): ""
+}
+
+/**
+ * probe signal.sys_tgkill.return - Sending kill signal to a thread group completed
+ * @name: Name of the probe point
+ * @retstr: The return value to either __group_send_sig_info,
+ */
+probe signal.systgkill.return = syscall.tgkill.return
+{
+    name = "systgkill"
+}
+
+/**
+ * probe signal.send_sig_queue - Queuing a signal to a process
+ * @name: Name of the probe point
+ * @sig: The queued signal
+ * @sig_name: A string representation of the signal
+ * @sig_pid: The PID of the process to which the signal is queued
+ * @pid_name: Name of the process to which the signal is queued
+ * @sigqueue_addr: The address of the signal queue
+ */
+probe signal.send_sig_queue =
+        kernel.function("send_sigqueue"),
+        kernel.function("send_group_sigqueue") ?
+{
+    name = "send_sig_queue"
+    if (! @defined($sig)) {
+	sig = $q->info->si_signo
+	sig_name = _signal_name($q->info->si_signo)
+    }
+    else {
+	sig = $sig
+	sig_name = _signal_name($sig)
+    }
+    if (@defined($t)) {
+	sig_pid = $t->pid
+	pid_name = kernel_string($t->comm)
+    }
+    else {
+	sig_pid = $p->pid
+	pid_name = kernel_string($p->comm)
+    }
+    sigqueue_addr = $q
+}
+
+/**
+ * probe signal.send_sig_queue.return  - Queuing a signal to a process completed
+ * @name: Name of the probe point
+ * @retstr: Return value as a string
+ */
+probe signal.send_sig_queue.return =
+        kernel.function("send_sigqueue").return,
+        kernel.function("send_group_sigqueue").return ?
+{
+    name = "send_sig_queue"
+    retstr = return_str(1, $return)
+}
+
+
+/**
+ * probe signal.pending - Examining pending signal
+ * @name: Name of the probe point
+ * @sigset_add: The address of the user-space signal set
+ * (sigset_t)
+ * @sigset_size: The size of the user-space signal set
+ *
+ * This probe is used to examine a set of signals pending for delivery
+ * to a specific thread. This normally occurs when the
+ * do_sigpending kernel function is executed.
+ */
+probe signal.pending = kernel.function("do_sigpending").call !,
+		       kernel.function("sys_rt_sigpending").call ?,
+		       kernel.function("compat_sys_rt_sigpending").call ?
+{
+    name = "pending"
+    sigset_add=@choose_defined($set, $uset)
+    sigset_size=$sigsetsize
+}
+
+/**
+ * probe signal.pending.return - Examination of pending signal completed
+ * @name: Name of the probe point
+ * @retstr: Return value as a string
+ */
+probe signal.pending.return = kernel.function("do_sigpending").return !,
+			      kernel.function("sys_rt_sigpending").return ?,
+			      kernel.function("compat_sys_rt_sigpending").return ?
+{
+    name = "pending"
+    retstr = return_str(1, $return)
+}
+
+
+/**
+ * probe signal.handle - Signal handler being invoked
+ * @name: Name of the probe point
+ * @sig: The signal number that invoked the signal handler
+ * @sig_name: A string representation of the signal
+ * @sinfo: The address of the siginfo table
+ * @sig_code: The si_code value of the siginfo signal
+ * @ka_addr: The address of the k_sigaction table
+ * associated with the signal
+ * @oldset_addr: The address of the bitmask array of blocked signals
+ * (deprecated in SystemTap 2.1)
+ * @regs: The address of the kernel-mode stack area (deprecated in
+ * SystemTap 2.1)
+ * @sig_mode: Indicates whether the signal was a user-mode or kernel-mode signal
+ */
+probe signal.handle = __signal.handle.tp !, __signal.handle.kp
+{
+    name = "handle"
+    // Check whether the signal is a User Mode or Kernel mode Signal.
+
+    if (sinfo == 0 && sig_code <= 0)
+        sig_mode = "User Mode Signal"
+    else if (sinfo >=  1)
+        sig_mode = "Kernel Mode Signal"
+}
+
+probe __signal.handle.tp = kernel.trace("signal_deliver") ?
+{
+    sig = $sig
+    sig_name = _signal_name($sig)
+    sinfo = $info
+    sig_code = $info->si_code
+    ka_addr = $ka
+%( systemtap_v <= "2.1" %?
+    oldset_addr = 0
+    regs = 0
+%)
+}
+
+probe __signal.handle.kp = kernel.function("handle_rt_signal64") ?,
+			   kernel.function("handle_rt_signal32") ?,
+			   kernel.function("handle_signal32") !,
+			   kernel.function("handle_signal")
+{
+    if (@defined($sig)) {
+        sig = $sig
+        sig_name = _signal_name($sig)
+    }
+    else {
+        sig = $signr
+        sig_name = _signal_name($signr)
+    }
+    sinfo = $info
+    sig_code = $info->si_code
+    ka_addr = $ka
+%( systemtap_v <= "2.1" %?
+    oldset_addr = @choose_defined($oldset, @choose_defined($set, 0))
+    regs = $regs
+%)
+}
+
+%( systemtap_v <= "2.1" %?
+/**
+ * probe signal.handle.return - Signal handler invocation completed
+ * (deprecated in SystemTap 2.1)
+ * @name: Name of the probe point
+ * @retstr: Return value as a string
+ */
+probe signal.handle.return = kernel.function("handle_rt_signal64").return ?,
+			     kernel.function("handle_rt_signal32").return ?,
+			     kernel.function("handle_signal32").return !,
+			     kernel.function("handle_signal").return ?
+{
+    name = "handle"
+    retstr = return_str(1, $return)
+}
+%)
+
+
+/**
+ * probe signal.do_action - Examining or changing a signal action
+ * @name: Name of the probe point
+ * @sig: The signal to be examined/changed
+ * @sig_name: A string representation of the signal
+ * @sigact_addr: The address of the new sigaction
+ * struct associated with the signal
+ * @oldsigact_addr: The address of the old sigaction
+ * struct associated with the signal
+ * @sa_handler: The new handler of the signal
+ * @sa_mask: The new mask of the signal
+ */
+probe signal.do_action = kernel.function("do_sigaction")
+{
+    name = "do_action"
+    sig = $sig
+    sig_name = _signal_name($sig)
+    sigact_addr = $act
+    oldsigact_addr = $oact
+    if(sigact_addr != 0)
+    {
+        sa_handler = $act->sa->sa_handler
+        sa_mask = __get_action_mask($act)
+    }
+}
+
+/**
+ * probe signal.do_action.return - Examining or changing a signal action completed
+ * @name: Name of the probe point
+ * @retstr: Return value as a string
+ */
+probe signal.do_action.return = kernel.function("do_sigaction").return
+{
+    name = "do_action"
+    retstr = return_str(1, $return)
+}
+
+function get_sigaction_mask:long(act:long)
+{
+    return __get_action_mask(act)
+}
+
+@__private30 function __get_action_mask:long(act:long) %{ /* pure */
+    int i;
+    struct k_sigaction *act = (struct k_sigaction *)((long)STAP_ARG_act);
+    sigset_t *sigset = &act->sa.sa_mask;
+    STAP_RETVALUE = kread(&(sigset->sig[0]));
+    for (i=1; i<_NSIG_WORDS; ++i) {
+        uint64_t part = kread(&(sigset->sig[i]));
+        STAP_RETVALUE |= part << (_NSIG_BPW*i);
+    }
+    CATCH_DEREF_FAULT();
+%}
+
+
+/**
+ * probe signal.procmask - Examining or changing blocked signals
+ * @name: Name of the probe point
+ * @how: Indicates how to change the blocked signals; possible values are
+ * SIG_BLOCK=0 (for blocking signals),
+ * SIG_UNBLOCK=1 (for unblocking signals), and
+ * SIG_SETMASK=2 for setting the signal mask.
+ * @sigset_addr: The address of the signal set (sigset_t)
+ * to be implemented
+ * @oldsigset_addr: The old address of the signal set
+ * (sigset_t)
+ * @sigset: The actual value to be set for sigset_t
+ * (correct?)
+ */
+probe signal.procmask = kernel.function("sigprocmask")
+{
+    name = "procmask"
+    how=$how
+    sigset_addr = $set
+    oldsigset_addr = $oldset
+    sigset = get_sigset($set)
+}
+
+function get_sigset:long(sigset:long) %{ /* pure */
+    int i;
+    sigset_t *sigset = (sigset_t *)((long)STAP_ARG_sigset);
+    STAP_RETVALUE = kread(&(sigset->sig[0]));
+    for (i=1; i<_NSIG_WORDS; ++i) {
+        uint64_t part = kread(&(sigset->sig[i]));
+        STAP_RETVALUE |= part << (_NSIG_BPW*i);
+    }
+    CATCH_DEREF_FAULT();
+%}
+
+/**
+ * probe signal.procmask.return - Examining or changing blocked signals completed
+ * @name: Name of the probe point
+ * @retstr: Return value as a string
+ */
+probe signal.procmask.return = kernel.function("sigprocmask").return
+{
+    name = "procmask"
+    retstr = return_str(1, $return)
+}
+
+
+/**
+ * probe signal.flush - Flushing all pending signals for a task
+ * @name: Name of the probe point
+ * @task: The task handler of the process performing the flush
+ * @sig_pid: The PID of the process associated with the task
+ * performing the flush
+ * @pid_name: The name of the process associated with the task
+ * performing the flush
+ */
+probe signal.flush = kernel.function("flush_signals")
+{
+    name = "flush"
+    task = $t
+    sig_pid = $t->pid
+    pid_name = kernel_string($t->comm)
+}
+
+/**
+ * sfunction get_sa_flags - Returns the numeric value of sa_flags
+ *
+ * @act: address of the sigaction to query.
+ */
+function get_sa_flags:long (act:long)
+{
+	return @cast(act, "k_sigaction", "kernel")->sa->sa_flags
+}
+
+/**
+ * sfunction get_sa_handler - Returns the numeric value of sa_handler
+ *
+ * @act: address of the sigaction to query.
+ */
+function get_sa_handler:long (act:long)
+{
+	return @cast(act, "k_sigaction", "kernel")->sa->sa_handler
+}
+
+// sa_mask contains the set of signals to be blocked when executing the
+// signal handler. This function returns a string, delimited by ",".
+//
+// struct task_struct {
+// [...]
+//         struct signal_struct//signal;
+//         struct sighand_struct//sighand;
+// [...]
+// struct sighand_struct {
+//         atomic_t                count;
+//         struct k_sigaction      action[_NSIG];
+// [...]
+// struct k_sigaction {
+//         struct sigaction sa;
+// };
+//
+// struct sigaction {
+// [...]
+//         sigset_t sa_mask;
+// };
+
+/**
+ * sfunction sigset_mask_str - Returns the string representation of a sigset
+ *
+ * @mask: the sigset to convert to string.
+ */
+function sigset_mask_str:string (mask:long) %{ /* pure */
+	int i, len;
+	char *str = STAP_RETVALUE, tmp[5];
+	str[0] = '\0';
+	for (i = 1; i < _NSIG; ++i, STAP_ARG_mask >>=1)
+		if (STAP_ARG_mask & 1) {
+			snprintf(tmp, sizeof(tmp), "%u,", i);
+			strlcat(str, tmp, MAXSTRINGLEN);
+		}
+	len = strlen(str);
+	if (len) str[len - 1] = '\0';
+%}
+
+// task_struct->blocked signal mask contains the set of signals that are
+// currently blocked.
+//
+// struct task_struct {
+// [...]
+//         sigset_t blocked, real_blocked;
+
+/**
+ * sfunction is_sig_blocked - Returns 1 if the signal is currently blocked, or 0 if it is not
+ *
+ * @task: address of the task_struct to query.
+ * @sig: the signal number to test.
+ */
+function is_sig_blocked:long (task:long, sig:long) %{ /* pure */
+	int i;
+	sigset_t blocked;
+	struct task_struct *p = (struct task_struct *)((long)STAP_ARG_task);
+	for (i = 0; i < _NSIG_WORDS; ++i)
+		blocked.sig[i] = kread(&p->blocked.sig[i]);
+	STAP_RETVALUE = sigismember(&blocked, STAP_ARG_sig);
+	CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction sa_flags_str - Returns the string representation of sa_flags
+ *
+ * @sa_flags: the set of flags to convert to string.
+ */
+function sa_flags_str:string (sa_flags:long) %{ /* pure */
+	int len;
+	char *str = STAP_RETVALUE;
+	str[0] = '\0';
+	if (STAP_ARG_sa_flags & 0x00000001u) strlcat(str, "NOCLDSTOP|", MAXSTRINGLEN);
+	if (STAP_ARG_sa_flags & 0x00000002u) strlcat(str, "NOCLDWAIT|", MAXSTRINGLEN);
+	if (STAP_ARG_sa_flags & 0x00000004u) strlcat(str, "SIGINFO|", MAXSTRINGLEN);
+	if (STAP_ARG_sa_flags & 0x08000000u) strlcat(str, "ONSTACK|", MAXSTRINGLEN);
+	if (STAP_ARG_sa_flags & 0x10000000u) strlcat(str, "RESTART|", MAXSTRINGLEN);
+	if (STAP_ARG_sa_flags & 0x40000000u) strlcat(str, "NODEFER|", MAXSTRINGLEN);
+	if (STAP_ARG_sa_flags & 0x80000000u) strlcat(str, "RESETHAND|", MAXSTRINGLEN);
+	if (STAP_ARG_sa_flags & 0x04000000) strlcat(str, "RESTORER|", MAXSTRINGLEN);
+	len = strlen(str);
+	if (len) str[len - 1] = '\0';
+%}
+
+/**
+ * sfunction sa_handler - Returns the string representation of an sa_handler
+ *
+ * @handler: the sa_handler to convert to string.
+ *
+ * Description: Returns the string representation of an sa_handler.
+ * If it is not SIG_DFL, SIG_IGN or SIG_ERR, it will return the address
+ * of the handler.
+ */
+function sa_handler_str(handler) {
+	if (handler == 0) return "default"; /* SIG_DFL */
+	if (handler == 1) return "ignored"; /* SIG_IGN */
+	if (handler == -1) return "error"; /* SIG_ERR */
+	return sprintf("%p", handler); /* userspace address */
+}
+
+// Signals start from 1 not 0.
+
+@__private30 global __sig[64]
+
+probe init {
+	__sig[1] = "HUP"
+	__sig[2] = "INT"
+	__sig[3] = "QUIT"
+	__sig[4] = "ILL"
+	__sig[5] = "TRAP"
+	__sig[6] = "ABRT" /* or IOT */
+	__sig[7] = "BUS"
+	__sig[8] = "FPE"
+	__sig[9] = "KILL"
+	__sig[10] = "USR1"
+	__sig[11] = "SEGV"
+	__sig[12] = "USR2"
+	__sig[13] = "PIPE"
+	__sig[14] = "ALRM"
+	__sig[15] = "TERM"
+	__sig[16] = "STKFLT"
+	__sig[17] = "CHLD" /* or CLD */
+	__sig[18] = "CONT"
+	__sig[19] = "STOP"
+	__sig[20] = "TSTP"
+	__sig[21] = "TTIN"
+	__sig[22] = "TTOU"
+	__sig[23] = "URG"
+	__sig[24] = "XCPU"
+	__sig[25] = "XFSZ"
+	__sig[26] = "VTALRM"
+	__sig[27] = "PROF"
+	__sig[28] = "WINCH"
+	__sig[29] = "IO/POLL"
+	__sig[30] = "PWR"
+	__sig[31] = "SYS" /* or UNUSED */
+	__sig[32] = "RTMIN"
+	__sig[33] = "RTMIN+1"
+	__sig[34] = "RTMIN+2"
+	__sig[35] = "RTMIN+3"
+	__sig[36] = "RTMIN+4"
+	__sig[37] = "RTMIN+5"
+	__sig[38] = "RTMIN+6"
+	__sig[39] = "RTMIN+7"
+	__sig[40] = "RTMIN+8"
+	__sig[41] = "RTMIN+9"
+	__sig[42] = "RTMIN+10"
+	__sig[43] = "RTMIN+11"
+	__sig[44] = "RTMIN+12"
+	__sig[45] = "RTMIN+13"
+	__sig[46] = "RTMIN+14"
+	__sig[47] = "RTMIN+15"
+	__sig[48] = "RTMIN+16"
+	__sig[49] = "RTMIN+17"
+	__sig[50] = "RTMIN+18"
+	__sig[51] = "RTMIN+19"
+	__sig[52] = "RTMIN+20"
+	__sig[53] = "RTMIN+21"
+	__sig[54] = "RTMIN+22"
+	__sig[55] = "RTMIN+23"
+	__sig[56] = "RTMIN+24"
+	__sig[57] = "RTMIN+25"
+	__sig[58] = "RTMIN+26"
+	__sig[59] = "RTMIN+27"
+	__sig[60] = "RTMIN+28"
+	__sig[61] = "RTMIN+29"
+	__sig[62] = "RTMIN+30"
+	__sig[63] = "RTMIN+31"
+	__sig[64] = "RTMIN+32"
+}
+
+/**
+ * sfunction signal_str - Returns the string representation of a signal number
+ *
+ * @num: the signal number to convert to string.
+ */
+function signal_str(num) {
+    return __sig[num]
+}

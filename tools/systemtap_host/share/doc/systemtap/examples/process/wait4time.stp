@@ -1,0 +1,52 @@
+#! /usr/bin/env stap
+
+/*
+ * Copyright (C) 2006-2007 Red Hat Inc.
+ * 
+ * This copyrighted material is made available to anyone wishing to use,
+ * modify, copy, or redistribute it subject to the terms and conditions
+ * of the GNU General Public License v.2.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Print out the time spent in wait4 systemcall
+ *
+ * Format is:
+ * timestamp pid (executabable) wait4: time_us pid
+ *
+ * 155789807 4196 (ssh) wait4: 12 4197
+ * 158270531 3215 (bash) wait4: 5410460 -1
+ * 158270659 3215 (bash) wait4: 9 -1
+ * 158557461 2614 (sendmail) wait4: 27 -1
+ * 158557487 2614 (sendmail) wait4: 5 -1
+ *
+ */
+
+global start
+global wait4_pid
+
+function timestamp:long() {
+  return gettimeofday_us() - start
+}
+
+function proc:string() {
+  return sprintf("%d (%s)", pid(), execname())
+}
+
+probe begin {
+ start = gettimeofday_us()
+}
+
+probe syscall.wait4 {
+  // It would be nice to use @entry here, but "pid" has a non-trivial
+  // expression in the tapset which we probably shouldn't duplicate.
+  wait4_pid[tid()]=pid
+}
+
+probe syscall.wait4.return {
+  elapsed_time = gettimeofday_us() - @entry(gettimeofday_us())
+  printf("%d %s wait4: %d %d\n",  timestamp(), proc(), elapsed_time,
+         wait4_pid[tid()])
+  delete wait4_pid[tid()]
+}

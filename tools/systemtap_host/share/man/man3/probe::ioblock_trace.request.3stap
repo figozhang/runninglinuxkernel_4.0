@@ -1,0 +1,114 @@
+'\" t
+.\"     Title: probe::ioblock_trace.request
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: IO Scheduler and block IO Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::IOBLOCK_TRACE" "3stap" "March 2016" "SystemTap Tapset Reference" "IO Scheduler and block IO Taps"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::ioblock_trace.request \- Fires just as a generic block I/O request is created for a bio\&.
+.SH "SYNOPSIS"
+.sp
+.nf
+ioblock_trace\&.request 
+.fi
+.SH "VALUES"
+.PP
+\fIbdev\fR
+.RS 4
+target block device
+.RE
+.PP
+\fIbytes_done\fR
+.RS 4
+number of bytes transferred
+.RE
+.PP
+\fIino\fR
+.RS 4
+i\-node number of the mapped file
+.RE
+.PP
+\fIidx\fR
+.RS 4
+offset into the bio vector array
+\fIphys_segments\fR
+\- number of segments in this bio after physical address coalescing is performed\&.
+.RE
+.PP
+\fIrw\fR
+.RS 4
+binary trace for read/write request
+.RE
+.PP
+\fIq\fR
+.RS 4
+request queue on which this bio was queued\&.
+.RE
+.PP
+\fIflags\fR
+.RS 4
+see below BIO_UPTODATE 0 ok after I/O completion BIO_RW_BLOCK 1 RW_AHEAD set, and read/write would block BIO_EOF 2 out\-out\-bounds error BIO_SEG_VALID 3 nr_hw_seg valid BIO_CLONED 4 doesn\*(Aqt own data BIO_BOUNCED 5 bio is a bounce bio BIO_USER_MAPPED 6 contains user pages BIO_EOPNOTSUPP 7 not supported
+.RE
+.PP
+\fIsize\fR
+.RS 4
+total size in bytes
+.RE
+.PP
+\fIp_start_sect\fR
+.RS 4
+points to the start sector of the partition structure of the device
+.RE
+.PP
+\fIname\fR
+.RS 4
+name of the probe point
+.RE
+.PP
+\fIvcnt\fR
+.RS 4
+bio vector count which represents number of array element (page, offset, length) which make up this I/O request
+.RE
+.PP
+\fIsector\fR
+.RS 4
+beginning sector for the entire bio
+.RE
+.PP
+\fIdevname\fR
+.RS 4
+block device name
+.RE
+.PP
+\fIbdev_contains\fR
+.RS 4
+points to the device object which contains the partition (when bio structure represents a partition)
+.RE
+.SH "CONTEXT"
+.PP
+The process makes block I/O request
+.SH SEE ALSO\n 
+.IR tapset::ioblock (3stap)

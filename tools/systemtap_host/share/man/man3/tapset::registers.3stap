@@ -1,0 +1,172 @@
+.\" -*- nroff -*-
+.TH TAPSET::REGISTERS 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::registers \- systemtap registers tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B register 
+Return the signed value of the named CPU register
+.IP
+See 
+.IR function::register (3stap)
+ for details.
+.P
+.TP
+.B u_register 
+Return the unsigned value of the named CPU register
+.IP
+See 
+.IR function::u_register (3stap)
+ for details.
+.P
+.TP
+.B int_arg 
+Return function argument as signed int
+.IP
+See 
+.IR function::int_arg (3stap)
+ for details.
+.P
+.TP
+.B uint_arg 
+Return function argument as unsigned int
+.IP
+See 
+.IR function::uint_arg (3stap)
+ for details.
+.P
+.TP
+.B long_arg 
+Return function argument as signed long
+.IP
+See 
+.IR function::long_arg (3stap)
+ for details.
+.P
+.TP
+.B ulong_arg 
+Return function argument as unsigned long
+.IP
+See 
+.IR function::ulong_arg (3stap)
+ for details.
+.P
+.TP
+.B longlong_arg 
+Return function argument as 64-bit value
+.IP
+See 
+.IR function::longlong_arg (3stap)
+ for details.
+.P
+.TP
+.B ulonglong_arg 
+Return function argument as 64-bit value
+.IP
+See 
+.IR function::ulonglong_arg (3stap)
+ for details.
+.P
+.TP
+.B pointer_arg 
+Return function argument as pointer value
+.IP
+See 
+.IR function::pointer_arg (3stap)
+ for details.
+.P
+.TP
+.B s32_arg 
+Return function argument as signed 32-bit value
+.IP
+See 
+.IR function::s32_arg (3stap)
+ for details.
+.P
+.TP
+.B u32_arg 
+Return function argument as unsigned 32-bit value
+.IP
+See 
+.IR function::u32_arg (3stap)
+ for details.
+.P
+.TP
+.B s64_arg 
+Return function argument as signed 64-bit value
+.IP
+See 
+.IR function::s64_arg (3stap)
+ for details.
+.P
+.TP
+.B u64_arg 
+Return function argument as unsigned 64-bit value
+.IP
+See 
+.IR function::u64_arg (3stap)
+ for details.
+.P
+.TP
+.B asmlinkage 
+Mark function as declared asmlinkage
+.IP
+See 
+.IR function::asmlinkage (3stap)
+ for details.
+.P
+.TP
+.B fastcall 
+Mark function as declared fastcall
+.IP
+See 
+.IR function::fastcall (3stap)
+ for details.
+.P
+.TP
+.B regparm 
+Specify regparm value used to compile function
+.IP
+See 
+.IR function::regparm (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::register (3stap),
+.BR
+.IR \%function::u_register (3stap),
+.BR
+.IR \%function::int_arg (3stap),
+.BR
+.IR \%function::uint_arg (3stap),
+.BR
+.IR \%function::long_arg (3stap),
+.BR
+.IR \%function::ulong_arg (3stap),
+.BR
+.IR \%function::longlong_arg (3stap),
+.BR
+.IR \%function::ulonglong_arg (3stap),
+.BR
+.IR \%function::pointer_arg (3stap),
+.BR
+.IR \%function::s32_arg (3stap),
+.BR
+.IR \%function::u32_arg (3stap),
+.BR
+.IR \%function::s64_arg (3stap),
+.BR
+.IR \%function::u64_arg (3stap),
+.BR
+.IR \%function::asmlinkage (3stap),
+.BR
+.IR \%function::fastcall (3stap),
+.BR
+.IR \%function::regparm (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

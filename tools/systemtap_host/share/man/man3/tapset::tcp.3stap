@@ -1,0 +1,105 @@
+.\" -*- nroff -*-
+.TH TAPSET::TCP 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::tcp \- systemtap tcp tapset
+ 
+.SH DESCRIPTION
+
+ This family of probe points is used to probe events that occur in the TCP layer, 
+
+.TP
+.P
+.TP
+.B tcp.sendmsg 
+Sending a tcp message
+.IP
+ See 
+.IR probe::tcp.sendmsg (3stap)
+ for details.
+.P
+.TP
+.B tcp.sendmsg.return 
+ Sending TCP message is done
+.IP
+ See 
+.IR probe::tcp.sendmsg.return (3stap)
+ for details.
+.P
+.TP
+.B tcp.recvmsg 
+Receiving TCP message
+.IP
+ See 
+.IR probe::tcp.recvmsg (3stap)
+ for details.
+.P
+.TP
+.B tcp.recvmsg.return 
+Receiving TCP message complete
+.IP
+ See 
+.IR probe::tcp.recvmsg.return (3stap)
+ for details.
+.P
+.TP
+.B tcp.disconnect 
+TCP socket disconnection
+.IP
+ See 
+.IR probe::tcp.disconnect (3stap)
+ for details.
+.P
+.TP
+.B tcp.disconnect.return 
+TCP socket disconnection complete
+.IP
+ See 
+.IR probe::tcp.disconnect.return (3stap)
+ for details.
+.P
+.TP
+.B tcp.setsockopt 
+Call to setsockopt()
+.IP
+ See 
+.IR probe::tcp.setsockopt (3stap)
+ for details.
+.P
+.TP
+.B tcp.setsockopt.return 
+ Return from setsockopt()
+.IP
+ See 
+.IR probe::tcp.setsockopt.return (3stap)
+ for details.
+.P
+.TP
+.B tcp.receive 
+Called when a TCP packet is received
+.IP
+ See 
+.IR probe::tcp.receive (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::tcp.sendmsg (3stap),
+.BR
+.IR \%probe::tcp.sendmsg.return (3stap),
+.BR
+.IR \%probe::tcp.recvmsg (3stap),
+.BR
+.IR \%probe::tcp.recvmsg.return (3stap),
+.BR
+.IR \%probe::tcp.disconnect (3stap),
+.BR
+.IR \%probe::tcp.disconnect.return (3stap),
+.BR
+.IR \%probe::tcp.setsockopt (3stap),
+.BR
+.IR \%probe::tcp.setsockopt.return (3stap),
+.BR
+.IR \%probe::tcp.receive (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

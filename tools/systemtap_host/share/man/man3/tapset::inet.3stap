@@ -1,0 +1,72 @@
+.\" -*- nroff -*-
+.TH TAPSET::INET 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::inet \- systemtap inet tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B htonll 
+Convert 64-bit long long from host to network order
+.IP
+See 
+.IR function::htonll (3stap)
+ for details.
+.P
+.TP
+.B htonl 
+Convert 32-bit long from host to network order
+.IP
+See 
+.IR function::htonl (3stap)
+ for details.
+.P
+.TP
+.B htons 
+Convert 16-bit short from host to network order
+.IP
+See 
+.IR function::htons (3stap)
+ for details.
+.P
+.TP
+.B ntohll 
+Convert 64-bit long long from network to host order
+.IP
+See 
+.IR function::ntohll (3stap)
+ for details.
+.P
+.TP
+.B ntohl 
+Convert 32-bit long from network to host order
+.IP
+See 
+.IR function::ntohl (3stap)
+ for details.
+.P
+.TP
+.B ntohs 
+Convert 16-bit short from network to host order
+.IP
+See 
+.IR function::ntohs (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::htonll (3stap),
+.BR
+.IR \%function::htonl (3stap),
+.BR
+.IR \%function::htons (3stap),
+.BR
+.IR \%function::ntohll (3stap),
+.BR
+.IR \%function::ntohl (3stap),
+.BR
+.IR \%function::ntohs (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

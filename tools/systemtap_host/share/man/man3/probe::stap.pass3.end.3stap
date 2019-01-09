@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: probe::stap.pass3.end
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: SystemTap Translator Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::STAP\&.PASS3\" "3stap" "March 2016" "SystemTap Tapset Reference" "SystemTap Translator Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::stap.pass3.end \- Finished stap pass3 (translation to C)
+.SH "SYNOPSIS"
+.sp
+.nf
+stap\&.pass3\&.end 
+.fi
+.SH "VALUES"
+.PP
+\fIsession\fR
+.RS 4
+the systemtap_session variable s
+.RE
+.SH "DESCRIPTION"
+.PP
+pass3\&.end fires just before the jump to cleanup if s\&.last_pass = 3
+.SH SEE ALSO\n 
+.IR tapset::stap_staticmarkers (3stap)

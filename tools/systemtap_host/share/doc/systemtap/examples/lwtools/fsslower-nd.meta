@@ -1,0 +1,11 @@
+title: Trace slow file system synchronous reads and writes (non-debuginfo)
+name: fsslower-nd.stp
+author: Brendan Gregg
+keywords: io filesystem
+description: This dynamically traces two common file system functions: do_sync_read() and do_sync_write(), and shows details of each call that is slower than a threshold. Many, but not all, file systems and workloads use these functions. Tracing their time provides one view of suffered file system latency.
+scope: system-wide
+usage: ./fsslower-nd.stp [min_ms]
+arg_1: Minimum millisecond threshold
+test_support: stap -p4 fsslower-nd.stp
+test_check: stap -p4 fsslower-nd.stp
+test_installcheck: stap fsslower-nd.stp -c "sleep 1"

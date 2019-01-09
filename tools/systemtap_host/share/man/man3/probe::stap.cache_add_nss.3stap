@@ -1,0 +1,52 @@
+'\" t
+.\"     Title: probe::stap.cache_add_nss
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: SystemTap Translator Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::STAP\&.CACHE_" "3stap" "March 2016" "SystemTap Tapset Reference" "SystemTap Translator Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::stap.cache_add_nss \- Add NSS (Network Security Services) information to cache
+.SH "SYNOPSIS"
+.sp
+.nf
+stap\&.cache_add_nss 
+.fi
+.SH "VALUES"
+.PP
+\fIsource_path\fR
+.RS 4
+the path the \&.sgn file is coming from (incl filename)
+.RE
+.PP
+\fIdest_path\fR
+.RS 4
+the path the \&.sgn file is coming from (incl filename)
+.RE
+.SH "DESCRIPTION"
+.PP
+Fires just before the file is actually moved\&. Note: stap must compiled with NSS support; if moving the kernel module fails, this probe will not fire\&.
+.SH SEE ALSO\n 
+.IR tapset::stap_staticmarkers (3stap)

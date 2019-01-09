@@ -1,0 +1,58 @@
+'\" t
+.\"     Title: function::kernel_string_utf16
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: String and data retrieving functions Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::KERNEL_STR" "3stap" "March 2016" "SystemTap Tapset Reference" "String and data retrieving fun"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::kernel_string_utf16 \- Retrieves UTF\-16 string from kernel memory
+.SH "SYNOPSIS"
+.sp
+.nf
+1) kernel_string_utf16:string(addr:long)
+.fi
+.sp
+.nf
+2) kernel_string_utf16:string(addr:long,err_msg:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIaddr\fR
+.RS 4
+The kernel address to retrieve the string from
+.RE
+.PP
+\fIerr_msg\fR
+.RS 4
+The error message to return when data isn\*(Aqt available
+.RE
+.SH "DESCRIPTION"
+.PP
+1) This function returns a null terminated UTF\-8 string converted from the UTF\-16 string at a given kernel memory address\&. Reports an error on string copy fault or conversion error\&.
+.PP
+2) This function returns a null terminated UTF\-8 string converted from the UTF\-16 string at a given kernel memory address\&. Reports the given error message on string copy fault or conversion error\&.
+.SH SEE ALSO\n 
+.IR tapset::conversions (3stap)

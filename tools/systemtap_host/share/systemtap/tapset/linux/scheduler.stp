@@ -1,0 +1,466 @@
+// scheduler tapset
+// Copyright (C) 2006 Intel Corporation.
+// Copyright (C) 2005, 2006 IBM Corp.
+// Copyright (C) 2010 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+
+@__private30 function __is_idle:long()
+%{ /* pure */ /* stable */
+    /* Ways to detect idle-ness:
+     * - pid() or tid() == 0
+     * - current == current->parent
+     * - current == this_rq()->idle
+     * - others?
+     */
+    STAP_RETVALUE = (current->pid == 0);
+%}
+
+
+/**
+ * probe scheduler.cpu_off - Process is about to stop running on a cpu
+ *
+ * @name: name of the probe point
+ * @task_prev: the process leaving the cpu (same as current)
+ * @task_next: the process replacing current
+ * @idle: boolean indicating whether current is the idle process
+ *
+ * Context: The process leaving the cpu.
+ *
+ */
+probe scheduler.cpu_off =
+	kernel.trace("sched_switch") !,
+	kernel.function("context_switch")
+{
+    name = "cpu_off"
+    task_prev = $prev
+    task_next = $next
+    idle = __is_idle()
+}
+
+
+/**
+ * probe scheduler.cpu_on - Process is beginning execution on a cpu
+ *
+ * @name: name of the probe point
+ * @task_prev: the process that was previously running on this cpu
+ * @idle:- boolean indicating whether current is the idle process
+ *
+ * Context: The resuming process.
+ */
+probe scheduler.cpu_on = kernel.function("finish_task_switch") ?
+{
+    name = "cpu_on"
+    task_prev = $prev
+    idle = __is_idle()
+}
+
+
+/**
+ * probe scheduler.tick - Schedulers internal tick, a processes timeslice accounting is updated
+ *
+ *  @name: name of the probe point
+ *  @idle: boolean indicating whether current is the idle process
+ *
+ * Context: The process whose accounting will be updated.
+ */
+probe scheduler.tick = kernel.function("scheduler_tick")
+{
+    name = "tick"
+    idle = __is_idle()
+}
+
+/**
+ * probe scheduler.balance - A cpu attempting to find more work.
+ * 
+ * @name: name of the probe point
+ *
+ * Context: The cpu looking for more work.
+ */
+probe scheduler.balance = kernel.function("idle_balance") ?
+{
+    name = "balance"
+}
+
+
+/** 
+ * probe scheduler.ctxswitch - A context switch is occuring.
+ *
+ * @name: name of the probe point
+ * @prev_pid: The PID of the process to be switched out
+ * @next_pid: The PID of the process to be switched in
+ * @prev_tid: The TID of the process to be switched out
+ * @next_tid: The TID of the process to be switched in	 
+ * @prev_task_name: The name of the process to be switched out
+ * @next_task_name: The name of the process to be switched in
+ * @prev_priority: The priority of the process to be switched out
+ * @next_priority: The priority of the process to be switched in
+ * @prevtsk_state: the state of the process to be switched out
+ * @nexttsk_state: the state of the process to be switched in
+ */
+
+/*
+ * We prefer the "sched_switch" tracepoint here, since we can reliably
+ * access the tracepoint's arguments.  If we don't have the
+ * tracepoint, we try function probing.  But these are typically
+ * inlined, and SystemTap can't access arguments of inline functions
+ * consistently. So we choose to probe __switch_to() instead of
+ * context_switch() on some platforms.
+ * 
+ * Since the argument names for the tracepoint ("$prev" and "$next")
+ * match up with the function argument names, handling either the
+ * tracepoint or function here was made easier.
+ */
+
+probe scheduler.ctxswitch = kernel.trace("sched_switch") !,
+%( arch != "x86_64" && arch != "ia64" && arch != "arm" %?
+	kernel.function("__switch_to")
+%:
+	kernel.function("context_switch")
+%)
+{
+	name = "ctxswitch"
+
+	/*
+	 * Note that we prefer '$prev_p' here because on RHEL5
+	 * (2.6.18-238.1.1.el5) the '__switch_to()' function has both
+	 * a '$prev_p' and a '$prev' argument.  Since '$prev_p' is of
+	 * the correct type (struct task_struct *), we need to look
+	 * for it first.
+	 */
+	if (@defined($prev_p)) {
+		prev_priority = $prev_p->prio
+		prev_pid = $prev_p->tgid
+		prev_tid = $prev_p->pid
+		prev_task = $prev_p
+		prev_task_name = task_execname($prev_p)
+		prevtsk_state = $prev_p->state
+	}
+	else {
+		prev_priority = $prev->prio
+		prev_pid = $prev->tgid
+		prev_tid = $prev->pid
+		prev_task = $prev
+		prev_task_name = task_execname($prev)
+		prevtsk_state = $prev->state
+	}
+
+	if (@defined($next)) {
+		next_priority = $next->prio
+		next_pid = $next->tgid
+		next_tid = $next->pid
+		next_task = $next
+		next_task_name = task_execname($next)
+		nexttsk_state = $next->state
+	}
+	else if (@defined($next_p)) {
+		next_priority = $next_p->prio
+		next_pid = $next_p->tgid
+		next_tid = $next_p->pid
+		next_task = $next_p
+		next_task_name = task_execname($next_p)
+		nexttsk_state = $next_p->state
+	}
+	else {
+		next_priority = $new->prio
+		next_pid = $new->tgid
+		next_tid = $new->pid
+		next_task = $new
+		next_task_name = task_execname($new)
+		nexttsk_state = $new->state
+	}
+}
+
+
+/**
+ * probe scheduler.kthread_stop - A thread created by kthread_create is being stopped
+ * @thread_pid: PID of the thread being stopped
+ * @thread_priority: priority of the thread
+ */
+probe __scheduler.kthread_stop.kp = kernel.function("kthread_stop")
+{
+	thread_pid = $k->tgid
+	thread_priority = $k->prio
+}
+probe __scheduler.kthread_stop.tp = kernel.trace("sched_kthread_stop") 
+{
+	thread_pid = $t->tgid
+	thread_priority = $t->prio
+}
+probe scheduler.kthread_stop =
+	__scheduler.kthread_stop.tp !,
+	__scheduler.kthread_stop.kp
+{
+	name = "kthread_stop"
+}
+
+
+/**
+ * probe scheduler.kthread_stop.return - A kthread is stopped and gets the return value
+ * @name: name of the probe point
+ * @return_value: return value after stopping the thread
+ */
+
+probe __scheduler.kthread_stop.return.kp =
+	kernel.function("kthread_stop").return
+{
+	return_value = $k->exit_code
+}
+probe __scheduler.kthread_stop.return.tp =
+	kernel.trace("sched_kthread_stop_ret")
+{
+	return_value = $ret
+}
+
+probe scheduler.kthread_stop.return =
+	__scheduler.kthread_stop.return.tp !,
+	__scheduler.kthread_stop.return.kp
+{
+	name = "kthread_stop"
+}
+
+/**
+ * probe scheduler.wait_task - Waiting on a task to unschedule (become inactive)
+ * @name: name of the probe point
+ * @task_pid: PID of the task the scheduler is waiting on
+ * @task_priority: priority of the task
+ */
+
+probe scheduler.wait_task =
+	kernel.trace("sched_wait_task") !,
+	kernel.function("wait_task_inactive") ?
+{
+	name = "wait_task"
+	task_pid = $p->tgid
+	task_priority = $p->prio
+}
+
+/**
+ * probe scheduler.wakeup - Task is woken up 
+ * @name: name of the probe point
+ * @task_pid: PID of the task being woken up
+ * @task_priority: priority of the task being woken up
+ * @task_cpu: cpu of the task being woken up
+ * @task_state: state of the task being woken up
+ * @task_tid: tid of the task being woken up
+ */
+
+probe scheduler.wakeup =
+	kernel.trace("sched_wakeup") !,
+	kernel.function("try_to_wake_up")
+{
+	name = "wakeup"
+	task = $p
+	task_pid = $p->tgid
+	task_tid = $p->pid
+	task_priority = $p->prio
+	task_cpu = task_cpu($p)
+	task_state = task_state($p)
+}
+
+/**
+ * probe scheduler.wakeup_new - Newly created task is woken up for the first time
+ * @name: name of the probe point
+ * @task_pid: PID of the new task woken up
+ * @task_priority: priority of the new task
+ * @task_tid: TID of the new task woken up
+ * @task_state: state of the task woken up
+ * @task_cpu: cpu of the task woken up
+ */
+probe scheduler.wakeup_new =
+	kernel.trace("sched_wakeup_new") !,
+	kernel.function("wake_up_new_task")
+{
+	name = "wakeup_new"
+	task_pid = $p->tgid
+	task_priority = $p->prio
+	task_cpu = task_cpu($p)
+	task_state = task_state($p)
+	task = $p
+	task_tid = $p->pid
+}
+
+/**
+ * probe scheduler.migrate - Task migrating across cpus
+ * @name: name of the probe point
+ * @task: the process that is being migrated
+ * @pid: PID of the task being migrated
+ * @priority: priority of the task being migrated
+ * @cpu_from: the original cpu
+ * @cpu_to: the destination cpu
+ */
+probe __scheduler.migrate.kp =
+	kernel.function("set_task_cpu") !,
+	kernel.function("pull_task") ?
+{
+	cpu_to = @choose_defined($new_cpu,
+                @choose_defined($cpu, $this_cpu))
+}
+probe __scheduler.migrate.tp = kernel.trace("sched_migrate_task")
+{
+	cpu_to = $dest_cpu
+}
+probe scheduler.migrate =
+	__scheduler.migrate.tp !,
+	__scheduler.migrate.kp ?
+{
+	name = "migrate"
+	task = $p
+	pid = $p->tgid
+	priority = $p->prio
+	cpu_from = task_cpu($p)
+}
+
+function container_of_task_rcu:long(rcu_ptr:long)
+{
+	if (@defined(&@task(0)->rcu)) {
+		/* Like @container_of, but taking care not to wrap */
+		offset = & @task(0)->rcu
+		if (rcu_ptr > offset)
+			return &@task(rcu_ptr - offset)
+	}
+	return 0
+}
+
+/**
+ * probe scheduler.process_free - Scheduler freeing a data structure for a process
+ * @name: name of the probe point
+ * @pid: PID of the process getting freed
+ * @priority: priority of the process getting freed
+ */
+probe __scheduler.process_free.kp =
+	kernel.function("delayed_put_task_struct") !,
+	kernel.function("__put_task_struct")
+{
+	if (@defined($rhp)) {
+		__tsk = container_of_task_rcu($rhp)
+		pid = __tsk->tgid
+		priority = __tsk->prio
+	}
+	else {
+		pid = $tsk->tgid
+		priority = $tsk->prio
+	}
+}
+probe __scheduler.process_free.tp = kernel.trace("sched_process_free")
+{
+	pid = $p->tgid
+	priority = $p->prio
+}
+probe scheduler.process_free =
+	__scheduler.process_free.tp !,
+	__scheduler.process_free.kp
+{
+	name = "process_free"
+}
+
+/**
+ * probe scheduler.process_exit - Process exiting
+ * @name: name of the probe point
+ * @pid: PID of the process exiting
+ * @priority: priority of the process exiting
+ */
+probe __scheduler.process_exit.kp = kernel.function("do_exit")
+{
+	if (@defined($tsk)) {
+		__tsk = $tsk
+		pid = $tsk->tgid
+		priority = $tsk->prio
+	}
+	else {
+		__tsk = task_current()
+		pid = __tsk->tgid
+		priority = __tsk->prio
+	}
+}
+probe __scheduler.process_exit.tp = kernel.trace("sched_process_exit")
+{
+	pid = $p->tgid
+	priority = $p->prio
+}
+
+probe scheduler.process_exit =
+	__scheduler.process_exit.tp !,
+	__scheduler.process_exit.kp
+{
+	name = "process_exit"
+}
+
+/**
+ * probe scheduler.process_wait - Scheduler starting to wait on a process
+ * @name: name of the probe point
+ * @pid: PID of the process scheduler is waiting on
+ */
+probe __scheduler.process_wait.kp = kernel.function("do_wait")
+{
+	if (@defined($wo)) {
+		pid = $wo->wo_pid
+	}
+	else {
+		pid = $pid
+	}
+}
+probe __scheduler.process_wait.tp = kernel.trace("sched_process_wait")
+{
+	pid = $pid
+}
+probe scheduler.process_wait =
+	__scheduler.process_wait.tp !,
+	__scheduler.process_wait.kp
+{
+	name = "process_wait"
+}
+
+/**
+ * probe scheduler.process_fork - Process forked
+ * @name: name of the probe point
+ * @parent_pid: PID of the parent process
+ * @child_pid: PID of the child process
+ */
+probe __scheduler.process_fork.kp =
+	kernel.function("_do_fork").return !,
+	kernel.function("do_fork").return
+{
+	parent_pid = task_current()->tgid
+	child_pid = $return
+}
+probe __scheduler.process_fork.tp = kernel.trace("sched_process_fork")
+{
+	parent_pid = $parent->tgid
+	child_pid = $child->tgid
+}
+
+probe scheduler.process_fork =
+	__scheduler.process_fork.tp !,
+	__scheduler.process_fork.kp
+{
+	name = "process_fork"
+}
+
+/**
+ * probe scheduler.signal_send - Sending a signal
+ * @name: name of the probe point
+ * @pid: pid of the process sending signal
+ * @signal_number: signal number
+ */
+probe __scheduler.signal_send.kp =
+	kernel.function("__send_signal") !,
+	kernel.function("send_signal")
+{
+	pid = $t->tgid
+}
+probe __scheduler.signal_send.tp = kernel.trace("sched_signal_send")
+{
+	pid = $p->tgid
+}
+probe scheduler.signal_send =
+	__scheduler.signal_send.tp !,
+	__scheduler.signal_send.kp
+{
+	name = "signal_send"
+	signal_number = $sig
+}

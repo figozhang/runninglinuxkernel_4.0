@@ -1,0 +1,7 @@
+title: Dump of STP packets
+name: stp_dump.stp
+keywords: network traffic
+subsystem: network
+description: The stp_dump.stp prints out the packet contents. Each block contains the STP protocol ID, version ID, flags, root and bridge MAC addresses, and various times.
+test_check: stap -p4 stp_dump.stp
+test_installcheck: stap stp_dump.stp -c "sleep 5"

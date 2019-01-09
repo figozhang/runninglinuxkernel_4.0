@@ -1,0 +1,32 @@
+.\" -*- nroff -*-
+.TH TAPSET::PN 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::pn \- systemtap pn tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B pn 
+Returns the active probe name
+.IP
+See 
+.IR function::pn (3stap)
+ for details.
+.P
+.TP
+.B pnlabel 
+Returns the label name parsed from the probe name
+.IP
+See 
+.IR function::pnlabel (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::pn (3stap),
+.BR
+.IR \%function::pnlabel (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

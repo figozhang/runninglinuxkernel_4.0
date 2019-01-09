@@ -1,0 +1,11 @@
+title: Show socket lifespan, from accept() to close() (non-debuginfo)
+name: accept2close-nd.stp
+author: Brendan Gregg
+keywords: network socket
+description: This traces socket duration from the accept() syscall to close(), and provides details on the lifespan of these passive connections, showing the distribution as a histogram.
+scope: system-wide
+usage: ./accept2close-nd.stp [min_ms]
+arg_1: Minimum lifespan threshold, in milliseconds. This is an optional argument that can be used to focus on outliers.
+test_support: stap -p4 accept2close-nd.stp
+test_check: stap -p4 accept2close-nd.stp
+test_installcheck: stap accept2close-nd.stp -c "sleep 1"

@@ -1,0 +1,6 @@
+title: eater game
+name: eater.stp
+keywords: stapgames
+description: walk through a maze, eat stuff
+test_check: stap -p4 -Itapset/ eater.stp
+test_installcheck: stap -p4 -Itapset/ eater.stp

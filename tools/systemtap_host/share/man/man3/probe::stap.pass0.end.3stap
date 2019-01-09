@@ -1,0 +1,49 @@
+'\" t
+.\"     Title: probe::stap.pass0.end
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: SystemTap Translator Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::STAP\&.PASS0\" "3stap" "March 2016" "SystemTap Tapset Reference" "SystemTap Translator Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::stap.pass0.end \- Finished stap pass0 (parsing command line arguments)
+.SH "SYNOPSIS"
+.sp
+.nf
+stap\&.pass0\&.end 
+.fi
+.SH "VALUES"
+.PP
+\fIsession\fR
+.RS 4
+the systemtap_session variable s
+.RE
+.SH "DESCRIPTION"
+.PP
+pass0\&.end fires just before the
+\fBgettimeofday\fR
+call for pass1\&.
+.SH SEE ALSO\n 
+.IR tapset::stap_staticmarkers (3stap)

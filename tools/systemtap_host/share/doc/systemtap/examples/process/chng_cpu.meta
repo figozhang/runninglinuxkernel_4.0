@@ -1,0 +1,14 @@
+title: Monitor Changes in Processor Executing a Task
+name: chng_cpu.stp
+version: 1.0
+author: Ankita Garg at IBM
+keywords: scheduler
+subsystem: scheduler
+status: production
+exit: user-controlled
+output: trace
+scope: process
+description: The chng_cpu.stp script takes an argument which is the executable name of the task it should monitor. Each time a task with that executable name is found running on a different processor, the script prints out the thread id (tid), the executable name, the processor now running the task, the thread state, and a backtrace showing the kernel functions that triggered the running of the task on the processor.
+arg_1: The name of the executable to monitor
+test_check: stap -p4 chng_cpu.stp bash
+test_installcheck: stap chng_cpu.stp -c "sleep 1" bash

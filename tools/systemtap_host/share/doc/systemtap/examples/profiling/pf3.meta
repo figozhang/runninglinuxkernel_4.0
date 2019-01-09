@@ -1,0 +1,7 @@
+title: Profile Kernel/User Functions
+name: pf3.stp
+keywords: profiling
+exit: user-controlled
+description: The pf3.stp script sets up time-based sampling. Every five seconds it prints out a sorted list with the top twenty kernel and/or user functions with samples.  Use any of --ldd, --all-modules, -d MODULE, -d /PATH/TO/EXEC to add more symbolic info.
+test_check: stap -p4 pf3.stp
+test_installcheck: stap pf3.stp -c "sleep 6" --all-modules --ldd

@@ -1,0 +1,48 @@
+// Atomic functions.
+// Copyright (C) 2010 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/**
+ * sfunction atomic_read - Retrieves an atomic variable from kernel memory
+ *
+ * @addr: pointer to atomic variable
+ *
+ * Safely perform the read of an atomic variable.
+ */
+function atomic_read:long(addr:long)
+%{ /* pure */
+	atomic_t *a = (atomic_t *)(long)STAP_ARG_addr;
+
+	/* We call deref() here to ensure the memory is valid to read.
+	 * Note the result is thrown away, then we use the "real"
+	 * atomic read function now that we know the address is safe. */
+	(void)kderef(sizeof(*a), a);
+	STAP_RETVALUE = atomic_read(a);
+	CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction atomic_long_read - Retrieves an atomic long variable from kernel memory
+ *
+ * @addr: pointer to atomic long variable
+ *
+ * Safely perform the read of an atomic long variable. This will be a
+ * NOP on kernels that do not have ATOMIC_LONG_INIT set on the kernel config.
+ */
+function atomic_long_read:long(addr:long)
+%{ /* pure */
+#ifdef ATOMIC_LONG_INIT
+	atomic_long_t *a = (atomic_long_t *)(long)STAP_ARG_addr;
+
+	/* We call deref() here to ensure the memory is valid to read.
+	 * Note the result is thrown away, then we use the "real"
+	 * atomic read function now that we know the address is safe. */
+	(void)kderef(sizeof(*a), a);
+	STAP_RETVALUE = atomic_long_read(a);
+	CATCH_DEREF_FAULT();
+#endif
+%}

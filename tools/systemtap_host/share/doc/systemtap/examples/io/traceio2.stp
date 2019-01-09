@@ -1,0 +1,19 @@
+#! /usr/bin/env stap
+
+global device_of_interest
+
+probe begin {
+  /* The following is not the most efficient way to do this.
+      One could directly put the result of usrdev2kerndev()
+      into device_of_interest.  However, want to test out
+      the other device functions */
+  dev = usrdev2kerndev($1)
+  device_of_interest = MKDEV(MAJOR(dev), MINOR(dev))
+}
+
+probe vfs.{write,read}
+{
+  if (dev == device_of_interest)
+    printf ("%s(%d) %s 0x%x\n",
+            execname(), pid(), ppfunc(), dev)
+}

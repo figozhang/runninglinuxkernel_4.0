@@ -1,0 +1,14 @@
+title: TCP Connection Tracing Utility
+name: tcp_trace.stp
+version: 1.0
+author: varuncha@in.ibm.com wilder@us.ibm.com
+keywords: network trace
+subsystem: network
+status: production
+exit: user-controlled
+output: timed
+scope: socket
+arg_[0-9]+: tcp_trace.stp  filter=all|state|txq|rxq|srtt|snd_cwnd|snd_wnd|rexmit|pmtu|ssthresh|timer|rcvwnd [timeout=<sec>] [update=change|all] Rule
+description: This scripts traces a given TCP connection based on the filter parameters given by the user. The indexing is done by the 4 tuples local address, remote address, local port, remote port.
+test_check: stap -p4 tcp_trace.stp
+test_installcheck: stap tcp_trace.stp 127.0.0.1:*-127.0.0.1:* timeout=1

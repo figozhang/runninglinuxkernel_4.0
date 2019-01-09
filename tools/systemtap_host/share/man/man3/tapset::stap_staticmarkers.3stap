@@ -1,0 +1,282 @@
+.\" -*- nroff -*-
+.TH TAPSET::STAP_STATICMARKERS 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::stap_staticmarkers \- systemtap stap_staticmarkers tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B stap.pass0 
+Starting stap pass0 (parsing command line arguments)
+.IP
+ See 
+.IR probe::stap.pass0 (3stap)
+ for details.
+.P
+.TP
+.B stap.pass0.end 
+Finished stap pass0 (parsing command line arguments)
+.IP
+ See 
+.IR probe::stap.pass0.end (3stap)
+ for details.
+.P
+.TP
+.B stap.pass1a 
+Starting stap pass1 (parsing user script)
+.IP
+ See 
+.IR probe::stap.pass1a (3stap)
+ for details.
+.P
+.TP
+.B stap.pass1b 
+Starting stap pass1 (parsing library scripts)
+.IP
+ See 
+.IR probe::stap.pass1b (3stap)
+ for details.
+.P
+.TP
+.B stap.pass1.end 
+Finished stap pass1 (parsing scripts)
+.IP
+ See 
+.IR probe::stap.pass1.end (3stap)
+ for details.
+.P
+.TP
+.B stap.pass2 
+Starting stap pass2 (elaboration)
+.IP
+ See 
+.IR probe::stap.pass2 (3stap)
+ for details.
+.P
+.TP
+.B stap.pass2.end 
+Finished stap pass2 (elaboration)
+.IP
+ See 
+.IR probe::stap.pass2.end (3stap)
+ for details.
+.P
+.TP
+.B stap.pass3 
+Starting stap pass3 (translation to C)
+.IP
+ See 
+.IR probe::stap.pass3 (3stap)
+ for details.
+.P
+.TP
+.B stap.pass3.end 
+Finished stap pass3 (translation to C)
+.IP
+ See 
+.IR probe::stap.pass3.end (3stap)
+ for details.
+.P
+.TP
+.B stap.pass4 
+Starting stap pass4 (compile C code into kernel module)
+.IP
+ See 
+.IR probe::stap.pass4 (3stap)
+ for details.
+.P
+.TP
+.B stap.pass4.end 
+Finished stap pass4 (compile C code into kernel module)
+.IP
+ See 
+.IR probe::stap.pass4.end (3stap)
+ for details.
+.P
+.TP
+.B stap.pass5 
+Starting stap pass5 (running the instrumentation)
+.IP
+ See 
+.IR probe::stap.pass5 (3stap)
+ for details.
+.P
+.TP
+.B stap.pass5.end 
+Finished stap pass5 (running the instrumentation)
+.IP
+ See 
+.IR probe::stap.pass5.end (3stap)
+ for details.
+.P
+.TP
+.B stap.pass6 
+Starting stap pass6 (cleanup)
+.IP
+ See 
+.IR probe::stap.pass6 (3stap)
+ for details.
+.P
+.TP
+.B stap.pass6.end 
+Finished stap pass6 (cleanup)
+.IP
+ See 
+.IR probe::stap.pass6.end (3stap)
+ for details.
+.P
+.TP
+.B stap.cache_clean 
+Removing file from stap cache
+.IP
+ See 
+.IR probe::stap.cache_clean (3stap)
+ for details.
+.P
+.TP
+.B stap.cache_add_mod 
+Adding kernel instrumentation module to cache
+.IP
+ See 
+.IR probe::stap.cache_add_mod (3stap)
+ for details.
+.P
+.TP
+.B stap.cache_add_src 
+Adding C code translation to cache
+.IP
+ See 
+.IR probe::stap.cache_add_src (3stap)
+ for details.
+.P
+.TP
+.B stap.cache_add_nss 
+Add NSS (Network Security Services) information to cache
+.IP
+ See 
+.IR probe::stap.cache_add_nss (3stap)
+ for details.
+.P
+.TP
+.B stap.cache_get 
+Found item in stap cache
+.IP
+ See 
+.IR probe::stap.cache_get (3stap)
+ for details.
+.P
+.TP
+.B stap.system 
+Starting a command from stap
+.IP
+ See 
+.IR probe::stap.system (3stap)
+ for details.
+.P
+.TP
+.B stap.system.spawn 
+stap spawned new process
+.IP
+ See 
+.IR probe::stap.system.spawn (3stap)
+ for details.
+.P
+.TP
+.B stap.system.return 
+Finished a command from stap
+.IP
+ See 
+.IR probe::stap.system.return (3stap)
+ for details.
+.P
+.TP
+.B staprun.insert_module 
+Inserting SystemTap instrumentation module
+.IP
+ See 
+.IR probe::staprun.insert_module (3stap)
+ for details.
+.P
+.TP
+.B staprun.remove_module 
+Removing SystemTap instrumentation module
+.IP
+ See 
+.IR probe::staprun.remove_module (3stap)
+ for details.
+.P
+.TP
+.B staprun.send_control_message 
+Sending a control message
+.IP
+ See 
+.IR probe::staprun.send_control_message (3stap)
+ for details.
+.P
+.TP
+.B stapio.receive_control_message 
+Received a control message
+.IP
+ See 
+.IR probe::stapio.receive_control_message (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::stap.pass0 (3stap),
+.BR
+.IR \%probe::stap.pass0.end (3stap),
+.BR
+.IR \%probe::stap.pass1a (3stap),
+.BR
+.IR \%probe::stap.pass1b (3stap),
+.BR
+.IR \%probe::stap.pass1.end (3stap),
+.BR
+.IR \%probe::stap.pass2 (3stap),
+.BR
+.IR \%probe::stap.pass2.end (3stap),
+.BR
+.IR \%probe::stap.pass3 (3stap),
+.BR
+.IR \%probe::stap.pass3.end (3stap),
+.BR
+.IR \%probe::stap.pass4 (3stap),
+.BR
+.IR \%probe::stap.pass4.end (3stap),
+.BR
+.IR \%probe::stap.pass5 (3stap),
+.BR
+.IR \%probe::stap.pass5.end (3stap),
+.BR
+.IR \%probe::stap.pass6 (3stap),
+.BR
+.IR \%probe::stap.pass6.end (3stap),
+.BR
+.IR \%probe::stap.cache_clean (3stap),
+.BR
+.IR \%probe::stap.cache_add_mod (3stap),
+.BR
+.IR \%probe::stap.cache_add_src (3stap),
+.BR
+.IR \%probe::stap.cache_add_nss (3stap),
+.BR
+.IR \%probe::stap.cache_get (3stap),
+.BR
+.IR \%probe::stap.system (3stap),
+.BR
+.IR \%probe::stap.system.spawn (3stap),
+.BR
+.IR \%probe::stap.system.return (3stap),
+.BR
+.IR \%probe::staprun.insert_module (3stap),
+.BR
+.IR \%probe::staprun.remove_module (3stap),
+.BR
+.IR \%probe::staprun.send_control_message (3stap),
+.BR
+.IR \%probe::stapio.receive_control_message (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

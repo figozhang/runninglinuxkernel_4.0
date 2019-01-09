@@ -1,0 +1,263 @@
+%{
+/* Set to include regparm field in probe context in translate.cxx. */
+#ifndef STAP_NEED_REGPARM
+#define STAP_NEED_REGPARM 1
+#endif
+%}
+
+@__private30 global _reg_offsets[34], _sp_offset, _ss_offset
+
+function test_x86_fs:long() %{ /* pure */
+#if defined(STAPCONF_X86_XFS) || defined (STAPCONF_X86_FS)
+	STAP_RETVALUE = 1;
+#else
+	STAP_RETVALUE = 0;
+#endif
+%}
+
+function test_x86_gs:long() %{ /* pure */
+#ifdef STAPCONF_X86_GS
+	STAP_RETVALUE = 1;
+#else
+	STAP_RETVALUE = 0;
+#endif
+%}
+
+probe init {
+
+	/* Same order as pt_regs */
+	_offset = 0
+	_reg_offsets["ebx"] = _reg_offsets["bx"] = _offset
+	_reg_offsets["ecx"] = _reg_offsets["cx"] = (_offset += 4)
+	_reg_offsets["edx"] = _reg_offsets["dx"] = (_offset += 4)
+	_reg_offsets["esi"] = _reg_offsets["si"] = (_offset += 4)
+	_reg_offsets["edi"] = _reg_offsets["di"] = (_offset += 4)
+	_reg_offsets["ebp"] = _reg_offsets["bp"] = (_offset += 4)
+	_reg_offsets["eax"] = _reg_offsets["ax"] = (_offset += 4)
+	_reg_offsets["xds"] = _reg_offsets["ds"] = (_offset += 4)
+	_reg_offsets["xes"] = _reg_offsets["es"] = (_offset += 4)
+if (test_x86_fs()) {
+	_reg_offsets["xfs"] = _reg_offsets["fs"] = (_offset += 4)
+}
+if (test_x86_gs()) {
+	_reg_offsets["xgs"] = _reg_offsets["gs"] = (_offset += 4)
+}
+	_reg_offsets["orig_eax"] = _reg_offsets["orig_ax"] = (_offset += 4)
+	_reg_offsets["eip"] = _reg_offsets["ip"] = (_offset += 4)
+	_reg_offsets["xcs"] = _reg_offsets["cs"] = (_offset += 4)
+	_reg_offsets["eflags"] = _reg_offsets["flags"] = (_offset += 4)
+	_reg_offsets["esp"] = _reg_offsets["sp"] = _sp_offset = (_offset += 4)
+	_reg_offsets["xss"] = _reg_offsets["ss"] = _ss_offset = (_offset += 4)
+}
+
+function _stp_get_register_by_offset:long (offset:long) %{ /* pure */
+	long value;
+	struct pt_regs *regs;
+	regs = (CONTEXT->user_mode_p ? CONTEXT->uregs : CONTEXT->kregs);
+
+	if (!regs) {
+		CONTEXT->last_error = "No registers available in this context";
+		return;
+	}
+	if (STAP_ARG_offset < 0 || STAP_ARG_offset > sizeof(struct pt_regs) - sizeof(long)) {
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+				"Bad register offset: %lld", STAP_ARG_offset);
+		CONTEXT->last_error = CONTEXT->error_buffer;
+		return;
+	}
+	memcpy(&value, ((char *)regs) + STAP_ARG_offset, sizeof(value));
+	STAP_RETVALUE = value;
+%}
+
+function _stp_probing_kernel:long () {
+	return !user_mode();
+}
+
+function arch_bytes:long() %{ /* pure */
+  STAP_RETVALUE = sizeof(long);
+%}
+
+function uarch_bytes:long() {
+  assert(user_mode(), "requires user mode")
+  return 4
+}
+
+/*
+ * esp and ss aren't saved on a breakpoint in kernel mode, so
+ * the pre-trap stack pointer is &regs->sp.
+ * 
+ * Note that the idea of i386 trap regs is that pt_regs is the very
+ * first thing saved on the stack. Neither sp nor ss are saved, but
+ * pt_regs is aligned on the stack such that the place where sp would
+ * be saved happens to be the top where the sp was when the trap
+ * started. So &regs->sp is that original sp value. See
+ * arch/x86/entry/entry_32.S in the kernel source for more details.
+ */
+function _stp_kernel_sp:long (sp_offset:long) %{ /* pure */
+	STAP_RETVALUE = ((long) CONTEXT->kregs) + STAP_ARG_sp_offset;
+%}
+
+/* Assume ss register hasn't changed since we took the trap. */
+function _stp_kernel_ss:long () %{ /* pure */
+	unsigned short ss;
+	asm volatile("movw %%ss, %0" : : "m" (ss));
+	STAP_RETVALUE = ss;
+%}
+
+/* Return the named register value as a signed value. */
+function register:long (name:string) {
+  assert(registers_valid(), "cannot access CPU registers in this context")
+	offset = _reg_offsets[name]
+  assert(offset != 0 || (name in _reg_offsets), "Unknown register: " . name)
+	if (_stp_probing_kernel()) {
+		if (offset == _sp_offset)
+			return _stp_kernel_sp(_sp_offset)
+		else if (offset == _ss_offset)
+			return _stp_kernel_ss()
+	}
+	return _stp_get_register_by_offset(offset)
+}
+
+/*
+ * Return the named register value as an unsigned value.  Specifically,
+ * don't sign-extend the register value when promoting it to 64 bits.
+ */
+function u_register:long (name:string) {
+	return register(name) & 0xffffffff;
+}
+
+/* Return the value of function arg #argnum (1=first arg) as a signed value. */
+function _stp_arg:long (argnum:long) %{ /* pure */
+	long val;
+	int n, nr_regargs, result;
+	struct pt_regs *regs;
+	regs = (CONTEXT->user_mode_p ? CONTEXT->uregs : CONTEXT->kregs);
+	STAP_RETVALUE = 0;
+	if (!regs) {
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+			"cannot access function args in this context");
+		CONTEXT->last_error = CONTEXT->error_buffer;
+		return;
+	}
+	if (STAP_ARG_argnum < 1)
+		goto bad_argnum;
+	n = (int) STAP_ARG_argnum;
+	if (CONTEXT->regparm == 0) {
+		/* Default */
+		if (CONTEXT->user_mode_p)
+			nr_regargs = 0;
+		else
+			nr_regargs = 3;
+	} else
+		nr_regargs = (CONTEXT->regparm & _STP_REGPARM_MASK);
+	result = _stp_get_arg32_by_number(n, nr_regargs, regs, &val);
+	switch (result) {
+	case 0:
+		/* Arg is in register. */
+		STAP_RETVALUE = (int64_t) val;
+		break;
+	case 1:
+		/* Arg is on kernel stack. */
+		STAP_RETVALUE = kread((long *) val);
+		break;
+	case 2:
+	    {
+		/* Arg is on user stack. */
+	    	const char __user *vaddr = (const char __user*) val;
+		if (_stp_copy_from_user((char*)&val, vaddr, sizeof(val)) != 0) {
+			/* Stack page not resident. */
+			_stp_warn("cannot access arg(%d) "
+				"at user stack address %p\n", n, vaddr);
+			STAP_RETVALUE = 0;
+		} else
+			STAP_RETVALUE = (int64_t) val;
+		break;
+	    }
+	default:
+		goto bad_argnum;
+	}
+	return;
+
+bad_argnum:
+	snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+				"cannot access arg(%lld)", STAP_ARG_argnum);
+	CONTEXT->last_error = CONTEXT->error_buffer;
+	return;
+
+	if (0) {
+deref_fault: /* branched to from kread() */
+		snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        		"kernel fault at %#lx accessing arg(%lld)", val,
+			STAP_ARG_argnum);
+    		CONTEXT->last_error = CONTEXT->error_buffer;
+	}
+%}
+
+/* Return the value of function arg #argnum as a signed int. */
+function int_arg:long (argnum:long) {
+	return _stp_arg(argnum)
+}
+
+/* Return the value of function arg #argnum as an unsigned int. */
+function uint_arg:long (argnum:long) {
+	return _stp_arg(argnum) & 0xffffffff;
+}
+
+function long_arg:long (argnum:long) {
+	return int_arg(argnum)
+}
+
+function ulong_arg:long (argnum:long) {
+	return uint_arg(argnum)
+}
+
+function longlong_arg:long (argnum:long) {
+	/*
+	 * TODO: If argnum == nr_regarg, gcc puts the whole 64-bit arg
+	 * on the stack.
+	 */
+	lowbits = uint_arg(argnum)
+	highbits = uint_arg(argnum+1)
+	return ((highbits << 32) | lowbits)
+}
+
+function ulonglong_arg:long (argnum:long) {
+	return longlong_arg(argnum)
+}
+
+function pointer_arg:long (argnum:long) {
+	return ulong_arg(argnum)
+}
+
+function s32_arg:long (argnum:long) {
+	return int_arg(argnum)
+}
+
+function u32_arg:long (argnum:long) {
+	return uint_arg(argnum)
+}
+
+function s64_arg:long (argnum:long) {
+	return longlong_arg(argnum)
+}
+
+function u64_arg:long (argnum:long) {
+	return ulonglong_arg(argnum)
+}
+
+function asmlinkage() %{
+	CONTEXT->regparm = _STP_REGPARM | 0;
+%}
+
+function fastcall() %{
+	CONTEXT->regparm = _STP_REGPARM | 3;
+%}
+
+function regparm(n:long) %{
+	if (STAP_ARG_n < 0 || STAP_ARG_n > 3) {
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+			"For i386, regparm value must be in the range 0-3.");
+		CONTEXT->last_error = CONTEXT->error_buffer;
+	} else
+		CONTEXT->regparm = _STP_REGPARM | (int) STAP_ARG_n;
+%}

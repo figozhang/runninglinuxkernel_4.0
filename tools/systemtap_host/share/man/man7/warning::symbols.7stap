@@ -1,0 +1,65 @@
+.\" T
+.TH WARNING::SYMBOLS 7stap
+.SH NAME
+warning::symbols \- systemtap missing-symbols warnings
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH DESCRIPTION
+
+For some probing operations, where DWARF debugging data is not available,
+systemtap needs ELF symbols for the relevant binaries.  This allows at
+least probe addresses to be calculated, some variables resolved, and with
+@cast() and headers, maybe even some types.
+
+.TP
+kernel symbol table
+Systemtap may need a linux-build style \fBSystem.map\fR file to find
+addresses of kernel functions/data.  It may be possible to create it
+by hand:
+.SAMPLE
+% su
+# cp /proc/kallsyms /boot/System.map-`uname -r`
+or
+# nm /lib/modules/`uname -r`/build/vmlinux > /boot/System.map-`uname -r`
+.ESAMPLE
+
+.TP
+minisymbols
+On some systems, binaries may be compiled with a subset of symbols
+useful for function tracing and backtraces.  This 'Minisymbols' is
+a xz compressed section labeled .gnu_debugdata.  Support for
+minisymbols relies on elfutils version 0.156 or later.
+
+.TP
+compressed symbols
+On some systems, symbols may be available, but compressed into
+.IR .zdebug_*
+sections.  Support for compressed symbols relies on elfutils
+version 0.153 or later.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR stappaths (7),
+.IR strip (1),
+.IR warning::debuginfo (7stap),
+.IR error::dwarf (7stap),
+.IR error::reporting (7stap),
+.IR http://fedoraproject.org/wiki/Features/MiniDebugInfo

@@ -1,0 +1,368 @@
+.\" -*- nroff -*-
+.TH TAPSET::UCONVERSIONS 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::uconversions \- systemtap uconversions tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B user_string 
+Retrieves string from user space
+.IP
+See 
+.IR function::user_string (3stap)
+ for details.
+.P
+.TP
+.B user_string 
+Retrieves string from user space with alternative error string
+.IP
+See 
+.IR function::user_string (3stap)
+ for details.
+.P
+.TP
+.B user_string_warn 
+Retrieves string from user space
+.IP
+See 
+.IR function::user_string_warn (3stap)
+ for details.
+.P
+.TP
+.B user_string_warn 
+Retrieves string from user space with alternative warning string
+.IP
+See 
+.IR function::user_string_warn (3stap)
+ for details.
+.P
+.TP
+.B user_string_quoted 
+Retrieves and quotes string from user space
+.IP
+See 
+.IR function::user_string_quoted (3stap)
+ for details.
+.P
+.TP
+.B user_string_n 
+Retrieves string of given length from user space
+.IP
+See 
+.IR function::user_string_n (3stap)
+ for details.
+.P
+.TP
+.B user_string_n 
+Retrieves string of given length from user space
+.IP
+See 
+.IR function::user_string_n (3stap)
+ for details.
+.P
+.TP
+.B user_string_n_warn 
+Retrieves string from user space
+.IP
+See 
+.IR function::user_string_n_warn (3stap)
+ for details.
+.P
+.TP
+.B user_string_n_warn 
+Retrieves string from user space with alternative warning string
+.IP
+See 
+.IR function::user_string_n_warn (3stap)
+ for details.
+.P
+.TP
+.B user_string_n_quoted 
+Retrieves and quotes string from user space
+.IP
+See 
+.IR function::user_string_n_quoted (3stap)
+ for details.
+.P
+.TP
+.B user_string_n_quoted 
+Retrieves and quotes string from user space
+.IP
+See 
+.IR function::user_string_n_quoted (3stap)
+ for details.
+.P
+.TP
+.B user_string_utf32 
+Retrieves UTF-32 string from user memory
+.IP
+See 
+.IR function::user_string_utf32 (3stap)
+ for details.
+.P
+.TP
+.B user_string_utf32 
+Retrieves UTF-32 string from user memory with alternative error string
+.IP
+See 
+.IR function::user_string_utf32 (3stap)
+ for details.
+.P
+.TP
+.B user_string_quoted_utf32 
+Quote given user UTF-32 string.
+.IP
+See 
+.IR function::user_string_quoted_utf32 (3stap)
+ for details.
+.P
+.TP
+.B user_string_utf16 
+Retrieves UTF-16 string from user memory
+.IP
+See 
+.IR function::user_string_utf16 (3stap)
+ for details.
+.P
+.TP
+.B user_string_utf16 
+Retrieves UTF-16 string from user memory with alternative error string
+.IP
+See 
+.IR function::user_string_utf16 (3stap)
+ for details.
+.P
+.TP
+.B user_string_quoted_utf16 
+Quote given user UTF-16 string.
+.IP
+See 
+.IR function::user_string_quoted_utf16 (3stap)
+ for details.
+.P
+.TP
+.B user_char 
+Retrieves a char value stored in user space
+.IP
+See 
+.IR function::user_char (3stap)
+ for details.
+.P
+.TP
+.B user_char_warn 
+Retrieves a char value stored in user space
+.IP
+See 
+.IR function::user_char_warn (3stap)
+ for details.
+.P
+.TP
+.B user_short 
+Retrieves a short value stored in user space
+.IP
+See 
+.IR function::user_short (3stap)
+ for details.
+.P
+.TP
+.B user_short_warn 
+Retrieves a short value stored in user space
+.IP
+See 
+.IR function::user_short_warn (3stap)
+ for details.
+.P
+.TP
+.B user_ushort 
+Retrieves an unsigned short value stored in user space
+.IP
+See 
+.IR function::user_ushort (3stap)
+ for details.
+.P
+.TP
+.B user_ushort_warn 
+Retrieves an unsigned short value stored in user space
+.IP
+See 
+.IR function::user_ushort_warn (3stap)
+ for details.
+.P
+.TP
+.B user_int 
+Retrieves an int value stored in user space
+.IP
+See 
+.IR function::user_int (3stap)
+ for details.
+.P
+.TP
+.B user_int_warn 
+Retrieves an int value stored in user space
+.IP
+See 
+.IR function::user_int_warn (3stap)
+ for details.
+.P
+.TP
+.B user_long 
+Retrieves a long value stored in user space
+.IP
+See 
+.IR function::user_long (3stap)
+ for details.
+.P
+.TP
+.B user_long_warn 
+Retrieves a long value stored in user space
+.IP
+See 
+.IR function::user_long_warn (3stap)
+ for details.
+.P
+.TP
+.B user_ulong 
+Retrieves an unsigned long value stored in user space
+.IP
+See 
+.IR function::user_ulong (3stap)
+ for details.
+.P
+.TP
+.B user_ulong_warn 
+Retrieves an unsigned long value stored in user space
+.IP
+See 
+.IR function::user_ulong_warn (3stap)
+ for details.
+.P
+.TP
+.B user_int8 
+Retrieves a 8-bit integer value stored in user space
+.IP
+See 
+.IR function::user_int8 (3stap)
+ for details.
+.P
+.TP
+.B user_uint8 
+Retrieves an unsigned 8-bit integer value stored in user space
+.IP
+See 
+.IR function::user_uint8 (3stap)
+ for details.
+.P
+.TP
+.B user_int16 
+Retrieves a 16-bit integer value stored in user space
+.IP
+See 
+.IR function::user_int16 (3stap)
+ for details.
+.P
+.TP
+.B user_uint16 
+Retrieves an unsigned 16-bit integer value stored in user space
+.IP
+See 
+.IR function::user_uint16 (3stap)
+ for details.
+.P
+.TP
+.B user_int32 
+Retrieves a 32-bit integer value stored in user space
+.IP
+See 
+.IR function::user_int32 (3stap)
+ for details.
+.P
+.TP
+.B user_uint32 
+Retrieves an unsigned 32-bit integer value stored in user space
+.IP
+See 
+.IR function::user_uint32 (3stap)
+ for details.
+.P
+.TP
+.B user_int64 
+Retrieves a 64-bit integer value stored in user space
+.IP
+See 
+.IR function::user_int64 (3stap)
+ for details.
+.P
+.TP
+.B user_uint64 
+Retrieves an unsigned 64-bit integer value stored in user space
+.IP
+See 
+.IR function::user_uint64 (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::user_string (3stap),
+.BR
+.IR \%function::user_string_warn (3stap),
+.BR
+.IR \%function::user_string_quoted (3stap),
+.BR
+.IR \%function::user_string_n (3stap),
+.BR
+.IR \%function::user_string_n_warn (3stap),
+.BR
+.IR \%function::user_string_n_quoted (3stap),
+.BR
+.IR \%function::user_string_utf32 (3stap),
+.BR
+.IR \%function::user_string_quoted_utf32 (3stap),
+.BR
+.IR \%function::user_string_utf16 (3stap),
+.BR
+.IR \%function::user_string_quoted_utf16 (3stap),
+.BR
+.IR \%function::user_char (3stap),
+.BR
+.IR \%function::user_char_warn (3stap),
+.BR
+.IR \%function::user_short (3stap),
+.BR
+.IR \%function::user_short_warn (3stap),
+.BR
+.IR \%function::user_ushort (3stap),
+.BR
+.IR \%function::user_ushort_warn (3stap),
+.BR
+.IR \%function::user_int (3stap),
+.BR
+.IR \%function::user_int_warn (3stap),
+.BR
+.IR \%function::user_long (3stap),
+.BR
+.IR \%function::user_long_warn (3stap),
+.BR
+.IR \%function::user_ulong (3stap),
+.BR
+.IR \%function::user_ulong_warn (3stap),
+.BR
+.IR \%function::user_int8 (3stap),
+.BR
+.IR \%function::user_uint8 (3stap),
+.BR
+.IR \%function::user_int16 (3stap),
+.BR
+.IR \%function::user_uint16 (3stap),
+.BR
+.IR \%function::user_int32 (3stap),
+.BR
+.IR \%function::user_uint32 (3stap),
+.BR
+.IR \%function::user_int64 (3stap),
+.BR
+.IR \%function::user_uint64 (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

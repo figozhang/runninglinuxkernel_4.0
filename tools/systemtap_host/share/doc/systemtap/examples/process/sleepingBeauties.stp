@@ -1,0 +1,55 @@
+#! /usr/bin/env stap
+
+function time () { return gettimeofday_ms() }
+global time_name = "ms"
+global boredom = 10 # in time units
+global name, back, backtime, bored
+
+/* Note: the order that the probes are listed should not matter.
+   However, the following order for
+   probe kernel.function("wait_for_completion").return and
+   probe kernel.function("wait_for_completion").call
+   avoids have the kretprobe stuff in the backtrace.
+   for more information see:
+   http://sourceware.org/bugzilla/show_bug.cgi?id=6436
+*/
+
+
+probe kernel.function("wait_for_completion").return
+{
+  if ([tid()] in bored) {
+    patience = time() - backtime[tid()]
+    printf ("thread %d (%s) bored for %d %s\n", 
+            tid(), name[tid()], patience, time_name)
+  }
+
+  delete bored[tid()]
+  delete back[tid()]
+  delete name[tid()]
+  delete backtime[tid()]
+}
+
+
+probe kernel.function("wait_for_completion").call
+{ 
+  back[tid()]=backtrace()
+  name[tid()]=execname()
+  backtime[tid()]=time()
+  delete bored[tid()]
+}
+
+
+probe timer.profile {
+  foreach (tid+ in back) {
+    if ([tid] in bored) continue
+
+    patience = time() - backtime[tid]
+    if (patience >= boredom) {
+      printf ("thread %d (%s) impatient after %d %s\n",
+              tid, name[tid], patience, time_name)
+      print_syms (back[tid])
+      printf ("\n")
+      bored[tid] = 1 # defer further reports to wakeup
+    }
+  }
+}

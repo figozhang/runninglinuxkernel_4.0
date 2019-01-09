@@ -1,0 +1,242 @@
+/* This is a stub tapset documenting a number of
+ * architecture-dependent functions. For actual implementation of the
+ * functions, see tapset/ARCH/registers.stp. */
+
+/* <tapsetdescription>
+ * The functions in this tapset can be used to access information
+ * from the context at the time a probe point was hit. This includes
+ * functions to access named CPU registers, and functions that provide
+ * the values of a probed function's arguments. (The latter can be
+ * called when you have hit a probe point at the entry to a function,
+ * and are useful when the code you are probing was built without debugging
+ * information.)
+ *
+ * Function arguments are referred to by number, starting at 1.
+ * On 32-bit architectures
+ * (and when probing 32-bit applications on 64-bit architectures)
+ * a 64-bit argument occupies two "arg slots."
+ * For example, if you are probing the following function
+ * 
+ *    void f(int a, long long b, char *c)
+ * 
+ * you would refer to a, b, and c as int_arg(1), longlong_arg(2), and
+ * pointer_arg(3), respectively, on a 64-bit architecture;
+ * but on a 32-bit architecture, you would refer to c as pointer_arg(4)
+ * (since b occupies slots 2 and 3).
+ * 
+ * If the function you are probing doesn't follow the default rules
+ * for argument passing, you need to call one of the following functions
+ * in your handler before calling any *_arg function:
+ * asmlinkage(), fastcall(), or regparm().
+ * (This isn't necessary when referring to arguments only by name.)
+ * 
+ * For some architectures, the *_arg functions may reject unusually
+ * high values of n.
+ * </tapsetdescription> */
+
+%( kernel_vr == "invalidkernel" %?
+
+/**
+ * sfunction register - Return the signed value of the named CPU register
+ *
+ * @name: Name of the register to return
+ *
+ * Description: Return the value of the named CPU register,
+ * as it was saved when the current probe point was hit.
+ * If the register is 32 bits, it is sign-extended to 64 bits.
+ * 
+ * For the i386 architecture, the following names are recognized.
+ * (name1/name2 indicates that name1 and name2 are alternative names
+ * for the same register.)
+ * eax/ax, ebp/bp, ebx/bx, ecx/cx, edi/di, edx/dx, eflags/flags,
+ * eip/ip, esi/si, esp/sp, orig_eax/orig_ax,
+ * xcs/cs, xds/ds, xes/es, xfs/fs, xss/ss.
+ * 
+ * For the x86_64 architecture, the following names are recognized:
+ * 64-bit registers:
+ * r8, r9, r10, r11, r12, r13, r14, r15,
+ * rax/ax, rbp/bp, rbx/bx, rcx/cx, rdi/di, rdx/dx,
+ * rip/ip, rsi/si, rsp/sp;
+ * 32-bit registers:
+ * eax, ebp, ebx, ecx, edx, edi, edx, eip, esi, esp, flags/eflags,
+ * orig_eax; segment registers: xcs/cs, xss/ss.
+ * 
+ * For powerpc, the following names are recognized:
+ * r0, r1, ... r31, nip, msr, orig_gpr3, ctr, link, xer, ccr, softe, trap,
+ * dar, dsisr, result.
+ * 
+ * For s390x, the following names are recognized:
+ * r0, r1, ... r15, args, psw.mask, psw.addr, orig_gpr2, ilc, trap.
+ *
+ * For AArch64, the following names are recognized:
+ * x0, x1, ... x30, fp, lr, sp, pc, and orig_x0.
+ */
+function register:long (name:string) { }
+
+/**
+ * sfunction u_register - Return the unsigned value of the named CPU register
+ * 
+ * @name: Name of the register to return
+ *
+ * Description: Same as register(name), except that if the register
+ * is 32 bits wide, it is zero-extended to 64 bits.
+ */
+function u_register:long (name:string) { }
+
+/**
+ * sfunction int_arg - Return function argument as signed int
+ *
+ * @n: index of argument to return
+ *
+ * Description: Return the value of argument n as a signed int
+ * (i.e., a 32-bit integer sign-extended to 64 bits).
+ */
+function int_arg:long (n:long) { }
+
+/**
+ * sfunction uint_arg - Return function argument as unsigned int
+ *
+ * @n: index of argument to return
+ *
+ * Description: Return the value of argument n as an unsigned int
+ * (i.e., a 32-bit integer zero-extended to 64 bits).
+ */
+function uint_arg:long (n:long) { }
+
+/**
+ * sfunction long_arg - Return function argument as signed long
+ *
+ * @n: index of argument to return
+ *
+ * Description: Return the value of argument n as a signed long.
+ * On architectures where a long is 32 bits, the value is sign-extended
+ * to 64 bits.
+ */
+function long_arg:long (n:long) { }
+
+/**
+ * sfunction ulong_arg - Return function argument as unsigned long
+ *
+ * @n: index of argument to return
+ *
+ * Description: Return the value of argument n as an unsigned long.
+ * On architectures where a long is 32 bits, the value is zero-extended
+ * to 64 bits.
+ */
+function ulong_arg:long (n:long) { }
+
+/**
+ * sfunction longlong_arg - Return function argument as 64-bit value
+ *
+ * @n: index of argument to return
+ *
+ * Description: Return the value of argument n as a 64-bit value.
+ */
+function longlong_arg:long (n:long) { }
+
+/**
+ * sfunction ulonglong_arg - Return function argument as 64-bit value
+ *
+ * @n: index of argument to return
+ *
+ * Description: Return the value of argument n as a 64-bit value.
+ * (Same as longlong_arg.)
+ */
+function ulonglong_arg:long (n:long) { }
+
+/**
+ * sfunction pointer_arg - Return function argument as pointer value
+ *
+ * @n: index of argument to return
+ *
+ * Description: Return the unsigned value of argument n, same as ulong_arg.
+ * Can be used with any type of pointer.
+ */
+function pointer_arg:long (n:long) { }
+
+/**
+ * sfunction s32_arg - Return function argument as signed 32-bit value
+ *
+ * @n: index of argument to return
+ *
+ * Description: Return the signed 32-bit value of argument n,
+ * same as int_arg.
+ */
+function s32_arg:long (n:long) { }
+
+/**
+ * sfunction u32_arg - Return function argument as unsigned 32-bit value
+ *
+ * @n: index of argument to return
+ *
+ * Description: Return the unsigned 32-bit value of argument n,
+ * same as uint_arg.
+ */
+function u32_arg:long (n:long) { }
+
+/**
+ * sfunction s64_arg - Return function argument as signed 64-bit value
+ *
+ * @n: index of argument to return
+ *
+ * Description: Return the signed 64-bit value of argument n,
+ * same as longlong_arg.
+ */
+function s64_arg:long (n:long) { }
+
+/**
+ * sfunction u64_arg - Return function argument as unsigned 64-bit value
+ *
+ * @n: index of argument to return
+ *
+ * Description: Return the unsigned 64-bit value of argument n,
+ * same as ulonglong_arg.
+ */
+function u64_arg:long (n:long) { }
+
+/**
+ * sfunction asmlinkage - Mark function as declared asmlinkage
+ *
+ * Description: Call this function before accessing arguments
+ * using the *_arg functions
+ * if the probed kernel function was declared asmlinkage in the source.
+ */
+function asmlinkage() { }
+
+/**
+ * sfunction fastcall - Mark function as declared fastcall
+ *
+ * Description: Call this function before accessing arguments
+ * using the *_arg functions
+ * if the probed kernel function was declared fastcall in the source.
+ */
+function fastcall() { }
+
+/**
+ * sfunction regparm - Specify regparm value used to compile function
+ *
+ * @n: original regparm value
+ *
+ * Description: Call this function with argument n before accessing function
+ * arguments using the *_arg function is the function was build with the
+ * gcc -mregparm=n option.
+ *
+ * (The i386 kernel is built with \-mregparm=3, so systemtap considers
+ * regparm(3) the default for kernel functions on that architecture.)
+ * Only valid on i386 and x86_64 (when probing 32bit applications).
+ * Produces an error on other architectures.
+ */
+function regparm(n:long) { }
+
+%)
+
+/*
+ * In nd_syscall.return probes, we sometimes need @entry() values. To
+ * ensure we get the argument in the correct mode, we need a function
+ * that calls asmlinkage() first.
+ */
+function __asmlinkage_int_arg:long(n:long)
+{
+	asmlinkage()
+	return int_arg(n)
+}

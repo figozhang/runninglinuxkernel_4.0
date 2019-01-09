@@ -1,0 +1,72 @@
+#! /usr/bin/env stap
+# Copyright (C) 2011 Red Hat, Inc.
+# Written by William Cohen <wcohen@redhat.com>
+#
+# This script give an idea what periodic things are running on
+# the system. Usage:
+#
+# stap --all-modules periodic.stp
+
+global last_expire, period, funct, data
+
+probe kernel.trace("timer_expire_entry")
+{
+  old_expire = last_expire[$timer]
+  new_expire = gettimeofday_us()
+  if (old_expire) {
+    elapsed = new_expire - old_expire
+    period[$timer] <<< elapsed
+    funct[$timer] = $timer->function
+    data[$timer] = $timer->data
+  }
+  last_expire[$timer] = new_expire
+}
+
+function output()
+{
+  printf("%-7s %-50s %11s %9s\n", "#type", "function", "period(us)", "count")
+  # print out the various timers firing
+  foreach([timer] in period-) {
+    fname = symname(funct[timer])
+    if (fname == "process_timeout") {
+      fname = sprintf("%s(%d)",
+                      kernel_string_n(@cast(data[timer], "struct task_struct", "kernel<linux/sched.h>")->comm, 16),
+                      @cast(data[timer], "struct task_struct", "kernel<linux/sched.h>")->pid)
+      type="process"
+    } else if (fname == "delayed_work_timer_fn") {
+      faddr = @defined(@cast(data[timer], "struct delayed_work", "kernel<linux/workqueue.h>")->work->func)
+      ? @cast(data[timer], "struct delayed_work", "kernel<linux/workqueue.h>")->work->func
+      : @cast(data[timer], "struct work_struct", "kernel<linux/workqueue.h>")->func
+      fname = sprintf("%s", symname(faddr))
+      type="work_q"
+    } else {
+      fileline = symfileline(funct[timer])
+      if (strtol(fileline, 16)) // fileline is just the address
+        fname = sprintf("%s", symdata(funct[timer]))
+      else
+        fname = sprintf("%s@%s", symname(funct[timer]), fileline)
+      type="kernel"
+    }
+    printf("%-7s %-50.50s %11d %9d\n", type, fname,
+           @avg(period[timer]), @count(period[timer]))
+  }
+}
+
+probe begin
+{
+  printf("#monitoring timer periods (press control-c for output)\n")
+}
+
+probe end { output() }
+
+# allow optional period output from script
+%( $# > 0 %?
+probe timer.s($1)
+{
+  output();
+  delete last_expire
+  delete period
+  delete funct
+  delete data
+}
+%)

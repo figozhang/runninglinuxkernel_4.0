@@ -1,0 +1,114 @@
+callgraph.stp - Simple Callgraph Tracing
+
+  Print a timed per-thread microsecond-timed nested callgraph.  The
+  first parameter names the function probe points to trace.
+
+
+For tracing calls to a single function:
+
+$ stap callgraph.stp 'kernel.function("sys_open")'
+
+     0 nscd(23451):->SyS_open
+     6 nscd(23451):<-SyS_open
+     0 nscd(23451):->SyS_open
+     7 nscd(23451):<-SyS_open
+     0 roxterm(21323):->SyS_open
+    43 roxterm(21323):<-SyS_open
+     0 roxterm(21323):->SyS_open
+  2604 roxterm(21323):<-SyS_open
+     0 systemd-udevd(637):->SyS_open
+   268 systemd-udevd(637):<-SyS_open
+     0 roxterm(21323):->SyS_open
+    24 roxterm(21323):<-SyS_open
+[...]
+
+
+For tracing all functions in a binary:
+
+$ stap callgraph.stp 'process("/bin/ls").function("*")'
+
+     0 ls(4261):->main 
+     6 ls(4261): ->set_program_name 
+    12 ls(4261): <-set_program_name 
+    49 ls(4261): ->atexit 
+    53 ls(4261): <-atexit 
+    62 ls(4261): ->human_options 
+    66 ls(4261): <-human_options 
+    68 ls(4261): ->clone_quoting_options 
+    73 ls(4261):  ->xmemdup 
+    77 ls(4261):   ->xmalloc 
+    81 ls(4261):   <-xmalloc 
+    83 ls(4261):  <-xmemdup 
+    84 ls(4261): <-clone_quoting_options 
+    85 ls(4261): ->get_quoting_style 
+    89 ls(4261): <-get_quoting_style 
+    90 ls(4261): ->clone_quoting_options 
+    94 ls(4261):  ->xmemdup 
+    98 ls(4261):   ->xmalloc 
+   101 ls(4261):   <-xmalloc 
+   103 ls(4261):  <-xmemdup 
+   104 ls(4261): <-clone_quoting_options 
+   105 ls(4261): ->set_char_quoting 
+   109 ls(4261): <-set_char_quoting 
+   110 ls(4261): ->xmalloc 
+   115 ls(4261): <-xmalloc 
+   117 ls(4261): ->clear_files 
+   121 ls(4261): <-clear_files 
+   122 ls(4261): ->queue_directory 
+   126 ls(4261):  ->xmalloc 
+   130 ls(4261):  <-xmalloc 
+   131 ls(4261):  ->xstrdup 
+   135 ls(4261):   ->xmemdup 
+   139 ls(4261):    ->xmalloc 
+   143 ls(4261):    <-xmalloc 
+   144 ls(4261):   <-xmemdup 
+   145 ls(4261):  <-xstrdup 
+   146 ls(4261): <-queue_directory 
+   152 ls(4261): ->clear_files 
+   156 ls(4261): <-clear_files 
+   178 ls(4261): ->gobble_file.constprop.49 
+   182 ls(4261):  ->xstrdup 
+   186 ls(4261):   ->xmemdup 
+   189 ls(4261):    ->xmalloc 
+   193 ls(4261):    <-xmalloc 
+   194 ls(4261):   <-xmemdup 
+   195 ls(4261):  <-xstrdup 
+   197 ls(4261): <-gobble_file.constprop.49 
+   198 ls(4261): ->process_signals 
+   202 ls(4261): <-process_signals 
+[...]
+  4847 ls(4261):  ->print_file_name_and_frills 
+  4851 ls(4261):   ->set_normal_color 
+  4854 ls(4261):   <-set_normal_color 
+  4855 ls(4261):   ->print_name_with_quoting 
+  4863 ls(4261):    ->quote_name 
+  4867 ls(4261):     ->quotearg_buffer 
+  4870 ls(4261):      ->quotearg_buffer_restyled 
+  4874 ls(4261):      <-quotearg_buffer_restyled 
+  4875 ls(4261):     <-quotearg_buffer 
+  4877 ls(4261):    <-quote_name 
+  4878 ls(4261):    ->process_signals 
+  4881 ls(4261):    <-process_signals 
+  4882 ls(4261):   <-print_name_with_quoting 
+  4884 ls(4261):  <-print_file_name_and_frills 
+  4885 ls(4261): <-print_current_files 
+  4888 ls(4261): ->close_stdout 
+  4892 ls(4261):  ->close_stream 
+  4906 ls(4261):   ->rpl_fclose 
+  4910 ls(4261):    ->rpl_fflush 
+  4915 ls(4261):    <-rpl_fflush 
+  4922 ls(4261):   <-rpl_fclose 
+  4923 ls(4261):  <-close_stream 
+  4925 ls(4261):  ->close_stream 
+  4928 ls(4261):   ->rpl_fclose 
+  4932 ls(4261):    ->rpl_fflush 
+  4935 ls(4261):    <-rpl_fflush 
+  4937 ls(4261):   <-rpl_fclose 
+  4939 ls(4261):  <-close_stream 
+  4940 ls(4261): <-close_stdout 
+  4943 ls(4261): ->__do_global_dtors_aux 
+  4947 ls(4261):  ->deregister_tm_clones 
+  4950 ls(4261):  <-deregister_tm_clones 
+  4951 ls(4261): <-__do_global_dtors_aux 
+  4953 ls(4261): ->_fini 
+  4956 ls(4261): <-_fini 

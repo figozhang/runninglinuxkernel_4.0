@@ -1,0 +1,154 @@
+.\" -*- nroff -*-
+.TH STAP 7  "Systemtap Team"
+.SH NAME
+
+stappaths \- systemtap configurable file paths
+
+
+.\" macros
+.de SAMPLE
+.br
+.RS
+.nf
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+..
+
+.SH DESCRIPTION
+This manual page was generated on 2016-11-27 for systemtap 3.0.
+The following section will list the main paths in systemtap that are 
+important to know and may be required to reference.
+.TP
+/home/figo/systemtap_host/share/systemtap/tapset/
+The directory for the standard probe-alias / function tapset library,
+unless overridden by the
+.I SYSTEMTAP_TAPSET
+environment variable or the
+.I XDG_DATA_DIRS
+environment variable.
+These are described in the
+.IR stapprobes (3stap),
+.IR probe::* (3stap),
+and
+.IR function::* (3stap)
+manual pages.
+.TP
+/home/figo/systemtap_host/share/systemtap/runtime/
+The runtime sources, unless overridden by the
+.I SYSTEMTAP_RUNTIME
+environment variable.
+.TP
+/home/figo/systemtap_host/bin/staprun
+The auxiliary program supervising module loading, interaction, and
+unloading.
+.TP
+${exec_prefix}/libexec/systemtap/stapio
+The auxiliary program for module input and output handling.
+.TP
+/usr/include/sys/sdt.h
+Location of the <sys/sdt.h> headers.
+.TP
+Kernel debuginfo Path: /usr/lib/debug/lib/modules/$(uname \-r)/
+The location of kernel debugging information when packaged into the
+.IR kernel\-debuginfo
+RPM, unless overridden by the
+.I SYSTEMTAP_DEBUGINFO_PATH
+environment variable.  The default value for this variable is
+.IR \+:.debug:/usr/lib/debug:build .
+elfutils searches vmlinux in this path and it interprets the path as a base
+directory of which various subdirectories will be searched for finding debuginfo
+for the kernel, kernel modules, and user-space binaries.
+By default, systemtap will also look for vmlinux in these locations:
+
+.SAMPLE
+/boot/vmlinux\-`uname \-r` 
+/lib/modules/`uname \-r`/vmlinux
+/lib/modules/`uname \-r`/vmlinux.debug
+/lib/modules/`uname \-r`/build/vmlinux
+/lib/modules/`uname \-r`/.debug/vmlinux.debug
+/usr/lib/debug/lib/modules/`uname \-r`/vmlinux.debug
+/var/cache/abrt\-di/usr/debug/lib/modules/`uname \-r`/
+/var/cache/abrt\-di/usr/lib/debug/lib/modules/`uname \-r`/vmlinux.debug
+.PP
+.ESAMPLE
+.IP
+      
+Corresponding source files are usually located under /usr/src/debug/.
+Further file information on user-space applications can be determined per-basis using
+rpm \-ql <package>\-debuginfo. For supported user-space applications information please 
+visit the systemtap wiki. 
+.TP
+$HOME/.systemtap
+Systemtap data directory for cached systemtap files, unless overridden
+by the
+.I SYSTEMTAP_DIR
+environment variable.
+.TP
+/tmp/stapXXXXXX
+Temporary directory for systemtap files, including translated C code
+and kernel object.
+.TP
+/lib/modules/VERSION/build
+The location of kernel module building infrastructure.
+.TP
+/home/figo/systemtap_host/share/doc/systemtap*/examples
+Examples with greater detail can be found here. Each example comes with a .txt
+or .meta file explaining what the example, sample or demo does and how it is
+ordinarily run.  See also
+.nh
+.IR http://sourceware.org/systemtap/examples/
+.hy
+.TP
+$SYSTEMTAP_DIR/ssl/server
+User's server\-side SSL certificate database. If SYSTEMTAP_DIR is not
+set, the default is $HOME/.systemtap.
+.TP
+$SYSTEMTAP_DIR/ssl/client
+User's private client\-side SSL certificate database. If SYSTEMTAP_DIR is not
+set, the default is $HOME/.systemtap.
+.TP
+${prefix}/etc/systemtap/ssl/client
+Global client\-side SSL certificate database.
+.TP
+${prefix}/etc/systemtap/staprun/
+\fIstaprun\fR\[aq]s trusted signer certificate database.
+.TP
+${prefix}/etc/sysconfig/stap\-server/
+stap\-server service global configuration file.
+.TP
+${prefix}/etc/stap\-server/conf.d/*.conf
+stap\-server service configuration files for default servers.
+.TP
+/var/run/stap\-server/
+stap\-server service default location of status files for running servers.
+.TP
+/var/log/stap\-server/log
+stap\-server service default log file.
+
+
+.PP
+.SH FILES
+.nh
+.IR /home/figo/systemtap_host/share/systemtap/tapset
+.hy
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stapprobes (3stap),
+.IR staprun (8),
+.IR stapvars (3stap),
+.IR stapex (3stap),
+.IR stap\-server (8),
+.IR awk (1),
+.IR gdb (1)
+
+
+.SH BUGS
+Use the Bugzilla link of the project web page or our mailing list.
+.nh
+.BR http://sourceware.org/systemtap/  ,  <systemtap@sourceware.org> .
+.hy

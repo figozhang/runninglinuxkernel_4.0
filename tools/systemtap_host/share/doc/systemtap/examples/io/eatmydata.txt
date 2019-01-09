@@ -1,0 +1,7 @@
+Firefox is known to fsync its sqlite database aggressively; in a few short
+seconds' runtime, witness:
+
+# stap -g eatmydata.stp -c 'firefox'   
+Redirecting f*sync by pid 10526 to fd -1
+Redirected f*sync by pid 10526 to fd -1, success 19 times, failed 0 times.
+Preserved f*sync by other processes 0 times.

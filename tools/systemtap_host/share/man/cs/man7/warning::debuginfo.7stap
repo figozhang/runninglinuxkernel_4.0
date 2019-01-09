@@ -1,0 +1,139 @@
+.\" t
+.TH WARNING::DEBUGINFO 7stap
+.SH JMÉNO
+warning::debuginfo \- varování ohledně chybějících ladicích informací
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POPIS
+Pro mnoho symbolických sondážních operací potřebuje systemtap ladicí informace
+DWARF.  Obvykle jsou ladicí informace potřeba pro nalezení sond pro funkce,
+příkazy, nebo kontextové proměnné.  Ladicí informace se mohou nacházet buď přímo
+v binárních souborech, nebo mohou být odděleny do samostatných souborů, které
+se hledají v závislosti na nastavení proměnné prostředí
+.IR SYSTEMTAP_DEBUGINFO_PATH .
+.PP
+
+Ověřte zda jsou pro vaši distribuci dostupné "debuginfo" balíčky s ladicími
+informacemi.  Pokud tyto balíčky k dispozici nemáte, může být nutné programy,
+které chcete analyzovat, znovu sestavit tak, aby obsahovaly také ladicí
+informace DWARF.
+.PP
+Systemtap používá knihovnu
+.IR elfutils
+ke zpracování ELF/DWARF souborů.  Použitá verze elfutils odpovídá číslu za
+lomítkem ve výstupu příkazu
+.IR stap \-V
+output:
+.SAMPLE
+% stap -V
+Systemtap translator/driver (version 2.3/0.156, rpm 2.3-1.fc19)
+Copyright (C) 2005-2014 Red Hat, Inc. and others
+[...]
+.ESAMPLE
+Ukazuje, že systemtap byl sestaven s elfutls verze 0.156.
+
+.TP
+ladicí informace jádra
+Pro skripty, které analyzují linuxové jádro, může systemtap potřebovat příslušný
+soubor
+.IR vmlinux
+vzniklý při sestavování jádra.  Poznamenejme, že zde nejde o zkomprimovaný soubor
+.IR vmlinuz
+, na který se odkazuje boot loader, a ze kterého byly ladicí informace
+odstraněny.  Soubor vmlinux je značně větší, než vmlinuz.  Pokud sestavujete jádro
+ručně, ujistěte se, že máte zapnutou volbu
+.IR CONFIG_DEBUG_INFO=y .
+Navíc některé linuxové distribuce mohou poskytovat více variant jádra a pro
+každou variantu samostatný balíček s ladicími informacemi.  Příkladem takové
+varianty je \fIkernel-debug\fR, varianta s matoucím názvem, která má vlastní
+\fIkernel-debug-debuginfo\fR balíček (což není totéž jako
+\fIkernel-debuginfo\fR obsahující ladicí informace pro balíček \fIkernel\fR).
+Program
+.IR stap\-prep
+může pomoci s instalací správných balíčků.
+
+.TP
+ladicí informace pro uživatelské procesy
+Pro SystemTap skripty, které analyzují uživatelské procesy, může systemtap
+potřebovat příslušné ladicí informace také.  Pokud analyzujete ručně sestavený
+program, použijte pro jeho překlad
+.IR "CFLAGS=-g -O2 ."
+
+.TP
+minidebuginfo
+Na některých systémech mohou binární soubory obsahovat podmnožinu obvyklých
+ladicích informací pro sledování funkcí a generovaní výpisů 'backtrace'.  Tohle
+tzv. 'MiniDebugInfo' představuje xz zkomprimovanou ELF sekci .gnu_debugdata.
+MiniDebugInfo je podporováno elfutils 0.156, nebo novější verze.
+
+.TP
+komprimované debuginfo
+Na některých systémech mohou být ladicí informace dostupné v komprimované
+formě v rámci sekcí
+.IR .zdebug_* .
+Elfutils 0.153 a novější verze obsahují podporu podporu pro tyto komprimované
+ladicí informace.
+
+.TP
+nepotřebné ladicí informace
+V některých případech lze skript upravit tak, aby ladicí informace nepotřeboval.
+Například skript, který používá
+.IR "probe syscall.*"
+lze obvykle přepsat na skript založený na
+.IR "probe nd_syscall.*" ,
+non-DWARF sondách, které používají složitější (ale také křehčí) mechanizmus pro
+přístup k argumentům systémových volání.  Další možností je použití
+zakompilovaných značek typu 'tracepoint', které jsou dostupné v linuxovém jádře,
+nebo využít značky
+.IR <sys/sdt.h>
+pro uživatelské procesy.  Ty nejsou založeny na ladicích informacích.
+Pokud jsou ladicí informace potřebné k vyhodnocení složitějších výrazů typu
+.IR $var->foo->bar
+mělo by být možné použít zápis
+.IR @cast(var,"foo","foo.h")->foo->bar
+čímž dojde k syntéze ladicích informací z hlavičkových souborů.
+
+.SH AUTOMATIZACE
+Na některých platformách může systemtap doporučit, které příkazy spustit pro
+stažení ladicích informací.  Také je možné použít přepínač
+.IR \-\-download\-debuginfo
+flag.
+Program
+.IR stap\-prep
+může být schopen potřebné balíčky stáhnout a nainstalovat.  Další možností je
+použít
+.IR stap\-server
+pro kompilaci na vzdáleném stroji, kde mohou být ladicí informace
+centralizovány.  V tomto případě použijte volbu
+.IR "stap --use-server" .
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR stappaths (7),
+.IR stap-server (8),
+.IR stap-prep (1),
+.IR strip (1),
+.IR warning::symbols (7stap),
+.IR error::dwarf (7stap),
+.IR error::reporting (7stap),
+.IR error::contextvars (7stap),
+.IR http://fedorahosted.org/elfutils ,
+.IR http://fedoraproject.org/wiki/Features/MiniDebugInfo

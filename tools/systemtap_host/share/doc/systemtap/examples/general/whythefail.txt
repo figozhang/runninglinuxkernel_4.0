@@ -1,0 +1,82 @@
+Some sample uses of whythefail.stp:
+
+------------------------------------------------------------------------
+
+Trace failing cases of do_sys_open, the main outer function behind the
+the open(2) syscall.
+
+# stap whythefail.stp kernel do_sys_open '$return < 0' -c 'cat /root/no-such-file || true'
+cat: /root/no-such-file: No such file or directory
+
+cat[23342] kernel function(do_sys_open) $return: -2
+cat[23342] fs/open.c:992 $$vars: dfd=0xffffffffffffff9c filename=0x7ffc0f9546b9 flags=0x8000 mode=? op={...} fd=? tmp=?
+cat[23342] fs/open.c:993 $$vars: dfd=0xffffffffffffff9c filename=? flags=0x8000 mode=? op={...} fd=? tmp=0xffff88002b21d000
+cat[23342] fs/open.c:996 $$vars: dfd=0xffffffffffffff9c filename=? flags=0x8000 mode=? op={...} fd=? tmp=0xffff88002b21d000
+cat[23342] fs/open.c:997 $$vars: dfd=0xffffffffffffff9c filename=? flags=0x8000 mode=? op={...} fd=? tmp=0xffff88002b21d000
+cat[23342] fs/open.c:998 $$vars: f=? dfd=0xffffffffffffff9c filename=? flags=? mode=? op={...} fd=0x3 tmp=0xffff88002b21d000
+cat[23342] fs/open.c:999 $$vars: f=? dfd=0xffffffffffffff9c filename=? flags=? mode=? op={...} fd=0x3 tmp=0xffff88002b21d000
+cat[23342] fs/open.c:1000 $$vars: f=0xfffffffffffffffe dfd=? filename=? flags=? mode=? op={...} fd=0x3 tmp=0xffff88002b21d000
+cat[23342] fs/open.c:1001 $$vars: f=0xfffffffffffffffe dfd=? filename=? flags=? mode=? op={...} fd=0x3 tmp=0xffff88002b21d000
+cat[23342] fs/open.c:1007 $$vars: dfd=? filename=? flags=? mode=? op={...} fd=0xfffffffffffffffe tmp=0xffff88002b21d000
+cat[23342] fs/open.c:1008 $$vars: dfd=? filename=? flags=? mode=? op={...} fd=0xfffffffffffffffe tmp=0xffff88002b21d000
+cat[23342] fs/open.c:1009 $$vars: dfd=? filename=? flags=? mode=? op={...} fd=? tmp=?
+[... 6 other traces ...]
+
+statistics:
+entry count: 19
+exit-hit count: 7
+exit-miss count: 12
+statement count: 216
+
+------------------------------------------------------------------------
+
+Take a random sampling of do_select runs.  Print a dummy non-existent
+variable at the end, because the default '$$vars' is too long.  Also,
+disable overload-prevention since select(2) is very heavily used;
+might even need a larger -DMAXMAPENTRIES=num and smaller -DMAXSTRINGLEN=num
+set.  Note that the line numbers shown allow a pretty good
+after-the-fact trace of what happened.
+
+# stap -g --suppress-time-limits whythefail.stp kernel do_select 'randint(1000)<1' '$foo'
+[...]
+Xorg.bin[2360] kernel function(do_select) $return: 1
+Xorg.bin[2360] fs/select.c:410 $foo: ?
+Xorg.bin[2360] fs/select.c:413 $foo: ?
+Xorg.bin[2360] fs/select.c:419 $foo: ?
+Xorg.bin[2360] fs/select.c:425 $foo: ?
+Xorg.bin[2360] fs/select.c:424 $foo: ?
+Xorg.bin[2360] fs/select.c:407 $foo: ?
+Xorg.bin[2360] fs/select.c:401 $foo: ?
+Xorg.bin[2360] fs/select.c:432 $foo: ?
+Xorg.bin[2360] fs/select.c:435 $foo: ?
+Xorg.bin[2360] fs/select.c:433 $foo: ?
+Xorg.bin[2360] fs/select.c:439 $foo: ?
+Xorg.bin[2360] fs/select.c:440 $foo: ?
+Xorg.bin[2360] fs/select.c:441 $foo: ?
+Xorg.bin[2360] fs/select.c:448 $foo: ?
+Xorg.bin[2360] fs/select.c:450 $foo: ?
+Xorg.bin[2360] fs/select.c:446 $foo: ?
+Xorg.bin[2360] fs/select.c:450 $foo: ?
+Xorg.bin[2360] fs/select.c:453 $foo: ?
+Xorg.bin[2360] fs/select.c:457 $foo: ?
+Xorg.bin[2360] fs/select.c:460 $foo: ?
+Xorg.bin[2360] fs/select.c:463 $foo: ?
+Xorg.bin[2360] fs/select.c:468 $foo: ?
+Xorg.bin[2360] fs/select.c:473 $foo: ?
+[...]
+Xorg.bin[2360] fs/select.c:493 $foo: ?
+Xorg.bin[2360] fs/select.c:494 $foo: ?
+Xorg.bin[2360] fs/select.c:496 $foo: ?
+Xorg.bin[2360] fs/select.c:498 $foo: ?
+Xorg.bin[2360] fs/select.c:501 $foo: ?
+Xorg.bin[2360] fs/select.c:500 $foo: ?
+Xorg.bin[2360] fs/select.c:534 $foo: ?
+Xorg.bin[2360] fs/select.c:536 $foo: ?
+Xorg.bin[2360] fs/select.c:537 $foo: ?
+^C
+statistics:
+entry count: 9261
+exit-hit count: 8
+exit-miss count: 9231
+statement count: 3427078
+

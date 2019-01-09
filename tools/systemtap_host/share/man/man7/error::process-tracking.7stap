@@ -1,0 +1,62 @@
+.\" t
+.TH WARNING::PROCESS-TRACKING 7stap
+.SH NAME
+warning::process-tracking \- process-tracking facilities are not available
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH DESCRIPTION
+These errors and warnings occur when the kernel systemtap is running on
+lacks support for user-space process tracking facilities.
+
+.SS COMPILE-TIME ERROR
+The error
+.SAMPLE
+ERROR: user-space process-tracking facilities not available
+.ESAMPLE
+occurs when the script contains a uprobes probe point that the current
+kernel does not support.
+
+.SS RUNTIME WARNINGS
+.PP
+The warning,
+.SAMPLE
+WARNING: process-tracking facilities are not available in this kernel
+.ESAMPLE
+and the related message,
+.SAMPLE
+WARNING: cannot track target in process '...'
+.ESAMPLE 
+both occur at runtime when running on a kernel (generally an older
+version) that has neither utrace functionality nor an acceptable
+substitute.
+.PP
+The script should still load and run. However, probes that rely on
+availability of process-tracking facilities will silently fail to
+trigger.
+
+.SH RESOLVING THE ISSUE
+If process-tracking functionality is absolutely necessary, either a
+kernel version newer than 3.5 is needed, or an older version must be
+compiled with appropriate utrace patches.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR error::reporting (7stap)

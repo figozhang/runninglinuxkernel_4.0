@@ -1,0 +1,57 @@
+// timestamp tapset -- gettimeofday variants
+// Copyright (C) 2005-2009 Red Hat Inc.
+// Copyright (C) 2006 Intel Corporation.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+%{
+#define STAP_NEED_GETTIMEOFDAY 1
+%}
+
+
+/**
+ * sfunction gettimeofday_ns - Number of nanoseconds since UNIX epoch
+ *
+ * Description: This function returns the number of nanoseconds
+ * since the UNIX epoch.
+ */
+function gettimeofday_ns:long () %{ /* pure */ /* unprivileged */
+  /* NOTE: we can't use do_gettimeofday because we could be called from a
+   * context where xtime_lock is already held.  See bug #2525. */
+  STAP_RETVALUE = _stp_gettimeofday_ns();
+  if (STAP_RETVALUE < 0)
+    CONTEXT->last_error = "gettimeofday not initialized";
+%}
+
+/**
+ * sfunction gettimeofday_us - Number of microseconds since UNIX epoch
+ *
+ * Description: This function returns the number of microseconds
+ * since the UNIX epoch.
+ */
+function gettimeofday_us:long () {
+  return gettimeofday_ns() / 1000;
+}
+
+/**
+ * sfunction gettimeofday_ms - Number of milliseconds since UNIX epoch
+ *
+ * Description: This function returns the number of milliseconds
+ * since the UNIX epoch.
+ */
+function gettimeofday_ms:long () {
+  return gettimeofday_ns() / 1000000;
+}
+
+/**
+ * sfunction gettimeofday_s - Number of seconds since UNIX epoch
+ *
+ * Description: This function returns the number of seconds since
+ * the UNIX epoch.
+ */
+function gettimeofday_s:long () {
+  return gettimeofday_ns() / 1000000000;
+}

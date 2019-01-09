@@ -1,0 +1,75 @@
+.\" -*- nroff -*-
+.TH TAPSET::KPROCESS 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::kprocess \- systemtap kprocess tapset
+ 
+.SH DESCRIPTION
+
+  This family of probe points is used to probe process-related activities.
+
+.TP
+.P
+.TP
+.B kprocess.create 
+Fires whenever a new process or thread is successfully created
+.IP
+ See 
+.IR probe::kprocess.create (3stap)
+ for details.
+.P
+.TP
+.B kprocess.start 
+Starting new process
+.IP
+ See 
+.IR probe::kprocess.start (3stap)
+ for details.
+.P
+.TP
+.B kprocess.exec 
+Attempt to exec to a new program
+.IP
+ See 
+.IR probe::kprocess.exec (3stap)
+ for details.
+.P
+.TP
+.B kprocess.exec_complete 
+Return from exec to a new program
+.IP
+ See 
+.IR probe::kprocess.exec_complete (3stap)
+ for details.
+.P
+.TP
+.B kprocess.exit 
+Exit from process
+.IP
+ See 
+.IR probe::kprocess.exit (3stap)
+ for details.
+.P
+.TP
+.B kprocess.release 
+Process released
+.IP
+ See 
+.IR probe::kprocess.release (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::kprocess.create (3stap),
+.BR
+.IR \%probe::kprocess.start (3stap),
+.BR
+.IR \%probe::kprocess.exec (3stap),
+.BR
+.IR \%probe::kprocess.exec_complete (3stap),
+.BR
+.IR \%probe::kprocess.exit (3stap),
+.BR
+.IR \%probe::kprocess.release (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

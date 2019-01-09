@@ -1,0 +1,13 @@
+title: Profile Kernel/User Functions
+name: fileline-profile.stp
+version: 1.0
+author: Abegail Jakop
+keywords: profiling
+exit: user-controlled
+subsystem: any
+status: production
+output: sorted-list on-exit
+scope: system-wide
+description: The fileline-profile.stp script ends by printing out a sorted list of the top twenty kernel and/or user processes providing file:line information, if available, from the samples addresses gathered over the time period the script is run. Use any of --ldd, --all-modules, -d MODULE, -d /PATH/TO/EXEC to add more symbolic info. To include the symbol name in the output, specify guru mode (-g) and add symbolname="yes" to the stap command.
+test_check: stap -p4 fileline-profile.stp
+test_installcheck: stap fileline-profile.stp -c "sleep 6" --all-modules --ldd

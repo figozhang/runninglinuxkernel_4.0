@@ -1,0 +1,6 @@
+title: Hack the keyboard
+name: keyhack.stp
+keywords: simple guru
+description: This script makes it appear that one's keyboard is broken, by changing keycodes at the kernel device driver level.  Annoy your friends!
+test_check: stap -g -p4 keyhack.stp
+test_installcheck: stap -g keyhack.stp -c 'sleep 5'

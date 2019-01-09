@@ -1,0 +1,23 @@
+// timezone tapset
+// Copyright (C) 2010 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+
+/**
+ * sfunction tz_ctime - Convert seconds since epoch into human readable date/time string, with local time zone
+ *
+ * @epochsecs: number of seconds since epoch (as returned by gettimeofday_s())
+ *
+ * Description: Takes an argument of seconds since the epoch as returned by
+ * gettimeofday_s().  Returns a string of the same form as ctime(), but
+ * offsets the epoch time for the local time zone, and appends the name of the
+ * local time zone.  The string length may vary.  The time zone information is
+ * passed by staprun at script startup only.
+ */
+function tz_ctime(epochsecs) {
+   return (ctime(epochsecs - tz_gmtoff()) . " " . tz_name())
+}

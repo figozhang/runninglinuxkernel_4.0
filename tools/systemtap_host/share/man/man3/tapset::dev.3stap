@@ -1,0 +1,52 @@
+.\" -*- nroff -*-
+.TH TAPSET::DEV 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::dev \- systemtap dev tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B MAJOR 
+Extract major device number from a kernel device number (kdev_t)
+.IP
+See 
+.IR function::MAJOR (3stap)
+ for details.
+.P
+.TP
+.B MINOR 
+Extract minor device number from a kernel device number (kdev_t)
+.IP
+See 
+.IR function::MINOR (3stap)
+ for details.
+.P
+.TP
+.B MKDEF 
+Creates a value that can be compared to a kernel device number (kdev_t)
+.IP
+See 
+.IR function::MKDEF (3stap)
+ for details.
+.P
+.TP
+.B usrdev2kerndev 
+Converts a user-space device number into the format used in the kernel
+.IP
+See 
+.IR function::usrdev2kerndev (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::MAJOR (3stap),
+.BR
+.IR \%function::MINOR (3stap),
+.BR
+.IR \%function::MKDEF (3stap),
+.BR
+.IR \%function::usrdev2kerndev (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

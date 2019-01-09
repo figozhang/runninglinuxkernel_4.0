@@ -1,0 +1,24 @@
+// context-envvar tapset
+// Copyright (C) 2012 Red Hat, Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// NB: functionally equivalent to linux/context-envvar.stp
+
+%{
+#include <stdlib.h>
+%}
+
+function env_var:string(name:string)
+%{ /* pure */ /* unmodified-fnargs */
+    // XXX getenv may not be reentrant!
+    const char* env = getenv(STAP_ARG_name);
+    if (env)
+        strlcpy (STAP_RETVALUE, env, MAXSTRINGLEN);
+    else
+        STAP_RETVALUE[0] = '\0';
+
+%}

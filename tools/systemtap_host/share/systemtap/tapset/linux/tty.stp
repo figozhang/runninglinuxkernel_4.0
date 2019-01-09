@@ -1,0 +1,277 @@
+// tty tapset
+// Copyright (C) 2009 IBM Corp.
+// Copyright (C) 2010 Red Hat Inc.
+//
+// Author: Breno Leitao <leitao@linux.vnet.ibm.com>
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/**
+ * probe tty.open - Called when a tty is opened
+ * @inode_number: the inode number
+ * @inode_state: the inode state
+ * @inode_flags: the inode flags
+ * @file_name: the file name
+ * @file_mode: the file mode
+ * @file_flags: the file flags
+ */
+probe tty.open = kernel.function("tty_open")
+{
+	inode_number = $inode->i_ino
+	inode_state = $inode->i_state
+	inode_flags = $inode->i_flags
+
+	file_name = d_name(@choose_defined($filp->f_path->dentry,
+					   $filp->f_dentry))
+	file_mode = $filp->f_mode
+	file_flags = $filp->f_flags
+}
+
+/**
+ * probe tty.release - Called when the tty is closed
+ * @inode_number: the inode number
+ * @inode_state: the inode state
+ * @inode_flags: the inode flags
+ * @file_name: the file name
+ * @file_mode: the file mode
+ * @file_flags: the file flags
+ */
+probe tty.release = kernel.function("tty_release")
+{
+	// RHEL4 (2.6.9) kernel's debuginfo doesn't seem to have
+	// $inode, even though the function isn't inline.  So, make
+	// sure $inode is defined.
+	if (@defined($inode)) {
+		inode_number = $inode->i_ino
+		inode_state = $inode->i_state
+		inode_flags = $inode->i_flags
+	}
+	else {
+		inode_number = -1
+		inode_state = -1
+		inode_flags = -1
+	}
+
+	file_name = d_name(@choose_defined($filp->f_path->dentry,
+					   $filp->f_dentry))
+	file_mode = $filp->f_mode
+	file_flags = $filp->f_flags
+}
+
+/**
+ * probe tty.resize - Called when a terminal resize happens
+ * @name: the tty name
+ * @old_row: the old row value
+ * @old_col: the old col value
+ * @old_ypixel: the old ypixel
+ * @old_xpixel: the old xpixel
+ * @new_row: the new row value
+ * @new_col: the new col value
+ * @new_ypixel: the new ypixel value
+ * @new_xpixel: the new xpixel value
+*/
+probe tty.resize = kernel.function("tiocswinsz")
+{
+%(systemtap_v < "2.8" %?
+	name = kernel_string($tty->name)
+%:
+	name = kernel_string_quoted($tty->name)
+%)
+	old_row = $tty->winsize->ws_row
+	old_col = $tty->winsize->ws_col
+	old_ypixel = $tty->winsize->ws_ypixel
+	old_xpixel = $tty->winsize->ws_xpixel
+
+	if (@defined($arg)) {
+		new_row = user_ushort($arg->ws_row)
+		new_col = user_ushort($arg->ws_col)
+		new_ypixel = user_ushort($arg->ws_ypixel)
+		new_xpixel = user_ushort($arg->ws_xpixel)
+	}
+	else {
+		new_row = -1
+		new_col = -1
+		new_ypixel = -1
+		new_xpixel = -1
+	}
+}
+
+/**
+ * probe tty.ioctl - called when a ioctl is request to the tty
+ * @name: the file name
+ * @cmd: the ioctl command
+ * @arg: the ioctl argument
+ */
+probe tty.ioctl = kernel.function("tty_ioctl")
+{
+%(systemtap_v < "2.8" %?
+	name = kernel_string(@choose_defined($file->f_path->dentry->d_iname,
+					     $file->f_dentry->d_iname))
+%:
+	name = kernel_string_quoted(@choose_defined($file->f_path->dentry->d_iname,
+						    $file->f_dentry->d_iname))
+%)
+	cmd = $cmd
+	arg = $arg
+}
+
+/**
+ * probe tty.init - Called when a tty is being initalized
+ * @driver_name: the driver name
+ * @name: the driver  .dev_name name
+ * @module: the module name
+ */
+probe tty.init = kernel.function("tty_init_dev") !,
+		 kernel.function("init_dev")
+{
+%(systemtap_v < "2.8" %?
+	driver_name = kernel_string($driver->driver_name)
+	name = kernel_string($driver->name)
+	module = kernel_string($driver->owner->name)
+%:
+	driver_name = kernel_string_quoted($driver->driver_name)
+	name = kernel_string_quoted($driver->name)
+	module = kernel_string_quoted($driver->owner->name)
+%)
+}
+
+/**
+ * probe tty.register - Called when a tty device is registred
+ * @driver_name: the driver name
+ * @name: the driver  .dev_name name
+ * @module: the module name
+ * @index: the tty index requested
+ */
+probe tty.register = kernel.function("tty_register_device")
+{
+%(systemtap_v < "2.8" %?
+	driver_name = kernel_string($driver->driver_name)
+	name = kernel_string($driver->name)
+	module = kernel_string($driver->owner->name)
+%:
+	driver_name = kernel_string_quoted($driver->driver_name)
+	name = kernel_string_quoted($driver->name)
+	module = kernel_string_quoted($driver->owner->name)
+%)
+	index = $index
+}
+
+/**
+ * probe tty.unregister - Called when a tty device is being unregistered
+ * @driver_name: the driver name
+ * @name: the driver  .dev_name name
+ * @module: the module name
+ * @index: the tty index requested
+ */
+probe tty.unregister = kernel.function("tty_unregister_device")
+{
+%(systemtap_v < "2.8" %?
+	driver_name = kernel_string($driver->driver_name)
+	name = kernel_string($driver->name)
+	module = kernel_string($driver->owner->name)
+%:
+	driver_name = kernel_string_quoted($driver->driver_name)
+	name = kernel_string_quoted($driver->name)
+	module = kernel_string_quoted($driver->owner->name)
+%)
+	index = $index
+}
+
+/**
+ * probe tty.poll - Called when a tty device is being polled
+ * @file_name: the tty file name
+ * @wait_key: the wait queue key
+ */
+probe tty.poll = kernel.function("tty_poll")
+{
+	file_name = d_name(@choose_defined($filp->f_path->dentry,
+					   $filp->f_dentry))
+
+	wait_key = (@defined($wait->key) ? ($wait ? $wait->key : 0) : 0)
+}
+
+/**
+ * probe tty.receive - called when a tty receives a message
+ * @cp: the buffer that was received
+ * @fp: The flag buffer
+ * @count: The amount of characters received
+ * @driver_name: the driver name
+ * @name: the name of the module file
+ * @index: The tty Index
+ * @id: the tty id
+ */
+probe tty.receive = kernel.function("n_tty_receive_buf")
+{
+%(systemtap_v < "2.8" %?
+	cp = kernel_string($cp)
+	fp = kernel_string($fp)
+%:
+	cp = kernel_string_quoted($cp)
+	fp = kernel_string_quoted($fp)
+%)
+	count = $count
+
+%(systemtap_v < "2.8" %?
+	driver_name = kernel_string($tty->driver->driver_name)
+	name = kernel_string($tty->driver->name)
+%:
+	driver_name = kernel_string_quoted($tty->driver->driver_name)
+	name = kernel_string_quoted($tty->driver->name)
+%)
+	index = $tty->index
+	id = $tty->magic
+}
+
+/**
+ * probe tty.write - write to the tty line
+ * @buffer: the buffer that will be written
+ * @nr: The amount of characters
+ * @driver_name: the driver name
+ * @file_name: the file name lreated to the tty
+ */
+probe tty.write = kernel.function("n_tty_write") !,
+		  kernel.function("write_chan")
+{
+%(systemtap_v < "2.8" %?
+	buffer = kernel_string($buf)
+%:
+	buffer = kernel_string_quoted($buf)
+%)
+	nr = $nr
+
+	file_name = d_name(@choose_defined($file->f_path->dentry,
+					   $file->f_dentry))
+%(systemtap_v < "2.8" %?
+	driver_name = kernel_string($tty->driver->driver_name)
+%:
+	driver_name = kernel_string_quoted($tty->driver->driver_name)
+%)
+}
+
+/**
+ * probe tty.read - called when a tty line will be read
+ * @buffer: the buffer that will receive the characters
+ * @nr: The amount of characters to be read
+ * @driver_name: the driver name
+ * @file_name: the file name lreated to the tty
+ */
+probe tty.read = kernel.function("n_tty_read") !,
+		 kernel.function("read_chan")
+{
+%(systemtap_v < "2.8" %?
+	buffer = kernel_string($buf)
+%:
+	buffer = kernel_string_quoted($buf)
+%)
+	nr = $nr
+	file_name = d_name(@choose_defined($file->f_path->dentry,
+					   $file->f_dentry))
+%(systemtap_v < "2.8" %?
+	driver_name = kernel_string($tty->driver->driver_name)
+%:
+	driver_name = kernel_string_quoted($tty->driver->driver_name)
+%)
+}

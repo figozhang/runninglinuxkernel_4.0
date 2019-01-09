@@ -1,0 +1,24 @@
+# stap sig_by_pid.stp 
+Collecting data... Type Ctrl-C to exit and display results
+^C
+Collecting data... Type Ctrl-C to exit and display results
+SPID     SENDER           RPID  RECEIVER         SIGNAME          COUNT
+0        swapper          25273 Xvnc             SIGALRM          1576
+25273    Xvnc             25273 Xvnc             SIGALRM          17
+29219    firefox-bin      25273 Xvnc             SIGALRM          12
+0        swapper          2442  automount        SIGALRM          12
+26754    xterm            26756 bash             SIGWINCH         9
+0        swapper          2199  syslogd          SIGALRM          6
+25345    metacity         25273 Xvnc             SIGALRM          3
+2791     wclientd         2791  wclientd         SIGUSR1          2
+30385    ifconfig         30384 sh               SIGCHLD          1
+30384    sh               2802  wcstatusd        SIGCHLD          1
+30387    mii-tool         30386 sh               SIGCHLD          1
+30386    sh               2802  wcstatusd        SIGCHLD          1
+30388    lspci            2802  wcstatusd        SIGCHLD          1
+30389    sh               2802  wcstatusd        SIGCHLD          1
+30391    ifconfig         25273 Xvnc             SIGALRM          1
+30391    ifconfig         30390 sh               SIGCHLD          1
+30390    sh               2802  wcstatusd        SIGCHLD          1
+30393    mii-tool         30392 sh               SIGCHLD          1
+30392    sh               2802  wcstatusd        SIGCHLD          1

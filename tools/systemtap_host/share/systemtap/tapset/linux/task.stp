@@ -1,0 +1,811 @@
+// task information tapset
+// Copyright (C) 2006 Intel Corporation.
+// Copyright (C) 2010-2014 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+%{
+#include <linux/version.h>
+#include <linux/file.h>
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,25)
+#include <linux/fdtable.h>
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
+#include <linux/sched/rt.h>
+#endif
+#ifndef STAPCONF_TASK_UID
+#include <linux/cred.h>
+#endif
+#include <linux/fs_struct.h>
+#include <linux/mm.h>
+%}
+
+/**
+ * sfunction task_current - The current task_struct of the current task
+ *
+ * Description: This function returns the task_struct representing the current process.
+ * This address can be passed to the various task_*() functions to extract
+ * more task-specific data.
+ */
+function task_current:long () {
+    return & @task(%{ /* pure */ (unsigned long)current %})
+}
+
+@__private30 function _task_rlimit_cur:long (task:long, nd_limit:long)
+{
+    if (nd_limit < 0 || nd_limit >= %{ /* pure */ RLIM_NLIMITS %}) {
+        return -1;
+    }
+    sig = @task(task)->signal;
+    return sig->rlim[nd_limit]->rlim_cur;
+}
+
+/* sfunction task_rlimit - The current resource limit of the task
+ *
+ * @task: task_struct pointer
+ * @lim_str: String representing limit.
+ *
+ * Description: Little bit slower way how ger resource limits of
+ * process.
+ * There is need translate string into number for each call.
+ */
+function task_rlimit:long (task:long, lim_str:string)
+{
+    lim = rlimit_from_str(lim_str);
+    if (lim == -1) { return -1; }
+    return _task_rlimit_cur(task, lim);
+}
+
+/* Fast and "safe" way how to do it. */
+
+function task_rlimit_cpu:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_CPU %} );
+}
+
+function task_rlimit_fsize:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_FSIZE %});
+}
+
+function task_rlimit_data:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_DATA %});
+}
+
+function task_rlimit_stack:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_STACK %});
+}
+
+function task_rlimit_core:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_CORE %});
+}
+
+function task_rlimit_rss:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_RSS %});
+}
+
+function task_rlimit_nproc:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_NPROC %});
+}
+
+function task_rlimit_nofile:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_NOFILE %});
+}
+
+function task_rlimit_memlock:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_MEMLOCK %});
+}
+
+function task_rlimit_as:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_AS %});
+}
+
+function task_rlimit_locks:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_LOCKS %});
+}
+
+function task_rlimit_sigpending:long(task:long)
+{
+    %( kernel_v >= "2.6.8" %?
+        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_SIGPENDING %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_msgqueue:long(task:long)
+{
+    %( kernel_v >= "2.6.8" %?
+        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_MSGQUEUE %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_nice:long(task:long)
+{
+    %( kernel_v >= "2.6.12" %?
+        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_NICE %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_rtprio:long(task:long)
+{
+    %( kernel_v >= "2.6.12" %?
+        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_RTPRIO %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_rttime:long(task:long)
+{
+    %( kernel_v >= "2.6.25" %?
+        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_RTTIME %});
+    %:
+        return -1
+    %)
+}
+
+/**
+ * sfunction task_parent - The task_struct of the parent task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the parent task_struct of
+ * the given task. This address can be passed to the various 
+ * task_*() functions to extract more task-specific data.
+ */
+function task_parent:long(task:long)
+{
+    return @choose_defined(@task(task)->real_parent, @task(task)->parent)
+}
+
+/**
+ * sfunction task_state - The state of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: Return the state of the given task, one of:
+ * TASK_RUNNING (0), TASK_INTERRUPTIBLE (1), TASK_UNINTERRUPTIBLE (2),
+ * TASK_STOPPED (4), TASK_TRACED (8), EXIT_ZOMBIE (16), or EXIT_DEAD (32).
+ */
+function task_state:long (task:long)
+{
+    return @task(task)->state
+}
+
+/**
+ * sfunction task_execname - The name of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: Return the name of the given task.
+ */
+function task_execname:string (task:long)
+{
+    return kernel_string(@task(task)->comm)
+}
+
+/**
+ * sfunction task_pid - The process identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This fucntion returns the process id of the given task.
+ */
+function task_pid:long (task:long)
+{
+    return @task(task)->tgid
+}
+
+/**
+ * sfunction task_ns_pid - The process identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This fucntion returns the process id of the given task based on
+ * the specified pid namespace..
+ */
+function task_ns_pid:long (task:long) %{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_pid_ns(t, PID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction pid2task - The task_struct of the given process identifier
+ *
+ * @pid: process identifier
+ *
+ * Description: Return the task struct of the given process id.
+ */
+function pid2task:long (pid:long) {
+    return & @task(%{ /* pure */ ({
+        struct task_struct *t = NULL;
+        pid_t t_pid  = (pid_t)(long)STAP_ARG_pid;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
+        struct pid *p_pid = find_get_pid(t_pid);
+        rcu_read_lock();
+        t = pid_task(p_pid, PIDTYPE_PID);
+        put_pid(p_pid);
+#else
+        rcu_read_lock();
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+        t = find_task_by_vpid (t_pid);
+#else
+        t = find_task_by_pid (t_pid);
+#endif /* 2.6.24 */
+#endif /* 2.6.31 */
+        rcu_read_unlock();
+        (unsigned long)t;
+    }) %})
+}
+
+/**
+ * sfunction pid2execname - The name of the given process identifier
+ *
+ * @pid: process identifier
+ *
+ * Description: Return the name of the given process id.
+ */
+function pid2execname:string (pid:long) { 
+    tsk = pid2task(pid)
+    if (tsk)
+	return task_execname(tsk)
+    return ""
+}
+
+/**
+ * sfunction task_tid - The thread identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the thread id of the given task.
+ */
+function task_tid:long (task:long)
+{
+    return @task(task)->pid
+}
+
+/**
+ * sfunction task_ns_tid - The thread identifier of the task as seen in a namespace
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the thread id of the given task as seen 
+ * in the pid namespace.
+ */
+function task_ns_tid:long (task:long)%{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_pid_ns(t, TID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction task_gid - The group identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the group id of the given task.
+ */
+function task_gid:long (task:long) %{ /* pure */
+    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+#ifdef STAPCONF_TASK_UID
+    STAP_RETVALUE = kread(&(t->gid));
+#else
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    struct user_namespace *user_ns;
+#endif
+
+    /* We can't easily kread the task_struct's rcu-protected
+     * credential fields. So, let's just make sure the entire
+     * task_struct is valid to read. */
+    (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+    /* If task_gid() isn't defined, make our own. */
+#if !defined(task_gid) && defined(task_cred_xxx)
+#define task_gid(task)		(task_cred_xxx((task), gid))
+#endif
+
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    /* We also need to validate the namespace structure. */
+    user_ns = task_cred_xxx(t, user_ns);
+    (void)kderef_buffer(NULL, user_ns, sizeof(struct user_namespace));
+    STAP_RETVALUE = from_kgid_munged(user_ns, task_gid(t));
+#else
+    STAP_RETVALUE = task_gid (t);
+#endif
+#endif
+    CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction task_ns_gid - The group identifier of the task as seen in a namespace
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the group id of the given task as seen in
+ * in the given user namespace.
+*/
+function task_ns_gid:long (task:long) %{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_user_ns(t, GID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction task_egid - The effective group identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the effective group id of the given task.
+ */
+function task_egid:long (task:long) %{ /* pure */
+    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+#ifdef STAPCONF_TASK_UID
+    STAP_RETVALUE = kread(&(t->egid));
+#else
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    struct user_namespace *user_ns;
+#endif
+
+    /* We can't easily kread the task_struct's rcu-protected
+     * credential fields. So, let's just make sure the entire
+     * task_struct is valid to read. */
+    (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+    /* If task_egid() isn't defined, make our own. */
+#if !defined(task_egid) && defined(task_cred_xxx)
+#define task_egid(task)		(task_cred_xxx((task), egid))
+#endif
+
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    /* We also need to validate the namespace structure. */
+    user_ns = task_cred_xxx(t, user_ns);
+    (void)kderef_buffer(NULL, user_ns, sizeof(struct user_namespace));
+    STAP_RETVALUE = from_kgid_munged(user_ns, task_egid(t));
+#else
+    STAP_RETVALUE = task_egid (t);
+#endif
+#endif
+    CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction task_ns_egid - The effective group identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the effective group id of the given task.
+ */
+function task_ns_egid:long (task:long) %{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_user_ns(current, EGID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction task_uid - The user identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the user id of the given task.
+ */
+function task_uid:long (task:long) %{ /* pure */
+    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+#ifdef STAPCONF_TASK_UID
+    STAP_RETVALUE = kread(&(t->uid));
+#else
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    struct user_namespace *user_ns;
+#endif
+
+    /* We can't easily kread the task_struct's rcu-protected
+     * credential fields. So, let's just make sure the entire
+     * task_struct is valid to read. */
+    (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    /* We also need to validate the namespace structure. */
+    user_ns = task_cred_xxx(t, user_ns);
+    (void)kderef_buffer(NULL, user_ns, sizeof(struct user_namespace));
+    STAP_RETVALUE = from_kuid_munged(user_ns, task_uid(t));
+#else
+    STAP_RETVALUE = task_uid (t);
+#endif
+#endif
+    CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction task_ns_uid - The user identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the user id of the given task.
+ */
+function task_ns_uid:long (task:long) %{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_user_ns(current, UID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction task_euid - The effective user identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the effective user id of the given task.
+ */
+function task_euid:long (task:long) %{ /* pure */
+    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+#ifdef STAPCONF_TASK_UID
+    STAP_RETVALUE = kread(&(t->euid));
+#else
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    struct user_namespace *user_ns;
+#endif
+
+    /* We can't easily kread the task_struct's rcu-protected
+     * credential fields. So, let's just make sure the entire
+     * task_struct is valid to read. */
+    (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    /* We also need to validate the namespace structure. */
+    user_ns = task_cred_xxx(t, user_ns);
+    (void)kderef_buffer(NULL, user_ns, sizeof(struct user_namespace));
+    STAP_RETVALUE = from_kuid_munged(user_ns, task_euid(t));
+#else
+    STAP_RETVALUE = task_euid (t);
+#endif
+#endif
+    CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction task_ns_euid - The effective user identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the effective user id of the given task.
+ */
+function task_ns_euid:long (task:long) %{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_user_ns(current, EUID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
+%}
+
+
+/**
+ * sfunction task_prio - The priority value of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the priority value of the given task.
+ */
+function task_prio:long (task:long) %{ /* pure */
+    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+    STAP_RETVALUE =  kread(&(t->prio)) - MAX_RT_PRIO;
+    CATCH_DEREF_FAULT();
+%}
+
+
+/**
+ * sfunction task_nice - The nice value of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the nice value of the given task.
+ */
+function task_nice:long (task:long) %{ /* pure */
+    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+    STAP_RETVALUE = kread(&(t->static_prio)) - MAX_RT_PRIO - 20;
+    CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction task_cpu - The scheduled cpu of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the scheduled cpu for the given task.
+ */
+function task_cpu:long (task:long)
+{
+    ti = @choose_defined(@task(task)->stack, @task(task)->thread_info);
+    return @cast(ti, "thread_info", "kernel<linux/sched.h>")->cpu
+}
+
+/**
+ * sfunction task_open_file_handles - The number of open files of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the number of open file handlers for the given task.
+ */
+function task_open_file_handles:long (task:long)
+%{ /* pure */
+    int locked = 0;
+    unsigned int count=0, fd, max;
+    struct task_struct *t;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    /* Older kernels */
+    struct files_struct *f;
+#else
+    struct files_struct *fs;
+    struct fdtable *f;
+#endif
+    t = (struct task_struct *)(long)STAP_ARG_task;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    /* Older kernels */
+    f = kread(&(t->files));
+#else
+    fs = kread(&(t->files));
+    f = kread(&(fs->fdt));
+#endif
+    rcu_read_lock();
+    locked = 1;
+    max = kread(&(f->max_fds));
+    for (fd = 0; fd < max; fd++) {
+                if ( kread(&(f->fd[fd])) != NULL)
+                        count ++;
+        }
+    STAP_RETVALUE = count;
+    CATCH_DEREF_FAULT();
+    if (locked)
+        rcu_read_unlock();
+%}
+
+/**
+ * sfunction task_max_file_handles - The max number of open files for the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the maximum number of file handlers for the given task.
+ */
+function task_max_file_handles:long (task:long)
+%{ /* pure */
+    int locked = 0;
+    struct task_struct *t;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    struct files_struct *f;
+#else
+    struct files_struct *fs;
+    struct fdtable *f;
+#endif
+    t = (struct task_struct *)(long)STAP_ARG_task;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    f = kread(&(t->files));
+#else
+    fs = kread (&(t->files));
+    f = kread(&(fs->fdt));
+#endif
+    rcu_read_lock();
+    locked = 1;
+    STAP_RETVALUE = kread(&(f->max_fds));
+    CATCH_DEREF_FAULT();
+    if (locked)
+        rcu_read_unlock();
+%}
+
+/**
+ *   sfunction task_fd_lookup - get the file struct for a task's fd
+ *
+ *   @task: task_struct pointer.
+ *   @fd: file descriptor number.
+ *
+ *   Description: Returns the file struct pointer for a task's file
+ *   descriptor.
+ */
+function task_fd_lookup:long(task:long, fd:long)
+%{ /* pure */
+	struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+	struct files_struct *files = NULL;
+	unsigned int fd = (unsigned int)(unsigned long)STAP_ARG_fd;
+	struct file *file = NULL;
+    
+	/* Before using the task_struct pointer, make sure it is valid
+	 * to read.
+	 *
+	 * Note that originally we called
+	 * get_task_struct()/put_task_struct() here. However, just
+	 * because the task_struct memory is valid to read, doesn't
+	 * mean it is valid to *write* to this memory, which
+	 * get_task_struct() does. So, we won't bother with
+	 * get_task_struct()/put_task_struct(). */
+	(void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+	// We should be calling get_files_struct() here, but it isn't
+	// exported. This means that we can't lock the
+	// files_struct.
+	files = t->files;
+	if (files) {
+		/* Before using the files_struct pointer, make sure it is
+		 * valid to read. */
+		(void)kderef_buffer(NULL, files, sizeof(struct files_struct));
+
+		spin_lock(&files->file_lock);
+		file = fcheck_files(files, fd);
+		spin_unlock(&files->file_lock);
+	}
+
+	if (file) {
+		// Note that we're returning a pointer which isn't
+		// locked or has had its usage count increased. There
+		// is nothing keeping this pointer valid until we use
+		// it. So, before using it, it must be validated by
+		// callers.
+		STAP_RETURN((unsigned long)file);
+	}
+	else {
+		STAP_ERROR ("cannot find file in task");
+	}
+	
+	CATCH_DEREF_FAULT();
+%}
+
+/**
+ *   sfunction task_cwd_path - get the path struct pointer for a task's current working directory
+ *
+ *   @task: task_struct pointer.
+ */
+function task_cwd_path:long(task:long)
+%{ /* pure */
+	struct task_struct *task
+		= (struct task_struct *)(unsigned long)STAP_ARG_task;
+	int put_task_struct_needed = 0;
+
+	// Before using the task_struct pointer, make sure it is valid
+	// to read.
+	(void)kderef_buffer(NULL, task, sizeof(struct task_struct));
+
+	// OK, we now know it is valid to read. But, is it really a
+	// task struct?
+	if (!_stp_task_struct_valid(task)) {
+		STAP_ERROR ("invalid task struct pointer");
+	}
+
+	get_task_struct(task);
+	put_task_struct_needed = 1;
+
+	// The kernel calls get_fs_pwd() here, which is an inlined
+	// function in include/linux/fs_struct.h. This function
+	// doesn't return a path pointer, but assumes the caller has
+	// allocated storage for the struct path. Instead, we're going
+	// to return a pointer to task->fs->pwd.
+	if (task->fs) {
+		// Sigh. On kernels before 2.6.25, the task->fs->pwd
+		// structure exists, but isn't a 'path'
+		// structure. Instead it is a 'dentry' structure. The
+		// 'pwd' and 'pwdmnt' (which is a 'vfsmount'
+		// structure) variables would both be needed to get a
+		// pathname. However, this function can't return 2
+		// items or really declare a static 'path' structure
+		// to put the 2 pointers in.
+		//
+		// So, on those RHEL5-era kernels, we'll just return
+		// NULL here.
+#ifdef STAPCONF_DPATH_PATH
+		// Before using the task->fs pointer, let's be
+		// paranoid and make sure it is valid to read.
+		(void)kderef_buffer(NULL, task->fs, sizeof(struct fs_struct));
+		STAP_RETURN((unsigned long)&task->fs->pwd);
+#endif
+	}
+	CATCH_DEREF_FAULT();
+	if (put_task_struct_needed)
+		put_task_struct(task);
+%}
+
+/**
+ *   sfunction task_cwd_path - get the file struct pointer for a task's executable file
+ *
+ *   @task: task_struct pointer.
+ */
+function task_exe_file:long(task:long)
+%{ /* pure */
+	struct task_struct *task
+		= (struct task_struct *)(unsigned long)STAP_ARG_task;
+	struct mm_struct *mm = NULL;
+	struct file *exe_file = NULL;
+
+	// Before using the task_struct pointer, make sure it is valid
+	// to read.
+	(void)kderef_buffer(NULL, task, sizeof(struct task_struct));
+
+	// OK, we now know it is valid to read. But, is it really a
+	// task struct?
+	if (!_stp_task_struct_valid(task)) {
+		STAP_ERROR ("invalid task struct pointer");
+	}
+
+	get_task_struct(task);
+	mm = get_task_mm(task);
+	put_task_struct(task);
+	if (mm) {
+		exe_file = stap_find_exe_file(mm);
+		mmput(mm);
+	}
+
+	if (exe_file) {
+		STAP_RETURN((unsigned long)exe_file);
+		fput(exe_file);
+	}
+	CATCH_DEREF_FAULT();
+%}

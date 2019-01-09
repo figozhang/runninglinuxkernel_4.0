@@ -1,0 +1,60 @@
+'\" t
+.\"     Title: function::assert
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Logging Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::ASSERT" "3stap" "March 2016" "SystemTap Tapset Reference" "Logging Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::assert \- evaluate assertion
+.SH "SYNOPSIS"
+.sp
+.nf
+1) assert(expression:long)
+.fi
+.sp
+.nf
+2) assert(expression:long,msg:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIexpression\fR
+.RS 4
+The expression to evaluate
+.RE
+.PP
+\fImsg\fR
+.RS 4
+The formatted message string
+.RE
+.SH "DESCRIPTION"
+.PP
+1) This function checks the expression and aborts the current running probe if expression evaluates to zero\&. Uses\fBerror\fR
+and may be caught by try{} catch{}\&. A default message will be displayed\&.
+.PP
+2) This function checks the expression and aborts the current running probe if expression evaluates to zero\&. Uses\fBerror\fR
+and may be caught by try{} catch{}\&. The specified message will be displayed\&.
+.SH SEE ALSO\n 
+.IR tapset::logging (3stap)

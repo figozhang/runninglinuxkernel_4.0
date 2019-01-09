@@ -1,0 +1,53 @@
+%{
+#include <linux/version.h>
+%}
+
+/**
+ * sfunction rlimit_from_str - Symbolic string associated with resource limit code
+ *
+ * @lim_str: The string representation of limit
+ *
+ * Description: This function returns the number associated
+ * with the given string, such as 0 for the string RLIMIT_CPU, or
+ * -1 for an out-of-range value.
+ */
+function rlimit_from_str:long (lim_str:string)
+%{ /* pure */ /* unmodified-fnargs */
+#define aux_rlimit(limit_arg) \
+    if (strncmp(STAP_ARG_lim_str, #limit_arg, MAXSTRINGLEN) == 0) { \
+        STAP_RETVALUE = limit_arg; \
+        return; \
+    }
+
+    /* Little kernel history digging */
+    /* This set is stable from 2.6.1 kernel version */
+    aux_rlimit(RLIMIT_CPU);
+    aux_rlimit(RLIMIT_FSIZE);
+    aux_rlimit(RLIMIT_DATA);
+    aux_rlimit(RLIMIT_STACK);
+    aux_rlimit(RLIMIT_CORE);
+    aux_rlimit(RLIMIT_RSS);
+    aux_rlimit(RLIMIT_NPROC);
+    aux_rlimit(RLIMIT_NOFILE);
+    aux_rlimit(RLIMIT_MEMLOCK);
+    aux_rlimit(RLIMIT_AS);
+    aux_rlimit(RLIMIT_LOCKS);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
+    aux_rlimit(RLIMIT_SIGPENDING);
+    aux_rlimit(RLIMIT_MSGQUEUE);
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
+    aux_rlimit(RLIMIT_NICE);
+    aux_rlimit(RLIMIT_RTPRIO);
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+    aux_rlimit(RLIMIT_RTTIME);
+#endif
+
+    STAP_RETVALUE = -1;
+
+#undef aux_rlimit
+%}

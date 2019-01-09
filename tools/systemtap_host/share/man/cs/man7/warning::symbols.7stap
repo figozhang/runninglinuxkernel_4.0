@@ -1,0 +1,65 @@
+.\" T
+.TH WARNING::SYMBOLS 7stap
+.SH JMÉNO
+warning::symbols \- varování ohledně chybějících symbolů
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POPIS
+
+Pro některé sondovací operace, kdy ladicí informace nejsou dostupné, systemtap
+potřebuje ELF symboly pro odpovídající binární soubory.  S jejich pomocí lze
+určit alespoň adresy pro umístění sond, některých proměnných, a pomocí makra
+@cast() a hlavičkových souborů případně i další informace o datových typech.
+
+.TP
+tabulka symbolů linuxového jádra
+Systemtap může potřebovat soubor \fBSystem.map\fR pro nalezení adres jaderných
+funkcí, či dat.  Lze ho vytvořit i ručně:
+.SAMPLE
+% su
+# cp /proc/kallsyms /boot/System.map-`uname -r`
+nebo
+# nm /lib/modules/`uname -r`/build/vmlinux > /boot/System.map-`uname -r`
+.ESAMPLE
+
+.TP
+minidebuginfo
+Na některých systémech mohou být binární soubory kompilovány s podmnožinou
+obvykle dostupných ladicích informací.  Toto takzvané 'minidebuginfo' je
+xz komprimovaná ELF sekce .gnu_debugdata.  Knihovna elfutils obsahuje podporu
+pro minidebuginfo ve verzi 0.156 a vyšší.
+
+.TP
+komprimované ladicí informace
+V některých případech jsou ladicí informace dostupné, ovšem ve zkomprimované
+podobě v rámci sekcí
+.IR .zdebug_* .
+Podpora pro komprimované ladicí informace je obsažena v elfutils verze 0.153
+a vyšší.
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR stappaths (7),
+.IR strip (1),
+.IR warning::debuginfo (7stap),
+.IR error::dwarf (7stap),
+.IR error::reporting (7stap),
+.IR http://fedoraproject.org/wiki/Features/MiniDebugInfo

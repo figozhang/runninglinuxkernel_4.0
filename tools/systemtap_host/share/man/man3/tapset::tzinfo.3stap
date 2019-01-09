@@ -1,0 +1,42 @@
+.\" -*- nroff -*-
+.TH TAPSET::TZINFO 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::tzinfo \- systemtap tzinfo tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B tz_gmtoff 
+Return local time zone offset
+.IP
+See 
+.IR function::tz_gmtoff (3stap)
+ for details.
+.P
+.TP
+.B tz_name 
+Return local time zone name
+.IP
+See 
+.IR function::tz_name (3stap)
+ for details.
+.P
+.TP
+.B tz_ctime 
+Convert seconds since epoch into human readable date/time string, with local time zone
+.IP
+See 
+.IR function::tz_ctime (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::tz_gmtoff (3stap),
+.BR
+.IR \%function::tz_name (3stap),
+.BR
+.IR \%function::tz_ctime (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

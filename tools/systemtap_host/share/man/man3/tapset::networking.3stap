@@ -1,0 +1,155 @@
+.\" -*- nroff -*-
+.TH TAPSET::NETWORKING 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::networking \- systemtap networking tapset
+ 
+.SH DESCRIPTION
+
+ This family of probe points is used to probe the activities of the network device. 
+
+.TP
+.P
+.TP
+.B netdev.receive 
+Data received from network device.
+.IP
+ See 
+.IR probe::netdev.receive (3stap)
+ for details.
+.P
+.TP
+.B netdev.transmit 
+Network device transmitting buffer
+.IP
+ See 
+.IR probe::netdev.transmit (3stap)
+ for details.
+.P
+.TP
+.B netdev.change_mtu 
+Called when the netdev MTU is changed
+.IP
+ See 
+.IR probe::netdev.change_mtu (3stap)
+ for details.
+.P
+.TP
+.B netdev.open 
+Called when the device is opened
+.IP
+ See 
+.IR probe::netdev.open (3stap)
+ for details.
+.P
+.TP
+.B netdev.close 
+Called when the device is closed
+.IP
+ See 
+.IR probe::netdev.close (3stap)
+ for details.
+.P
+.TP
+.B netdev.hard_transmit 
+Called when the devices is going to TX (hard)
+.IP
+ See 
+.IR probe::netdev.hard_transmit (3stap)
+ for details.
+.P
+.TP
+.B netdev.rx 
+Called when the device is going to receive a packet
+.IP
+ See 
+.IR probe::netdev.rx (3stap)
+ for details.
+.P
+.TP
+.B netdev.change_rx_flag 
+Called when the device RX flag will be changed
+.IP
+ See 
+.IR probe::netdev.change_rx_flag (3stap)
+ for details.
+.P
+.TP
+.B netdev.set_promiscuity 
+Called when the device enters/leaves promiscuity
+.IP
+ See 
+.IR probe::netdev.set_promiscuity (3stap)
+ for details.
+.P
+.TP
+.B netdev.ioctl 
+Called when the device suffers an IOCTL
+.IP
+ See 
+.IR probe::netdev.ioctl (3stap)
+ for details.
+.P
+.TP
+.B netdev.register 
+Called when the device is registered
+.IP
+ See 
+.IR probe::netdev.register (3stap)
+ for details.
+.P
+.TP
+.B netdev.unregister 
+Called when the device is being unregistered
+.IP
+ See 
+.IR probe::netdev.unregister (3stap)
+ for details.
+.P
+.TP
+.B netdev.get_stats 
+Called when someone asks the device statistics
+.IP
+ See 
+.IR probe::netdev.get_stats (3stap)
+ for details.
+.P
+.TP
+.B netdev.change_mac 
+Called when the netdev_name has the MAC changed
+.IP
+ See 
+.IR probe::netdev.change_mac (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::netdev.receive (3stap),
+.BR
+.IR \%probe::netdev.transmit (3stap),
+.BR
+.IR \%probe::netdev.change_mtu (3stap),
+.BR
+.IR \%probe::netdev.open (3stap),
+.BR
+.IR \%probe::netdev.close (3stap),
+.BR
+.IR \%probe::netdev.hard_transmit (3stap),
+.BR
+.IR \%probe::netdev.rx (3stap),
+.BR
+.IR \%probe::netdev.change_rx_flag (3stap),
+.BR
+.IR \%probe::netdev.set_promiscuity (3stap),
+.BR
+.IR \%probe::netdev.ioctl (3stap),
+.BR
+.IR \%probe::netdev.register (3stap),
+.BR
+.IR \%probe::netdev.unregister (3stap),
+.BR
+.IR \%probe::netdev.get_stats (3stap),
+.BR
+.IR \%probe::netdev.change_mac (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

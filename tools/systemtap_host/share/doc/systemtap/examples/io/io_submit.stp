@@ -1,0 +1,71 @@
+#! /usr/bin/env stap
+#
+# Copyright (C) 2007 Oracle Corp. Chris Mason <chris.mason@oracle.com>
+#
+# This was implemented to find the most common causes of schedule during
+# the AIO io_submit call.  It does this by recording which pids are inside
+# AIO, and recording the current stack trace if one of those pids is
+# inside schedule.
+# When the probe exits, it prints out the 30 most common call stacks for
+# schedule().
+#
+# This file is free software. You can redistribute it and/or modify it under 
+# the terms of the GNU General Public License (GPL); either version 2, or (at
+# your option) any later version.
+
+global in_iosubmit
+global traces
+
+/*
+ * add a probe to sys_io_submit, on entry, record in the in_iosubmit
+ * hash table that this proc is in io_submit
+ */
+probe syscall.io_submit {
+  in_iosubmit[tid()] = 1
+}
+
+/*
+ * when we return from sys_io_submit, record that we're no longer there
+ */
+probe syscall.io_submit.return {
+  /* this assumes a given proc will do lots of io_submit calls, and
+   * so doesn't do the more expensive "delete in_iosubmit[p]".  If
+   * there are lots of procs doing small number of io_submit calls,
+   * the hash may grow pretty big, so using delete may be better
+   */
+  in_iosubmit[tid()] = 0
+}
+
+/*
+ * every time we call schedule, check to see if we started off in
+ * io_submit.  If so, record our backtrace into the traces histogram
+ */
+probe kernel.function("schedule") {
+  if (tid() in in_iosubmit) {
+    traces[backtrace()]++
+
+    /*
+     * change this to if (1) if you want a backtrace every time
+     * you go into schedule from io_submit.  Unfortunately, the traces
+     * saved into the traces histogram above are truncated to just a
+     * few lines.  so the only way to see the full trace is via the
+     * more verbose print_backtrace() right here.
+     */
+    if (0) {
+      printf("schedule in io_submit!\n")
+      print_backtrace()
+    }
+  }
+}
+
+/*
+ * when stap is done (via ctrl-c) go through the record of all the
+ * trace paths and print the 30 most common.
+ */
+probe end {
+  foreach (stack in traces- limit 30) {
+    printf("%d:", traces[stack])
+    print_syms(stack);
+  }
+}
+

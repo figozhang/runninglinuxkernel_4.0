@@ -1,0 +1,49 @@
+'\" t
+.\"     Title: function::error
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Logging Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::ERROR" "3stap" "March 2016" "SystemTap Tapset Reference" "Logging Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::error \- Send an error message
+.SH "SYNOPSIS"
+.sp
+.nf
+    error(msg:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fImsg\fR
+.RS 4
+The formatted message string
+.RE
+.SH "DESCRIPTION"
+.PP
+An implicit end\-of\-line is added\&. staprun prepends the string
+\(lqERROR:\(rq\&. Sending an error message aborts the currently running probe\&. Depending on the MAXERRORS parameter, it may trigger an
+\fBexit\fR\&.
+.SH SEE ALSO\n 
+.IR tapset::logging (3stap)

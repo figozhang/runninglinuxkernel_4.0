@@ -1,0 +1,33 @@
+// Copyright (C) 2013 Red Hat Inc.,
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+//
+
+// <tapsetdescription>
+// Functions in the guru-signal tapset allow a probe handler to queue
+// a user-space signals.  Such operations may only be safe from some 
+// kinds of probe points, therefore are guru-mode only.
+// </tapsetdescription>
+
+
+/**
+ * sfunction raise - raise a signal in the current thread
+ * @signo: signal number
+ *
+ * Description: This function calls the kernel send_sig routine on
+ * the current thread, with the given raw unchecked signal number.
+ * It may raise an error if send_sig() failed.
+ * It requires guru mode.
+ */
+function raise(signo:long) %{
+  /* guru */
+  int rc = send_sig ((int) STAP_ARG_signo, current, 1);
+  if (rc) {
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+              "raise/send_sig error %d", rc);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}

@@ -1,0 +1,22 @@
+.\" -*- nroff -*-
+.TH TAPSET::RANDOM 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::random \- systemtap random tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B randint 
+Return a random number between [0,n)
+.IP
+See 
+.IR function::randint (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::randint (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

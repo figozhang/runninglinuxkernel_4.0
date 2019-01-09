@@ -1,0 +1,21 @@
+#! /usr/bin/env stap
+# scf.stp
+# A reimplementation of user script:smp_call_function example given at OLS 2005
+# in the current language.
+
+global traces
+
+probe begin { print("Starting probe, type control-c to stop.\n") }
+
+probe kernel.function("smp_call_function")
+{
+  traces[pid(), pexecname(), backtrace()] ++
+}
+
+probe end {
+  foreach ([pid, name, stack] in traces-) { # sort by frequency encountered
+    printf ("traces[%d,%s,\n", pid, name)
+    print_syms (stack)
+    printf ("] = %d\n", traces[pid, name, stack]);
+  }
+}

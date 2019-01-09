@@ -1,0 +1,14 @@
+title: Time Statistics on KVM Exit Reasons
+name: kvm_service_time.stp
+version: 1.0
+author: William Cohen
+keywords: _best virtualization kvm
+subsystem: virtualization
+status: experimental
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The kvm_service_time.stp script tracks the statistics about the amount of time that the processor left the guest virtual machine for each exit reason (for example fixing up a page table or handling an IO operation).  When the script exits it prints out the number of times each exit reason was encountered, the total duration of time it left the guest VM, the minimum time, the average time, and the maximum time in microseconds for that exit reason. On Linux 2.6.38 and newer kernel the script can automatically determine whether it is running on Intel or AMD processors. For older kernels with a kernel.trace("kvm_exit") tracepoint that does not have the $isa parameter you can explicitly state the kvm type with a "-G kvm=intel" or "-G kvm=amd" on the command line.
+test_support: stap -l 'kernel.trace("kvm_entry")' && stap -l 'kernel.trace("kvm_exit")'
+test_check: stap -p4 kvm_service_time.stp
+test_installcheck: stap kvm_service_time.stp -c "sleep 1"

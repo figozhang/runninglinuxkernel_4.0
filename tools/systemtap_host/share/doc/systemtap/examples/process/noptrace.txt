@@ -1,0 +1,57 @@
+noptrace.stp - Disable ptrace from Hierarchies of Processes
+
+    Blocks ptrace(2) attempts from processes identified by stap -c/-x,
+    as also specifiable from /proc/systemtap/stap_XXX/ control files.
+    Processes may be added or removed from the blocked list.
+
+------------------------------------------------------------------------
+Example: block ptrace(2) from a given subprocess hierarchy.
+
+% echo $$
+9898
+
+(in other shell)
+# stap -g noptrace.stp -x 9898 &
+
+(in original shell)
+% strace ls
+strace: ptrace(PTRACE_TRACEME, ...): No such process
++++ exited with 1 +++
+
+% bash                      # create a child process 
+bash-4.3$ strace ls
+strace: ptrace(PTRACE_TRACEME, ...): No such process
++++ exited with 1 +++
+bash-4.3$
+
+------------------------------------------------------------------------
+Example: block ptrace(2) with a manually managed process list
+
+% echo $$
+8282
+
+(in other shell)
+# stap -g noptrace.stp &
+# cd /proc/systemtap/stap_*
+# cat blocked
+[empty]
+# echo 8282 > block
+
+(in original shell)
+% do stuff
+% strace ls
+[doesn't work]
+% do more stuff
+
+(in other shell)
+# cat blocked   # child processes
+8282
+8294
+8322
+8348
+
+# echo 8282 > unblock
+
+(in original shell)
+% strace ls
+[now works]

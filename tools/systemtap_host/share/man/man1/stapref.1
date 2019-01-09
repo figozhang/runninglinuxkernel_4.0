@@ -1,0 +1,267 @@
+.\" -*- nroff -*-
+.TH STAPREF 1
+.SH NAME
+stapref \- systemtap language reference
+
+.\" macros
+.\" do not nest SAMPLEs
+.de SAMPLE
+.br
+.nr oldin \\n(.i
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH SYNOPSIS
+
+.br
+.B stapref
+
+.SH DESCRIPTION
+
+The reference for the systemtap scripting language.
+
+.SH LANGUAGE
+Keywords
+.SAMPLE
+\[bu] \fBbreak\fR
+\[bu] \fBcontinue\fR
+\[bu] \fBdelete\fR
+\[bu] \fBelse\fR
+\[bu] \fBexit\fR
+\[bu] \fBforeach\fR
+\[bu] \fBfor\fR
+\[bu] \fBfunction\fR
+\[bu] \fBglobal\fR
+\[bu] \fBprivate\fR
+\[bu] \fBif\fR
+\[bu] \fBin\fR
+\[bu] \fBnext\fR
+\[bu] \fBprobe\fR
+\[bu] \fBreturn\fR
+\[bu] \fBtry/catch\fR
+\[bu] \fBwhile\fR
+.ESAMPLE
+
+Data Types and Operators
+.SAMPLE
+Integers
+\[bu] var1 = 5
+\[bu] \fBglobal\fR var2 = 10
+
+Strings
+\[bu] var1 = "string1"
+\[bu] \fBglobal\fR var2 = "string2"
+
+Associative Arrays
+\[bu] \fBglobal\fR array1[]
+\[bu] \fBglobal\fR array2[SIZE]
+\[bu] array[index] = 5
+
+Context Variables
+\[bu] \fB$\fRvar
+\[bu] \fB$\fRvar\fB$\fR (pretty printed string form)
+
+Binary numeric operators
+\[bu] \fB* / % + \- << >> & ^ | && ||\fR
+
+Binary string operators
+\[bu] \fB.\fR (string concatenation)
+
+Numeric assignment operators
+\[bu] \fB= += -= *= /= %= >>= <<= &= ^= |= \fR
+
+String assignment operators
+\[bu] \fB= .= \fR
+
+Unary numeric operators
+\[bu] \fB+ \- ! ~ ++ \-\- \fR
+
+Numeric & string comparison operators
+\[bu] \fB< > <= >= == != \fR
+
+Regular expression matching operators
+\[bu] \fB=~ !~ \fR
+
+Ternary operator
+\[bu] cond \fB?\fR exp1 \fB:\fR exp2
+
+Grouping operator
+\[bu] \fB(\fR expression \fB)\fR
+
+Array operators
+\[bu] array\fB[\fRindex\fB]\fR (array read/write)
+\[bu] [index] \fB\in\fR array
+
+Aggregation operator
+\[bu] var \fB<<<\fR value
+.ESAMPLE
+
+Statements
+.SAMPLE
+Jump Statements
+\[bu] \fBcontinue\fR
+\[bu] \fBbreak\fR
+\[bu] \fBnext\fR
+\[bu] \fBreturn\fR expression
+\[bu] \fBtry\fR statement \fBcatch\fR (message)
+.ESAMPLE
+.SAMPLE
+Selection Statements
+\[bu] \fBif\fR (expression) statement 
+\[bu] \fBelse\fR statement
+.ESAMPLE
+.SAMPLE
+Iteration Statements
+\[bu] \fBforeach\fR (variable \fBin\fR array) statement
+\[bu] \fBforeach\fR ([var1,var2,...] \fBin\fR array) statement
+\[bu] \fBfor\fR (expression; expression; expression) statement
+\[bu] \fBwhile\fR (expression) statement
+.ESAMPLE
+.SAMPLE
+Declaration Statements
+\[bu] \fBfunction\fR name (variable : type, ...) { statement }
+\[bu] \fBfunction\fR name : type (variable : type, ...) { statement }
+\[bu] \fBfunction\fR name : type (variable : type, ...) %{ c_statement %}
+\[bu] \fBprobe\fR probepoint { statement }
+\[bu] \fBprobe\fR label = probepoint { statement }
+.ESAMPLE
+
+Lexical Structure
+.SAMPLE
+Comments
+\[bu] \fB#\fR ... comment
+\[bu] \fB//\fR ... comment
+\[bu] \fB/*\fR ... comment ... \fB*/\fR
+.ESAMPLE
+.SAMPLE
+Preprocessor
+\[bu] \fB%(\fR expression \fB%?\fR true_tokens \fB%:\fR false_tokens \fB%)\fR
+\[bu] \fB@define\fR label (variable, ...) %{ statement %}
+.ESAMPLE
+
+Builtin Functions
+.SAMPLE
+Aggregation Builtin Functions
+\[bu] \fB@avg\fR (variable)
+\[bu] \fB@count\fR (variable)
+\[bu] \fB@hist_linear\fR (variable, N, N, N)
+\[bu] \fB@hist_log\fR (variable)
+\[bu] \fB@max\fR (variable)
+\[bu] \fB@min\fR (variable)
+\[bu] \fB@sum\fR (variable)
+.ESAMPLE
+.SAMPLE
+Output Builtin Functions
+\[bu] \fBprint\fR (variable)
+\[bu] \fBprintf\fR (format:string, variable, ...) 
+ \ where format is of the form: %[flags][width][.precision][length]specifier
+\[bu] \fBprintd\fR (delimiter:string, variable, ...)
+\[bu] \fBprintdln\fR (delimiter:string, variable, ...)
+\[bu] \fBprintln\fR ()
+\[bu] \fBsprint\fR:string (variable)
+\[bu] \fBsprintf\fR:string (format:string, variable, ...)
+.ESAMPLE
+.SAMPLE
+Variable Access Builtin Functions
+\[bu] \fB@cast\fR (variable, "type_name"[, "module"])
+\[bu] \fB@defined\fR (variable)
+.ESAMPLE
+
+Probepoints
+.SAMPLE
+Some of the more commonly used probepoints
+\[bu] kernel.function(PATTERN) kernel.function(PATTERN).call
+\[bu] kernel.function(PATTERN).return
+\[bu] kernel.FUNCTION (PATTERN).return.maxactive(VALUE)
+\[bu] kernel.FUNCTION (PATTERN).inline
+\[bu] kernel.FUNCTION (PATTERN).label(LPATTERN)
+\[bu] module(MPATTERN).FUNCTION (PATTERN)
+\[bu] module(MPATTERN).FUNCTION (PATTERN).call
+\[bu] module(MPATTERN).FUNCTION (PATTERN).return.maxactive(VALUE)
+\[bu] module(MPATTERN).FUNCTION (PATTERN).inline
+\[bu] kernel.statement(PATTERN)
+\[bu] kernel.statement(ADDRESS).absolute
+\[bu] module(MPATTERN).statement(PATTERN)
+\[bu] kprobe.FUNCTION (FUNCTION)
+\[bu] kprobe.FUNCTION (FUNCTION).return
+\[bu] kprobe.module(NAME).FUNCTION (FUNCTION)
+\[bu] kprobe.module(NAME).FUNCTION (FUNCTION).return
+\[bu] kprobe.statement(ADDRESS).absolute
+\[bu] process.begin process("PATH").begin
+\[bu] process(PID).begin process.thread.begin
+\[bu] process("PATH").thread.begin
+\[bu] process(PID).thread.begin
+\[bu] process.end
+\[bu] process("PATH").end
+\[bu] process(PID).end
+\[bu] process.thread.end
+\[bu] process("PATH").thread.end
+\[bu] process(PID).thread.end
+\[bu] process("PATH").syscall
+\[bu] process(PID).syscall
+\[bu] process.syscall.return
+\[bu] process("PATH").syscall.return
+\[bu] process(PID).syscall.return
+\[bu] process("PATH").FUNCTION ("NAME")
+\[bu] process("PATH").statement("*@FILE.c:123")
+\[bu] process("PATH").FUNCTION ("*").return
+\[bu] process("PATH").FUNCTION ("myfun").label("foo")
+\[bu] process("PATH").mark("LABEL")
+\[bu] java("PNAME").class("CLASSNAME").method("PATTERN")
+\[bu] java("PNAME").class("CLASSNAME").method("PATTERN").return
+\[bu] java(PID).class("CLASSNAME").method("PATTERN")
+\[bu] java(PID).class("CLASSNAME").method("PATTERN").return
+.ESAMPLE
+
+Tapset Functions
+.SAMPLE
+Some of the more commonly used tapset functions
+\[bu] addr:long ()
+\[bu] backtrace:string ()
+\[bu] caller:string ()
+\[bu] caller_addr:long ()
+\[bu] cmdline_arg:string (N:long)
+\[bu] cmdline_args:string (N:long,m:long,delim:string)
+\[bu] cmdline_str:string ()
+\[bu] env_var:string (name:string)
+\[bu] execname:string ()
+\[bu] int_arg:long (N:long)
+\[bu] isinstr:long(s1:string,s2:string)
+\[bu] long_arg:long (N:long)
+\[bu] modname:string ()
+\[bu] module_name:string ()
+\[bu] pid:long ()
+\[bu] pn:string ()
+\[bu] pointer_arg:string (N:long)
+\[bu] pp:string ()
+\[bu] print_backtrace ()
+\[bu] probefunc:string ()
+\[bu] register:long(name:string)
+\[bu] str_replace:string(prnt_str:string,srch_str:string,rplc_str:string)
+\[bu] stringat:long(str:string,pos:long)
+\[bu] strlen:long(str:string)
+\[bu] strtol:long(str:string,base:long)
+\[bu] substr:string(str:string,start:long,length:long)
+\[bu] user_long:long(addr:long)
+\[bu] user_string:string(addr:long)
+.ESAMPLE
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1)
+
+.SH BUGS
+Use the Bugzilla link of the project web page or our mailing list.
+.nh
+.BR http://sourceware.org/systemtap/ , <systemtap@sourceware.org> .
+.hy

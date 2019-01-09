@@ -1,0 +1,11 @@
+title: Report opened files whose names match a given regex
+name: regex.stp
+keywords: regex
+subsystem: any
+status: experimental
+exit: user-controlled
+output: trace
+scope: system-wide
+description: Uses the regex functionality to detect opened files whose names match a pattern given on the command line. If no command line parameter is given, demonstrate by filtering for files that end with an extension showing them to be an archive.
+test_check: stap -p4 regex.stp
+test_installcheck: stap regex.stp -c "sleep 1"

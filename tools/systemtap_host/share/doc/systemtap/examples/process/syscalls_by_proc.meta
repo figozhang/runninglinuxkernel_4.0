@@ -1,0 +1,13 @@
+title: System-Wide Count of Syscalls by Executable
+name: syscalls_by_proc.stp
+version: 1.0
+author: anonymous
+keywords: syscall
+subsystem: syscall
+status: production
+exit: user-controlled
+output: sorted-list on-exit
+scope: system-wide
+description: The script watches all syscall on the system. On exit the script prints a list showing the number of systemcalls executed by each executable ordered from greatest to least number of syscalls.
+test_check: stap -p4 syscalls_by_proc.stp
+test_installcheck: stap syscalls_by_proc.stp -c "sleep 1"

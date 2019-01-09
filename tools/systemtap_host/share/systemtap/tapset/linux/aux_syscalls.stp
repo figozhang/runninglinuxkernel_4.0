@@ -1,0 +1,5991 @@
+
+%{
+// Be sure we have the __NR_* defines.
+#include <asm/unistd.h>
+#include "linux/compat_unistd.h"
+
+// Be sure we have the SYS_* defines.
+#include <linux/net.h>
+#include "linux/compat_net.h"
+
+#ifdef CONFIG_COMPAT
+// Be sure we have 'SHMCTL', etc. defined.
+#include <linux/ipc.h>
+#ifndef SEMOP
+#define SEMOP 1
+#endif
+#ifndef SEMCTL
+#define SEMCTL 3
+#endif
+#ifndef SEMTIMEDOP
+#define SEMTIMEDOP 4
+#endif
+#ifndef MSGSND
+#define MSGSND 11 
+#endif
+#ifndef MSGRCV
+#define MSGRCV 12
+#endif
+#ifndef MSGCTL
+#define MSGCTL 14
+#endif
+#ifndef SHMCTL
+#define SHMCTL 24
+#endif
+#endif
+
+/*
+* Simple lookup functions for mapping values to names
+* using embedded C. Use these functions to create safe,
+* consistent lookups.
+*/
+
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
+
+static void
+_stp_lookup_str2(const _stp_val_array * const array, long val, char *ptr,
+		 int len, int base)
+{
+	int i = 0, slen;
+	while (array[i].name) {
+		if (array[i].val == val) {
+			strlcat (ptr, array[i].name, len);
+			return;
+		}
+		i++;
+	}
+	slen = strlen(ptr);
+	if (base == 10)
+		_stp_snprintf(ptr + slen, len - slen, "%ld", val);
+	else if (base == 8)
+		_stp_snprintf(ptr + slen, len - slen, "%#lo", val);
+	else
+		_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
+}
+
+static inline void
+_stp_lookup_str(const _stp_val_array * const array, long val, char *ptr,
+		int len)
+{
+	_stp_lookup_str2(array, val, ptr, len, 16);
+}
+
+static void
+_stp_lookup_or_str2(const _stp_val_array * const array, long val, char *ptr,
+		    int len, int base)
+{
+	int i = 0, flag = 0, slen;
+
+	if (val == 0) {
+		_stp_lookup_str2(array, val, ptr, len, base);
+		return;
+	}
+
+	while (array[i].name) {
+		if (array[i].val & val) {
+			if (flag)
+				strlcat(ptr, "|", len);
+			strlcat(ptr, array[i].name, len);
+			val &= (~array[i].val);
+			flag = 1;
+		}
+		i++;
+	}
+	if (val) {
+		if (flag)
+			strlcat(ptr, "|", len);
+		slen = strlen(ptr);
+		if (base == 10)
+			_stp_snprintf(ptr + slen, len - slen, "%ld", val);
+		else if (base == 8)
+			_stp_snprintf(ptr + slen, len - slen, "%#lo", val);
+		else
+			_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
+	}
+}
+
+static inline void
+_stp_lookup_or_str(const _stp_val_array * const array, long val, char *ptr,
+		   int len)
+{
+	_stp_lookup_or_str2(array, val, ptr, len, 16);
+}
+%}
+
+function _stp_syscall_nr:long ()
+%{ /* pure */
+	struct pt_regs *regs = _stp_current_pt_regs();
+	if (!regs) {
+		CONTEXT->last_error = ("Cannot access syscall number"
+				       " (no registers available)");
+		return;
+	}
+	STAP_RETVALUE = _stp_syscall_get_nr(current, regs);
+%}
+
+%{
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+
+#ifndef STAPCONF_SIGSET_FROM_COMPAT_EXPORTED
+void
+sigset_from_compat(sigset_t *set, compat_sigset_t *compat)
+{
+	switch (_NSIG_WORDS) {
+	case 4: set->sig[3] = compat->sig[6] | (((long)compat->sig[7]) << 32 );
+	case 3: set->sig[2] = compat->sig[4] | (((long)compat->sig[5]) << 32 );
+	case 2: set->sig[1] = compat->sig[2] | (((long)compat->sig[3]) << 32 );
+	case 1: set->sig[0] = compat->sig[0] | (((long)compat->sig[1]) << 32 );
+	}
+}
+#endif /* STAPCONF_SIGSET_FROM_COMPAT_EXPORTED */
+#endif /* CONFIG_COMPAT */
+
+%}
+
+#
+# Given a userspace pointer to a timeval,
+# copy and decode it and return a string.
+#
+function _struct_timeval_u:string(uaddr:long, n:long)
+%{ /* pure */
+	int n = (int)STAP_ARG_n;
+	struct timeval tv[n];
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	
+	if (ptr == NULL || n < 1 || n > 2)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char*)&tv, ptr,
+					n*sizeof(struct timeval)) == 0) {
+			if (n == 2)
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld][%ld.%.06ld]", 
+					 tv[0].tv_sec, tv[0].tv_usec,
+					 tv[1].tv_sec, tv[1].tv_usec);
+			else
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld]", tv[0].tv_sec,
+					 tv[0].tv_usec);
+	   	}
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+	}
+%}
+
+function _struct_compat_timeval_u:string(uaddr:long, n:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	int n = (int)STAP_ARG_n;
+	struct compat_timeval tv[n];
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+
+	if (ptr == NULL || n < 1 || n > 2)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char*)&tv, ptr,
+					n*sizeof(struct compat_timeval)) == 0) {
+			if (n == 2)
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld][%ld.%.06ld]", 
+					 (long)tv[0].tv_sec,
+					 (long)tv[0].tv_usec,
+					 (long)tv[1].tv_sec,
+					 (long)tv[1].tv_usec);
+			else
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld]", (long)tv[0].tv_sec,
+					 (long)tv[0].tv_usec);
+		}
+	   	else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+	}
+#endif
+%}
+
+function _struct_timezone_u:string(uaddr:long)
+%{ /* pure */
+	struct timezone tz;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char*)&tz, ptr,
+					sizeof(struct timezone)) == 0)
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d, %d]",
+				 tz.tz_minuteswest, tz.tz_dsttime);
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+	}
+%} 
+
+%{
+// Needed for the following four functions
+// _struct_utimbuf_actime, _struct_utimbuf_modtime,
+// _struct_compat_utimbuf_actime, _struct_compat_utimbuf_modtime
+#include <linux/utime.h>
+%}
+
+function _stp_clock_nanosleep_flags_str:string(flags:long)
+%{ /* pure */
+	static const _stp_val_array const nanosleep_flags_list[] = {
+		V(TIMER_ABSTIME),
+		{0, NULL}
+	};
+	_stp_lookup_str(nanosleep_flags_list, (unsigned int)STAP_ARG_flags,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+// Returns the value of the actime field of a utimbuf in user space
+// at the given address, or zero on when userspace data is not accessible.
+function _struct_utimbuf_actime:long(uaddr:long)
+%{ /* pure */
+	struct utimbuf ubuf;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	
+	if (ptr == NULL)
+	  STAP_RETVALUE = 0;
+	else
+	  if(_stp_copy_from_user((char*)&ubuf,ptr,sizeof(ubuf)) == 0)
+	    STAP_RETVALUE = ubuf.actime;
+	  else
+	    STAP_RETVALUE = 0;
+%} 
+
+// Returns the value of the modtime field of a utimbuf in user space
+// at the given address, or zero on when userspace data is not accessible.
+function _struct_utimbuf_modtime:long(uaddr:long)
+%{ /* pure */
+	struct utimbuf ubuf;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	
+	if (ptr == NULL)
+	  STAP_RETVALUE = 0;
+	else
+	  if(_stp_copy_from_user((char*)&ubuf,ptr,sizeof(ubuf)) == 0)
+	    STAP_RETVALUE = ubuf.modtime;
+	  else
+	    STAP_RETVALUE = 0;
+%} 
+
+// Returns the value of the actime field of a compat_utimbuf in user space
+// at the given address, or zero on when userspace data is not accessible.
+function _struct_compat_utimbuf_actime:long(uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	struct compat_utimbuf ubuf;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	
+	if (ptr == NULL)
+	  STAP_RETVALUE = 0;
+	else
+	  if(_stp_copy_from_user((char*)&ubuf,ptr,sizeof(ubuf)) == 0)
+	    STAP_RETVALUE = ubuf.actime;
+	  else
+	    STAP_RETVALUE = 0;
+#endif
+%} 
+
+// Returns the value of the modtime field of a compat_utimbuf in user space
+// at the given address, or zero on when userspace data is not accessible.
+function _struct_compat_utimbuf_modtime:long(uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	struct compat_utimbuf ubuf;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	
+	if (ptr == NULL)
+	  STAP_RETVALUE = 0;
+	else
+	  if(_stp_copy_from_user((char*)&ubuf,ptr,sizeof(ubuf)) == 0)
+	    STAP_RETVALUE = ubuf.modtime;
+	  else
+	    STAP_RETVALUE = 0;
+#endif
+%} 
+
+function _struct_timespec_u:string(uaddr:long, n:long)
+%{ /* pure */
+#define STP_UTIME_NOW  ((1l << 30) - 1l)
+#define STP_UTIME_OMIT ((1l << 30) - 2l)
+	int n = (int)STAP_ARG_n;
+	struct timespec ts[n];
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+
+	if (ptr == NULL || n < 1 || n > 2)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char *)&ts, ptr,
+		    n*sizeof(struct timespec)))  {
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+		}
+		else {
+			char *str;
+			int len, i = 0;
+			ptr = STAP_RETVALUE;
+			while (i < n) {
+				str = NULL;
+				if (ts[i].tv_nsec == STP_UTIME_NOW)
+					str = "UTIME_NOW";
+				else if (ts[i].tv_nsec == STP_UTIME_OMIT)
+					str = "UTIME_OMIT";
+				if (str)
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%s]", str);
+				else
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%ld.%09ld]",
+						       (long)ts[i].tv_sec,
+						       ts[i].tv_nsec);
+				ptr += len;
+				i++;
+			}
+		}
+	}
+#undef STP_UTIME_NOW
+#undef STP_UTIME_OMIT
+%}
+
+function _struct_compat_timespec_u:string(uaddr:long, n:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+#define STP_UTIME_NOW  ((1l << 30) - 1l)
+#define STP_UTIME_OMIT ((1l << 30) - 2l)
+	int n = (int)STAP_ARG_n;
+	struct compat_timespec ts[n];
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+
+	if (ptr == NULL || n < 1 || n > 2)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char *)&ts, ptr,
+		    n*sizeof(struct compat_timespec)))  {
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+		}
+		else {
+			char *str;
+			int len, i = 0;
+			ptr = STAP_RETVALUE;
+			while (i < n) {
+				str = NULL;
+				if (ts[i].tv_nsec == STP_UTIME_NOW)
+					str = "UTIME_NOW";
+				else if (ts[i].tv_nsec == STP_UTIME_OMIT)
+					str = "UTIME_OMIT";
+				if (str)
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%s]", str);
+				else
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%ld.%09ld]",
+						       (long)ts[i].tv_sec,
+						       (long)ts[i].tv_nsec);
+				ptr += len;
+				i++;
+			}
+		}
+	}
+#undef STP_UTIME_NOW
+#undef STP_UTIME_OMIT
+#endif
+%}
+
+
+function _struct_itimerspec_u:string(uaddr:long)
+%{ /* pure */
+	struct itimerspec its;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if(_stp_copy_from_user((char *)&its, ptr,sizeof(struct itimerspec)))
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				(unsigned long)ptr);
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d.%06d,%d.%06d]",
+				(int)its.it_interval.tv_sec, (int)its.it_interval.tv_nsec,
+				(int)its.it_value.tv_sec, (int)its.it_value.tv_nsec);
+	}	
+%}
+
+function _struct_compat_itimerspec_u:string(uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	struct compat_itimerspec its;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char *)&its, ptr, sizeof(its)))
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				(unsigned long)ptr);
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+				 "[%d.%06d,%d.%06d]",
+				 (int)its.it_interval.tv_sec,
+				 (int)its.it_interval.tv_nsec,
+				 (int)its.it_value.tv_sec,
+				 (int)its.it_value.tv_nsec);
+	}
+#endif
+%}
+
+function _struct_itimerval_u:string(uaddr:long)
+%{ /* pure */
+	struct itimerval itv;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if(_stp_copy_from_user((char *)&itv,ptr,sizeof(struct itimerval)))
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d.%06d,%d.%06d]", 
+				(int)itv.it_interval.tv_sec, (int)itv.it_interval.tv_usec,
+				(int)itv.it_value.tv_sec, (int)itv.it_value.tv_usec);
+	}
+%}
+
+function _struct_compat_itimerval_u:string(uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	struct compat_itimerval itv;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if(_stp_copy_from_user((char *)&itv,ptr,sizeof(struct compat_itimerval)))
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d.%06d,%d.%06d]", 
+				(int)itv.it_interval.tv_sec, (int)itv.it_interval.tv_usec,
+				(int)itv.it_value.tv_sec, (int)itv.it_value.tv_usec);
+	}
+#endif
+%}
+
+%{
+// Needed for @__private30 function _struct_sockaddr_u_impl. Unfortunately cannot be
+// inlined into the function since these header files define static
+// functions themselves.
+#include <linux/socket.h>
+#include <linux/in.h>
+#include <linux/netlink.h>
+%}
+
+%{
+// Enum for _struct_sockaddr_u_* functions.
+typedef enum {
+    SA_PRETTY           = 1,
+    SA_IP_ADDR          = 2,
+    SA_TCP_PORT         = 4,
+    SA_FAMILY           = 8,
+    SA_IPV6_FLOWINFO    = 16,
+    SA_IPV6_SCOPE_ID    = 32,
+} sa_dispatch;
+%}
+
+function _struct_sockaddr_u_ip_addr:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IP_ADDR %});
+}
+
+function _struct_sockaddr_u_tcp_port:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_TCP_PORT %});
+}
+
+@__private30 function _struct_sockaddr_u_ip_addr_tcp_port:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IP_ADDR | SA_TCP_PORT %});
+}
+
+function _struct_sockaddr_u_sa_family:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_FAMILY %});
+}
+
+function _struct_sockaddr_u_ipv6_flowinfo:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IPV6_FLOWINFO %});
+}
+
+function _struct_sockaddr_u_ipv6_scope_id:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IPV6_SCOPE_ID %});
+}
+
+function _struct_sockaddr_u:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_PRETTY %});
+}
+
+%{
+#define STAP_NEED_CONTEXT_SOCKADDR_BIG_BUFFERS 1
+%}
+
+@__private30 function _struct_sockaddr_u_impl:string(uaddr:long, len:long, what:long)
+%{ /* pure */
+
+
+#include <linux/version.h>
+#include <linux/in6.h>
+#include <linux/un.h>
+#include <linux/if_packet.h>
+
+    sa_dispatch what = (sa_dispatch)STAP_ARG_what;
+
+    char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+    size_t len = clamp_t(size_t, STAP_ARG_len, 0, 128);
+    struct sockaddr *sa = (struct sockaddr *)CONTEXT->buf;
+
+    char *stap_retvalue = (char *)(unsigned long)STAP_RETVALUE;
+    int maxstringlen = MAXSTRINGLEN;
+    size_t n;
+
+	if (ptr == NULL)
+	{
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+		return;
+	}
+
+    // This helps handle variable lenght sockaddr_un.
+    // Some application - like systemd - sends path string
+    // without ending null character. Kernel will handle this
+    // but we need pretty output without random memory stuff.
+    memset(CONTEXT->buf, 0, 128);
+
+    if (_stp_copy_from_user(CONTEXT->buf, ptr, len))
+	{
+		strlcpy(STAP_RETVALUE, "{...}", MAXSTRINGLEN);
+		return;
+	}
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
+#define LPORT   (inet->inet.num)
+#define DADDR   (&inet->inet.daddr)
+#else
+#define LPORT   (inet->num)
+#define DADDR   (&inet->daddr)
+#endif
+
+// Use kernel builtin instead of picking up user space ntohs (function).
+#define _stp_ntohs be16_to_cpu
+
+	if ((sa->sa_family == AF_INET) && (len == sizeof(struct sockaddr_in)))
+	{
+		struct sockaddr_in *sin = (struct sockaddr_in *)CONTEXT->buf;
+
+        if (what & SA_PRETTY)
+        {
+#ifndef NIPQUAD_FMT                     // kver >= 2.6.36
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_INET, %pI4, %d}",
+                &sin->sin_addr, _stp_ntohs(sin->sin_port));
+#else
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                "{AF_INET, " NIPQUAD_FMT ", %d}",
+                NIPQUAD(sin->sin_addr), _stp_ntohs(sin->sin_port));
+#endif
+            return;
+        }
+
+        if (what & SA_FAMILY)
+        {
+            n = strlcpy(stap_retvalue, "AF_INET", maxstringlen);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IP_ADDR)
+        {
+#ifndef NIPQUAD_FMT                     // kver >= 2.6.36
+            n = snprintf(stap_retvalue, maxstringlen, "%pI4", &sin->sin_addr);
+#else
+            n = snprintf(stap_retvalue, maxstringlen, NIPQUAD_FMT,
+                    NIPQUAD(sin->sin_addr));
+#endif
+            // (n - 1) mean: cut of null char
+            stap_retvalue += (n);
+            maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_TCP_PORT)
+        {
+            n = snprintf(stap_retvalue, maxstringlen, "%d",
+            _stp_ntohs(sin->sin_port));
+            // (n - 1) mean: cut of null char
+            stap_retvalue += (n);
+            maxstringlen -= (n - 1);
+        }
+	}
+    // Why 2 * sizeof (char) here?
+    // Because I want to support abstract sockets with
+    // at least one usable byte after initial \0 char.
+    // Unnamed sockets aren't supported yet.
+	else if ((sa->sa_family == AF_UNIX)
+            && ((len == sizeof(struct sockaddr_un))
+            || (len >= ((sizeof(sa_family_t)) + (2 * sizeof(char))))))
+	{
+		struct sockaddr_un *sun = (struct sockaddr_un *)CONTEXT->buf;
+		if (what & SA_PRETTY)
+		{
+
+			// Support for abstract sockets
+			if (sun->sun_path[0] == '\0')
+			{
+                // Abstract sockets aren't string oriented.
+                // We need conversion on this place.
+                // No check of ret value, because _stp_text_str returns
+                // "<unknown>" if bad things happen.
+                //
+                // Well. There can be NUL chars inside sun_path.
+                // We just stop at first NUL char. 
+                // TODO: We need byte oriented conversion function.
+                _stp_text_str(CONTEXT->out_str, &sun->sun_path[1],
+                    len - sizeof(sa_family_t), MAXSTRINGLEN - 1, 0, 0);
+                snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, \"\\000%s\"}",
+                    CONTEXT->out_str);
+            } else
+			{
+                // Just cut path if is too long
+                CONTEXT->buf[127] = '\0';
+                snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, \"%s\"}",
+                    sun->sun_path);
+			}
+		} else if (what & SA_FAMILY)
+		{
+            strlcpy(STAP_RETVALUE, "AF_UNIX", MAXSTRINGLEN);
+		} else
+		{
+			strlcpy(STAP_RETVALUE, "", MAXSTRINGLEN);
+		}
+	}
+	else if ((sa->sa_family == AF_NETLINK)
+		 && (len == sizeof(struct sockaddr_nl)))
+	{
+		struct sockaddr_nl *nl = (struct sockaddr_nl *)CONTEXT->buf;
+
+        if (what & SA_PRETTY) {
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                "{AF_NETLINK, pid=%d, groups=%08x}",
+                nl->nl_pid, nl->nl_groups);
+        } else if (what & SA_FAMILY)
+        {
+            strlcpy(STAP_RETVALUE, "AF_NETLINK", MAXSTRINGLEN);
+        } else
+        {
+            strlcpy(STAP_RETVALUE, "", MAXSTRINGLEN);
+        }
+    }
+	else if ((sa->sa_family == AF_INET6)
+		 && (len == sizeof(struct sockaddr_in6)))
+	{
+		struct sockaddr_in6 *sin = (struct sockaddr_in6 *)CONTEXT->buf;
+
+        if (what & SA_PRETTY)
+        {
+#ifndef NIP6_FMT			// kver >= 2.6.36
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                 "{AF_INET6, %pI6, %d}", &sin->sin6_addr,
+                 _stp_ntohs(sin->sin6_port));
+#else
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                 "{AF_INET6, " NIP6_FMT ", %d}", NIP6(sin->sin6_addr),
+                 _stp_ntohs(sin->sin6_port));
+#endif
+            return;
+        }
+
+        if (what & SA_FAMILY)
+        {
+            n = strlcpy(stap_retvalue, "AF_INET6", maxstringlen);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IP_ADDR)
+        {
+#ifndef NIP6_FMT			// kver >= 2.6.36
+            n = snprintf(stap_retvalue, maxstringlen,
+                 "%pI6", &sin->sin6_addr);
+#else
+            n = snprintf(stap_retvalue, maxstringlen,
+                 NIP6_FMT, NIP6(sin->sin6_addr));
+#endif
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_TCP_PORT)
+        {
+            n = snprintf(stap_retvalue, maxstringlen,
+                "%d", _stp_ntohs(sin->sin6_port));
+            // (n - 1) mean: cut of null char
+            stap_retvalue += (n);
+            maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IPV6_FLOWINFO)
+        {
+            n = snprintf(stap_retvalue, maxstringlen,
+                 "%d", sin->sin6_flowinfo);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IPV6_SCOPE_ID)
+        {
+            n = snprintf(stap_retvalue, maxstringlen,
+                 "%d", sin->sin6_flowinfo);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+	}
+	else if ((sa->sa_family == AF_PACKET)
+		 && (len == sizeof(struct sockaddr_ll)))
+	{
+		struct sockaddr_ll *sll = (struct sockaddr_ll *)CONTEXT->buf;
+
+        if (what & SA_PRETTY)
+        {
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                 "{AF_PACKET, proto=%d, ind=%d, hatype=%d, pkttype=%d, halen=%d, addr=0x%llx}",
+                 (int)sll->sll_protocol, sll->sll_ifindex,
+                 (int)sll->sll_hatype, (int)sll->sll_pkttype,
+                 (int)sll->sll_halen,
+                 (long long)(*(uint64_t *)sll->sll_addr));
+        } else if (what & SA_FAMILY)
+        { 
+            strlcpy(STAP_RETVALUE, "AF_PACKET", MAXSTRINGLEN);
+        } else
+        {
+            strlcpy(STAP_RETVALUE, "", MAXSTRINGLEN);
+        }
+	}
+	else
+	{
+		if (len >= sizeof(sa_family_t))
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+				 "{unknown sockaddr with sa=%d, salen=%d}",
+				 sa->sa_family, (int) len);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+				 "{unknown sockaddr with salen=%d}", (int)len);
+		}
+	}
+%}
+
+function _struct_rlimit_u:string(uaddr:long)
+%{ /* pure */
+	struct rlimit rl;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char *)&rl, ptr, sizeof(struct rlimit)) == 0)
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld,%ld]",
+				rl.rlim_cur, rl.rlim_max);
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+	}
+%}
+
+function _fildes_index_u:long (uaddr:long, index:long)
+%{ /* pure */
+	int fd[2];
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+
+	if (ptr == NULL || !(STAP_ARG_index == 0 || STAP_ARG_index == 1))
+		STAP_RETVALUE = 0;
+	else {
+		if (_stp_copy_from_user((char *)&fd, ptr, 2*sizeof(int)) == 0)
+			STAP_RETVALUE = fd[STAP_ARG_index];
+		else
+			STAP_RETVALUE = 0;
+	}
+%}
+
+
+function __sem_flags:string(semflg:long)
+%{ /* pure */
+	long semflg = STAP_ARG_semflg;
+	char *str = STAP_RETVALUE;
+	int mode;
+	int len;
+	int flag = 0;
+
+	mode = semflg & S_IRWXUGO;
+	semflg &= ~S_IRWXUGO;
+
+	str[0] = '\0';
+	if (semflg & IPC_CREAT) {
+		strlcat(str, "IPC_CREAT", MAXSTRINGLEN);
+		semflg &= ~IPC_CREAT;
+		flag = 1;
+	}
+	if (semflg & IPC_EXCL) {
+		if (flag)
+			strlcat(str, "|", MAXSTRINGLEN);
+		strlcat(str, "IPC_EXCL", MAXSTRINGLEN);
+		semflg &= ~IPC_EXCL;
+		flag = 1;
+	}
+	if (semflg) {
+		if (flag)
+			strlcat(str, "|", MAXSTRINGLEN);
+		len = strlen(str);
+		_stp_snprintf(str + len, MAXSTRINGLEN - len, "0x%lx", semflg); 
+		flag = 1;
+	}
+	if (mode) {
+		if (flag)
+			strlcat(str, "|", MAXSTRINGLEN);
+		len = strlen(str);
+		_stp_snprintf(str + len, MAXSTRINGLEN - len, "%#o", mode); 
+	}
+%}
+
+@__private30 function __user_pointer:long (addr:long)
+ %{ /* pure */ /* myproc-unprivileged */
+#ifdef CONFIG_COMPAT
+	if (_stp_is_compat_task()) {
+		compat_ulong_t *compat_ptr = (void *)(intptr_t)STAP_ARG_addr;
+		STAP_RETVALUE = uread (compat_ptr);
+	}
+	else {
+		unsigned long *ptr = (void *)(intptr_t)STAP_ARG_addr;
+		STAP_RETVALUE = uread (ptr);
+	}	
+#else
+	unsigned long *ptr = (void *)(intptr_t)STAP_ARG_addr;
+	STAP_RETVALUE = uread (ptr);
+#endif
+	CATCH_DEREF_FAULT();
+%}
+
+/* This function copies an argv from userspace. */
+function __get_argv:string(argv:long, first:long)
+{
+%( CONFIG_64BIT == "y" %?
+	str = "["
+	if (first && argv)
+		# 8 == sizeof(long) on a 64-bit OS
+		argv += (8 * first)
+	while (argv) {
+		# We'd like to just call 'user_long(argv)' here, but
+		# we need to know the difference between a bad address
+		# and just getting a 0. 
+		try {
+			vstr = __user_pointer(argv)
+		} catch {
+			if (len)
+				str .= ", "
+			str .= sprintf("0x%x", argv)
+			break
+		}
+		if (vstr == 0)
+			break
+
+		if (len)
+			str .= ", "
+		str .= user_string_quoted(vstr)
+
+		newlen = strlen(str)
+		if (newlen == len)
+			break
+		len = newlen
+		# 8 == sizeof(long) on a 64-bit OS
+		argv += 8
+	}
+	str .= "]"
+	return str
+%:
+	return __get_compat_argv(argv, first)
+%)
+}
+
+/* This function copies an argv from userspace. */
+function __get_compat_argv:string(argv:long, first:long)
+{
+	str = "["
+	if (first && argv)
+		# 4 == sizeof(long) on a 32-bit OS
+		argv += (4 * first)
+	while (argv) {
+		# We'd like to just call 'user_long(argv)' here, but
+		# we need to know the difference between a bad address
+		# and just getting a 0. 
+		try {
+			vstr = __user_pointer(argv) & 0xffffffff
+		} catch {
+			if (len)
+				str .= ", "
+			str .= sprintf("0x%x", argv)
+			break
+		}
+		if (vstr == 0)
+			break
+
+		if (len)
+			str .= ", "
+		str .= user_string_quoted(vstr)
+
+		newlen = strlen(str)
+		if (newlen == len)
+			break
+		len = newlen
+		# 4 == sizeof(long) on a 32-bit OS
+		argv += 4
+	}
+	str .= "]"
+	return str
+}
+
+/* Count the number of environment variables. */
+function __count_envp:string(envp:long)
+{
+%( CONFIG_64BIT == "y" %?
+	__argc = 0
+	while (envp) {
+		# We can call 'user_long(envp)' here because we don't
+		# need to know the difference between a bad address
+		# and just getting a 0.
+		vstr = user_long(envp)
+		if (vstr == 0)
+			break
+
+		__argc++
+		# 8 == sizeof(long) on a 64-bit OS
+		envp += 8
+	}
+	return sprintf("[/* %d var%s */]", __argc, __argc != 1 ? "s" : "")
+%:
+	return __count_compat_envp(envp)
+%)
+}
+
+function __count_compat_envp:string(envp:long)
+{
+	__argc = 0
+	while (envp) {
+		# We can call 'user_long(envp)' here because we don't
+		# need to know the difference between a bad address
+		# and just getting a 0.
+		vstr = user_long(envp)
+		if (vstr == 0)
+			break
+
+		__argc++
+		# 4 == sizeof(long) on a 32-bit OS
+		envp += 4
+	}
+	return sprintf("[/* %d var%s */]", __argc, __argc != 1 ? "s" : "")
+}
+
+%(systemtap_v <= "2.7" %?
+/*
+ * This function isn't actually used anywhere, so let's deprecate it.
+ *
+ * Return the  symbolic string  representation
+ * of the struct timex.mode member of adjtimex
+ * consult `man adjtimex` for more information
+ * CALLERS:
+ *    syscall.adjtimex
+ */
+function _adjtx_mode_str(f) {
+   if((f & 32769) == 32769) bs="ADJ_OFFSET_SINGLESHOT|".bs
+   if(f  & 16384) bs="ADJ_TICK|".bs
+   if(f  & 32)    bs="ADJ_TIMECONST|".bs
+   if(f  & 16)    bs="ADJ_STATUS|".bs
+   if(f  & 8)     bs="ADJ_ESTERROR|".bs
+   if(f  & 4)     bs="ADJ_MAXERROR|".bs
+   if(f  & 2)     bs="ADJ_FREQUENCY|".bs
+   if(f & 1 && ((f & 32769) != 32769)) bs="ADJ_OFFSET|".bs
+   return substr(bs,0,strlen(bs)-1)
+}
+%)
+
+%{
+#include <linux/random.h>
+
+static const _stp_val_array const _stp_getrandom_list[] = {
+#ifdef GRND_NONBLOCK
+  V(GRND_NONBLOCK),
+#endif
+#ifdef GRND_RANDOM
+  V(GRND_RANDOM),
+#endif
+  {0, NULL}
+};
+%}
+
+function _getrandom_flags_str:string(flag:long)
+%{ /* pure */
+	unsigned int grflag = (unsigned int)STAP_ARG_flag;  
+	_stp_lookup_or_str(_stp_getrandom_list, grflag, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#if (defined(CONFIG_INOTIFY) || defined(CONFIG_INOTIFY_USER))
+#include <linux/inotify.h>
+#endif
+ 
+/* Ignore helper events IN_CLOSE and IN_MOVE, which are just
+ * combinations of other events. */
+
+static const _stp_val_array const _stp_inotify_watch_mask_list[] = {
+	V(IN_ACCESS),
+	V(IN_MODIFY),
+	V(IN_ATTRIB),
+	V(IN_CLOSE_WRITE),
+	V(IN_CLOSE_NOWRITE),
+	V(IN_OPEN),
+ 	V(IN_MOVED_FROM),
+	V(IN_MOVED_TO),
+	V(IN_CREATE),
+	V(IN_DELETE),
+	V(IN_DELETE_SELF),
+	V(IN_MOVE_SELF),
+	V(IN_UNMOUNT),
+	V(IN_Q_OVERFLOW),
+	V(IN_IGNORED),
+	V(IN_ONLYDIR),
+	V(IN_DONT_FOLLOW),
+#ifdef IN_EXCL_UNLINK
+	V(IN_EXCL_UNLINK),
+#endif
+	V(IN_MASK_ADD),
+	V(IN_ISDIR),
+	V(IN_ONESHOT),
+	{0, NULL}
+};
+%}
+
+function _inotify_watch_mask_str:string(mask:long)
+%{ /* pure */
+	uint32_t mask = (uint32_t)STAP_ARG_mask;
+	_stp_lookup_or_str(_stp_inotify_watch_mask_list, mask, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+/*
+ * Return the symbolic string representation
+ * of the how argument given in *sigprocmask
+ * consult  `man sigprocmask`  for more info
+ * CALLERS:
+ *    syscall.sigprocmask
+ *    syscall.rt_sigprocmask
+ */
+function _sigprocmask_how_str:string(how:long)
+%{ /* pure */
+	int len;
+	char *str = STAP_RETVALUE;
+	switch (STAP_ARG_how) {
+	case SIG_BLOCK:
+		strlcpy(str, "SIG_BLOCK", MAXSTRINGLEN);
+		break;
+	case SIG_UNBLOCK:
+		strlcpy(str, "SIG_UNBLOCK", MAXSTRINGLEN);
+		break;
+	case SIG_SETMASK:
+		strlcpy(str, "SIG_SETMASK", MAXSTRINGLEN);
+		break;
+	default:
+		snprintf(str, MAXSTRINGLEN, "0x%lx", (long)STAP_ARG_how);
+	}	
+%}
+
+/*
+ * Return the symbolic string representation
+ * of the which argument  given to setitimer
+ * consult  `man setitimer`  for  more  info
+ * CALLERS:
+ *    syscall.getitimer
+ *    syscall.setitimer
+ * INCLUDE: <linux/time.h>
+ */
+%{
+#include <linux/time.h>
+static const _stp_val_array const _stp_itimer_which_list[] = {
+	V(ITIMER_REAL),
+	V(ITIMER_VIRTUAL),
+	V(ITIMER_PROF),
+	{0, NULL}
+};
+%}
+function _itimer_which_str:string(which:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_itimer_which_list, (unsigned int)STAP_ARG_which,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+/*
+ * Return the command name for nfsservctl()
+ * nfsservctl was removed in kernel 3.0/2.6.40.
+ */
+%( kernel_v < "2.6.40" && CONFIG_NFSD == "[ym]" %?
+%{
+#include <linux/sunrpc/svc.h>
+#include <linux/nfsd/nfsfh.h>
+#include <linux/nfsd/syscall.h>
+static const _stp_val_array const _stp_nfsctl_cmd_list[] = {
+	V(NFSCTL_SVC),
+	V(NFSCTL_ADDCLIENT),
+	V(NFSCTL_DELCLIENT),
+	V(NFSCTL_EXPORT),
+	V(NFSCTL_UNEXPORT),
+#ifdef NFSCTL_UGIDUPDATE
+	V(NFSCTL_UGIDUPDATE),
+#endif
+#ifdef NFSCTL_GETFH
+	V(NFSCTL_GETFH),
+#endif
+	V(NFSCTL_GETFD),
+	V(NFSCTL_GETFS),
+	{0, NULL}
+};
+%}
+
+function _nfsctl_cmd_str:string(cmd:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_nfsctl_cmd_list, (unsigned int)STAP_ARG_cmd,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+%)
+
+/*
+ * Return  the  symbolic   string  representation
+ * of the clockid argument  given to create_timer
+ * consult  `man create_timer`  for  more  info
+ * CALLERS:
+ *    syscall.timer_create
+ *    syscall.clock_settime
+ *    syscall.clock_gettime
+ *    syscall.clock_getres
+ *    syscall.clock_nanosleep
+ */
+%{
+#include <linux/time.h>
+
+static const _stp_val_array const _stp_wc_str_list[] = {
+	V(CLOCK_REALTIME),
+	V(CLOCK_MONOTONIC),
+	V(CLOCK_PROCESS_CPUTIME_ID),
+	V(CLOCK_THREAD_CPUTIME_ID),
+#ifdef CLOCK_MONOTONIC_RAW
+	V(CLOCK_MONOTONIC_RAW),
+#endif
+#ifdef CLOCK_REALTIME_COARSE
+	V(CLOCK_REALTIME_COARSE),
+#endif
+#ifdef CLOCK_MONOTONIC_COARSE
+	V(CLOCK_MONOTONIC_COARSE),
+#endif
+#ifdef CLOCK_BOOTTIME
+	V(CLOCK_BOOTTIME),
+#endif
+#ifdef CLOCK_REALTIME_ALARM
+	V(CLOCK_REALTIME_ALARM),
+#endif
+#ifdef CLOCK_BOOTTIME_ALARM
+	V(CLOCK_BOOTTIME_ALARM),
+#endif
+	V(CLOCK_SGI_CYCLE),
+#ifdef CLOCK_TAI
+	V(CLOCK_TAI),
+#endif
+	{0, NULL}
+};
+%}
+
+function _get_wc_str:string(wc:long)
+%{ /* pure */
+	unsigned int clkid = (unsigned int)STAP_ARG_wc;
+	_stp_lookup_str(_stp_wc_str_list, clkid, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/fcntl.h>
+
+static const _stp_val_array const _stp_flock_cmd_list[] = {
+	V(LOCK_SH),
+	V(LOCK_EX),
+	V(LOCK_NB),
+	V(LOCK_UN),
+	V(LOCK_MAND),
+	V(LOCK_READ),
+	V(LOCK_WRITE),
+	V(LOCK_RW),
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_pipe2_flags_list[] = {
+#ifdef O_NONBLOCK
+	V(O_NONBLOCK),
+#endif
+#ifdef O_CLOEXEC
+	V(O_CLOEXEC),
+#endif
+	{0, NULL}
+};
+%}
+
+function _flock_cmd_str:string(c:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_flock_cmd_list, (unsigned int)STAP_ARG_c,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+/* `man 2 pipe2` for more information */
+function _sys_pipe2_flag_str:string (f:long)
+%{ /* pure */ /* unprivileged */
+	unsigned int flags = STAP_ARG_f;
+
+	_stp_lookup_or_str(_stp_pipe2_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/fcntl.h>
+ 
+static const _stp_val_array const _stp_open_mode_flags_list[] = {
+#ifdef O_CREAT
+	V(O_CREAT),
+#endif
+#ifdef O_EXCL
+	V(O_EXCL),
+#endif
+#ifdef O_NOCTTY
+	V(O_NOCTTY),
+#endif
+#ifdef O_TRUNC
+	V(O_TRUNC),
+#endif
+#ifdef O_APPEND
+	V(O_APPEND),
+#endif
+#ifdef O_NONBLOCK
+	V(O_NONBLOCK),
+#endif
+
+/* Here's a comment from the kernel source:
+ *
+ * ====
+ * Before Linux 2.6.33 only O_DSYNC semantics were implemented, but using
+ * the O_SYNC flag.  We continue to use the existing numerical value
+ * for O_DSYNC semantics now, but using the correct symbolic name for it.
+ * This new value is used to request true Posix O_SYNC semantics.  It is
+ * defined in this strange way to make sure applications compiled against
+ * new headers get at least O_DSYNC semantics on older kernels.
+ * ====
+ *
+ * On RHEL6 (2.6.32-431.3.1.el6.x86_64), the user headers are ahead of
+ * the kernel source and define O_DSYNC, but the kernel just ignores
+ * the extra bit set. We'll try to handle it here.
+ */
+#ifndef O_DSYNC
+	{ O_SYNC | 04000000, "O_SYNC" },
+#endif
+#ifdef O_SYNC
+	V(O_SYNC),
+#endif
+#ifdef O_DSYNC
+	V(O_DSYNC),
+#endif
+#ifdef O_ASYNC
+	V(O_ASYNC),
+#elif defined(FASYNC)
+	{ FASYNC, "O_ASYNC" },
+#endif
+#ifdef O_DIRECT
+	V(O_DIRECT),
+#endif
+#ifdef O_LARGEFILE
+	V(O_LARGEFILE),
+#endif
+#ifdef O_DIRECTORY
+	V(O_DIRECTORY),
+#endif
+#ifdef O_NOFOLLOW
+	V(O_NOFOLLOW),
+#endif
+#ifdef O_NOATIME
+	V(O_NOATIME),
+#endif
+#ifdef O_CLOEXEC
+	V(O_CLOEXEC),
+#endif
+#ifdef O_PATH
+	V(O_PATH),
+#endif
+	{0, NULL}
+};
+%}
+
+/* `man 2 open` for more information */
+function _sys_open_flag_str:string (f:long)
+%{ /* pure */
+	int flags = (int)STAP_ARG_f;
+	int acc = flags & O_ACCMODE;
+
+	switch (acc) {
+	case O_WRONLY:
+		strlcpy (STAP_RETVALUE, "O_WRONLY", MAXSTRINGLEN);
+		break;
+	case O_RDWR:
+		strlcpy (STAP_RETVALUE, "O_RDWR", MAXSTRINGLEN);
+		break;
+	default:
+		strlcpy (STAP_RETVALUE, "O_RDONLY", MAXSTRINGLEN);
+	}
+
+	flags &= ~O_ACCMODE;
+	if (flags) {
+		strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		_stp_lookup_or_str(_stp_open_mode_flags_list, flags,
+				   STAP_RETVALUE, MAXSTRINGLEN);
+	}
+%}
+
+%{
+/* Notice that the kernel defines and the user defines are named
+ * differently. */
+static const _stp_val_array const _stp_access_mode_list[] = {
+	{0, "F_OK"},
+	{MAY_READ, "R_OK"},
+	{MAY_WRITE, "W_OK"},
+	{MAY_EXEC, "X_OK"},
+	{0, NULL}
+};
+%}
+
+/* `man 2 open` for more information */
+function _access_mode_str:string(mode:long)
+%{ /* pure */
+	unsigned int mode = (unsigned int)STAP_ARG_mode;
+	_stp_lookup_or_str(_stp_access_mode_list, mode, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+/* `man 2 open` for more information */
+@__private30 function _sys_open_mode_str(f) {
+   if((f & %{ /* pure */ S_IRWXU %}) == %{ /* pure */ S_IRWXU %}) bs="S_IRWXU|".bs
+   else {
+        if(f & %{ /* pure */ S_IRUSR %}) bs="S_IRUSR|" . bs
+        if(f & %{ /* pure */ S_IWUSR %}) bs="S_IWUSR|" . bs
+        if(f & %{ /* pure */ S_IXUSR %}) bs="S_IXUSR|" . bs
+   }
+   if((f & %{ /* pure */ S_IRWXG %}) == %{ /* pure */ S_IRWXG %}) bs="S_IRWXG|" . bs
+   else {
+        if(f & %{ /* pure */ S_IRGRP %}) bs="S_IRGRP|" . bs
+        if(f & %{ /* pure */ S_IWGRP %}) bs="S_IWGRP|" . bs
+        if(f & %{ /* pure */ S_IXGRP %}) bs="S_IXGRP|" . bs
+   }
+   if((f & %{ /* pure */ S_IRWXO %}) == %{ /* pure */ S_IRWXO %}) bs="S_IRWXO|" . bs
+   else {
+        if(f & %{ /* pure */ S_IROTH %}) bs="S_IROTH|" . bs
+        if(f & %{ /* pure */ S_IWOTH %}) bs="S_IWOTH|" . bs
+        if(f & %{ /* pure */ S_IXOTH %}) bs="S_IXOTH|" . bs
+   }
+   return (strlen(bs) > 0) ? substr(bs, 0, strlen(bs) - 1) : sprintf("%#o", f)
+}
+
+/* `man 2 mknod` for more information */
+function _mknod_mode_str:string(mode:long)
+{
+   type = mode & %{ /* pure */ S_IFMT %}
+   mode &= %{ /* pure */ ~S_IFMT %}
+   if (type == %{ /* pure */ S_IFREG %})
+        return sprintf("S_IFREG|%#o", mode)
+   if (type == %{ /* pure */ S_IFCHR %})
+        return sprintf("S_IFCHR|%#o", mode)
+   if (type == %{ /* pure */ S_IFBLK %})
+        return sprintf("S_IFBLK|%#o", mode)
+   if (type == %{ /* pure */ S_IFIFO %})
+        return sprintf("S_IFIFO|%#o", mode)
+   if (type == %{ /* pure */ S_IFSOCK %})
+        return sprintf("S_IFSOCK|%#o", mode)
+   return sprintf("%#o", type | mode)
+}
+
+%{
+#include <linux/mman.h>
+
+static const _stp_val_array const _stp_msync_flag_list[] = {
+	V(MS_ASYNC),
+	V(MS_INVALIDATE),
+	V(MS_SYNC),
+	{0, NULL}
+};
+%}
+
+/* `man msync` for more information */
+function _msync_flag_str:string(f:long)
+%{ /* pure */
+	uint32_t flags = (uint32_t)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_msync_flag_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/wait.h>
+
+static const _stp_val_array const _stp_wait4_op_list[] = {
+	V(WNOHANG),
+#if !defined(WSTOPPED) && defined(WUNTRACED)
+	V(WUNTRACED),
+#endif
+	V(WEXITED),
+#ifdef WSTOPPED
+	V(WSTOPPED),
+#endif
+	V(WCONTINUED),
+	V(WNOWAIT),
+	V(__WNOTHREAD),
+	V(__WALL),
+	V(__WCLONE),
+	{0, NULL}
+};
+
+%}
+
+%(systemtap_v <= "2.7" %?
+function _internal_wait_opt_str:string(f:long, bit_num:long, bit_str:string)
+%{ /* pure */
+	/* ignore bit_num and bit_str */
+	_stp_lookup_or_str(_stp_wait4_op_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+/* `man waitid` for more information */
+function _waitid_opt_str:string(f:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_wait4_op_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+%)
+
+/* `man wait4` for more information */
+function _wait4_opt_str:string(f:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_wait4_op_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+function WIFEXITED(f) {
+  return (f & 0x7f) == 0
+}
+
+function WEXITSTATUS(f) {
+  return (f & 0xff00) >> 8
+}
+
+@__private30 function WIFSIGNALED(f) {
+  return (f & 0x7f) != 0 && (f & 0x7f) != 0x7f
+}
+
+@__private30 function WCOREDUMP(f) {
+  return f & 0x80
+}
+
+function WTERMSIG(f) {
+  return f & 0x7f
+}
+
+@__private30 function WIFSTOPPED(f) {
+  return (f & 0xff) == 0x7f
+}
+
+@__private30 function WSTOPSIG(f) {
+  return (f & 0xff00) >> 8
+}
+
+@__private30 function WIFCONTINUED(f) {
+  return f == 0xffff
+}
+
+@__private30 function _ptrace_event_name(f)
+{
+  if (f == %{ /* pure */ PTRACE_EVENT_FORK %})
+    return "PTRACE_EVENT_FORK"
+  if (f == %{ /* pure */ PTRACE_EVENT_VFORK %})
+    return "PTRACE_EVENT_VFORK"
+  if (f == %{ /* pure */ PTRACE_EVENT_CLONE %})
+    return "PTRACE_EVENT_CLONE"
+  if (f == %{ /* pure */ PTRACE_EVENT_EXEC %})
+    return "PTRACE_EVENT_EXEC"
+  if (f == %{ /* pure */ PTRACE_EVENT_VFORK_DONE %})
+    return "PTRACE_EVENT_VFORK_DONE"
+  if (f == %{ /* pure */ PTRACE_EVENT_EXIT %})
+    return "PTRACE_EVENT_EXIT"
+  return ""
+}
+
+/* `man 2 wait` for more information */
+function _wait_status_str(f) {
+  if ((f >> 16) != 0)
+    tail = sprintf (" | 0x%x", f & ~0xffff)
+  else
+    tail = ""
+
+  if (WIFEXITED(f))
+    return sprintf ("WEXITSTATUS=%d", WEXITSTATUS(f)).tail
+  if (WIFSIGNALED(f)) {
+      if (WCOREDUMP(f))
+        return "WCOREDUMP".tail
+      return sprintf ("WTERMSIG=%s", _signal_name(WTERMSIG(f))).tail
+    }
+  if (WIFSTOPPED(f))
+    {
+      if (WSTOPSIG(f) == %{ /* pure */ SIGTRAP %})
+	{
+	  event = _ptrace_event_name (f >> 16)
+	  if (event != "")
+	    tail = " | ".event." << 8"
+	}
+      return sprintf ("WSTOPSIG=%s", _signal_name(WSTOPSIG(f))).tail
+    }
+  if (WIFCONTINUED(f))
+    return "WIFCONTINUED".tail
+  return sprintf ("?=0x%x", f)
+}
+
+%{
+#include <linux/seccomp.h>
+static const _stp_val_array const _stp_seccomp_flags_list[] = {
+#ifdef SECCOMP_FILTER_FLAG_TSYNC
+        V(SECCOMP_FILTER_FLAG_TSYNC),
+#endif
+        {0, NULL}
+};
+
+static const _stp_val_array const _stp_seccomp_mode_list[] = {
+#ifdef SECCOMP_MODE_DISABLED
+	V(SECCOMP_MODE_DISABLED),
+#endif
+#ifdef SECCOMP_MODE_STRICT
+	V(SECCOMP_MODE_STRICT),
+#endif
+#ifdef SECCOMP_MODE_FILTER
+	V(SECCOMP_MODE_FILTER),
+#endif
+        {0, NULL}
+};
+%}
+
+function _seccomp_flags_str:string(flags:long)
+%{ /* pure */
+        unsigned int flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_str(_stp_seccomp_flags_list, flags, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_msg_flags_list[] = {
+	V(MSG_OOB),
+	V(MSG_PEEK),
+	V(MSG_DONTROUTE),
+	V(MSG_TRYHARD),
+	V(MSG_CTRUNC),
+	V(MSG_PROBE),
+	V(MSG_TRUNC),
+	V(MSG_DONTWAIT),
+	V(MSG_EOR),
+	V(MSG_WAITALL),
+	V(MSG_FIN),
+	V(MSG_SYN),
+	V(MSG_CONFIRM),
+	V(MSG_RST),
+	V(MSG_ERRQUEUE),
+	V(MSG_NOSIGNAL),
+	V(MSG_MORE),
+#ifdef MSG_WAITFORONE
+	V(MSG_WAITFORONE),
+#endif
+#ifdef MSG_SENDPAGE_NOTLAST
+	V(MSG_SENDPAGE_NOTLAST),
+#endif
+	V(MSG_EOF),
+#ifdef MSG_FASTOPEN
+	V(MSG_FASTOPEN),
+#endif
+#ifdef MSG_CMSG_CLOEXEC
+	V(MSG_CMSG_CLOEXEC),
+#endif
+	{0, NULL}
+};
+%}
+
+function _msg_flags_str:string(flags:long)
+%{ /* pure */
+	// Ignore MSG_CMSG_COMPAT in flags.
+	_stp_lookup_or_str(_stp_msg_flags_list,
+			   (STAP_ARG_flags & ~MSG_CMSG_COMPAT), STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%(systemtap_v <= "2.5" %?
+function _sendflags_str:string(flags:long)
+{
+	return _msg_flags_str(flags)
+}
+function _recvflags_str:string(flags:long)
+{
+	return _msg_flags_str(flags)
+}
+%)
+
+%{
+#ifdef __NR_memfd_create
+#include <uapi/linux/memfd.h>
+#endif
+static const _stp_val_array const _stp_mfd_flags_list[] = {
+#ifdef MFD_CLOEXEC
+        V(MFD_CLOEXEC),
+#endif
+#ifdef MFD_ALLOW_SEALING
+        V(MFD_ALLOW_SEALING),
+#endif
+        {0, NULL}
+};
+%}
+
+function _mfd_flags_str:string(flags:long)
+%{ /* pure */
+          unsigned int flags = (unsigned int)STAP_ARG_flags;
+	  _stp_lookup_or_str(_stp_mfd_flags_list, flags, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/mman.h>
+static const _stp_val_array const _stp_mlock2_flags_list[] = {
+#ifdef MLOCK_ONFAULT  
+         V(MLOCK_ONFAULT),
+#endif
+        {0, NULL}
+};
+%}
+/* `man mlock2` for more information */
+function _stp_mlock2_str:string(flags:long)
+%{
+        uint32_t flags = (uint32_t)STAP_ARG_flags;
+        _stp_lookup_or_str(_stp_mlock2_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/mman.h>
+static const _stp_val_array const _stp_mlockall_flags_list[] = {
+	V(MCL_CURRENT),
+	V(MCL_FUTURE),
+#ifdef MCL_ONFAULT
+	V(MCL_ONFAULT),
+#endif
+	{0, NULL}
+};
+%}
+/* `man mlockall` for more information */
+function _mlockall_flags_str:string(flags:long)
+%{ /* pure */
+	uint32_t flags = (uint32_t)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_mlockall_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_module_flags_list[] = {
+	V(O_TRUNC),
+	V(O_NONBLOCK),
+	{0, NULL}
+};
+%}
+
+/* used by sys_delete_module */
+function _module_flags_str:string(flags:long)
+%{ /* pure */
+ 	_stp_lookup_or_str(_stp_module_flags_list, (unsigned int)STAP_ARG_flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/sched.h>
+
+static const _stp_val_array const _stp_sched_policy_list[] = {
+	{SCHED_NORMAL, "SCHED_OTHER"}, // SCHED_NORMAL==SCHED_OTHER
+	V(SCHED_FIFO),
+	V(SCHED_RR),
+	V(SCHED_BATCH),
+#ifdef SCHED_IDLE
+	V(SCHED_IDLE),
+#endif
+#ifdef SCHED_DEADLINE
+	V(SCHED_DEADLINE),
+#endif
+	{0, NULL}
+};
+%}
+
+function _sched_policy_str:string(policy:long)
+%{ /* pure */
+	unsigned int policy = (unsigned int)STAP_ARG_policy;
+	int len;
+
+#ifdef SCHED_RESET_ON_FORK
+	if (((int)STAP_ARG_policy > 0) && (policy & SCHED_RESET_ON_FORK)) {
+		strlcpy(STAP_RETVALUE, "SCHED_RESET_ON_FORK|", MAXSTRINGLEN);
+		policy &= ~SCHED_RESET_ON_FORK;
+	}
+#endif
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_sched_policy_list, policy, STAP_RETVALUE + len,
+			MAXSTRINGLEN - len);
+%}
+
+%{
+static const _stp_val_array const _stp_priority_which_list[] = {
+	V(PRIO_PROCESS),
+	V(PRIO_PGRP),
+	V(PRIO_USER),
+	{0, NULL}
+};
+%}
+
+function _priority_which_str:string(which:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_priority_which_list, (unsigned int)STAP_ARG_which,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_shutdown_how_list[] = {
+	V(SHUT_RD),
+	V(SHUT_WR),
+	V(SHUT_RDWR),
+	{0, NULL}
+};
+%}
+
+function _shutdown_how_str:string(how:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_shutdown_how_list, (unsigned int)STAP_ARG_how,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+// Needed for function __reboot_magic_str:string. Unfortunately cannot
+// be inlined into the function since these header file defines static
+// functions on some architectures.
+#include <linux/reboot.h>
+
+static const _stp_val_array const _stp_reboot_magic_list[] = {
+	V(LINUX_REBOOT_MAGIC1),
+	V(LINUX_REBOOT_MAGIC2),
+	V(LINUX_REBOOT_MAGIC2A),
+	V(LINUX_REBOOT_MAGIC2B),
+	V(LINUX_REBOOT_MAGIC2C),
+	{0, NULL}
+};
+%}
+
+function _reboot_magic_str:string(magic:long)
+%{ /* pure */
+	unsigned int magic = (unsigned int)STAP_ARG_magic;
+	_stp_lookup_str(_stp_reboot_magic_list, magic, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/reboot.h>
+static const _stp_val_array const _stp_reboot_flag_list[] = {
+	V(LINUX_REBOOT_CMD_RESTART),
+	V(LINUX_REBOOT_CMD_HALT),
+	V(LINUX_REBOOT_CMD_CAD_ON),
+	V(LINUX_REBOOT_CMD_CAD_OFF),
+	V(LINUX_REBOOT_CMD_POWER_OFF),
+	V(LINUX_REBOOT_CMD_RESTART2),
+	V(LINUX_REBOOT_CMD_SW_SUSPEND),
+	V(LINUX_REBOOT_CMD_KEXEC),
+	{0, NULL}
+};	
+%}
+
+function _reboot_flag_str:string(flag:long)
+%{  /* pure */
+	unsigned int flag = (unsigned int)STAP_ARG_flag;
+	_stp_lookup_str(_stp_reboot_flag_list, flag, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/wait.h>
+static const _stp_val_array const _stp_waitid_which_list[] = {
+	V(P_ALL),
+	V(P_PID),
+	V(P_PGID),
+	{0, NULL}
+};
+%}
+
+function _waitid_which_str:string(flag:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_waitid_which_list, (unsigned int)STAP_ARG_flag,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/futex.h>
+
+// We need the following defines to have a value for the
+// @__futex_argstr() macro.
+#ifndef FUTEX_WAIT_BITSET
+#define FUTEX_WAIT_BITSET	9
+#endif
+#ifndef FUTEX_WAKE_BITSET
+#define FUTEX_WAKE_BITSET	10
+#endif
+#ifndef FUTEX_WAIT_REQUEUE_PI
+#define FUTEX_WAIT_REQUEUE_PI	11
+#endif
+#ifndef FUTEX_CMP_REQUEUE_PI
+#define FUTEX_CMP_REQUEUE_PI	12
+#endif
+#ifndef FUTEX_PRIVATE_FLAG
+#define FUTEX_PRIVATE_FLAG 128
+#endif
+#ifndef FUTEX_WAIT_BITSET_PRIVATE
+#define FUTEX_WAIT_BITSET_PRIVATE (FUTEX_WAIT_BITSET | FUTEX_PRIVATE_FLAG)
+#endif
+#ifndef FUTEX_WAKE_BITSET_PRIVATE
+#define FUTEX_WAKE_BITSET_PRIVATE (FUTEX_WAKE_BITSET | FUTEX_PRIVATE_FLAG)
+#endif
+#ifndef FUTEX_WAIT_REQUEUE_PI_PRIVATE
+#define FUTEX_WAIT_REQUEUE_PI_PRIVATE	(FUTEX_WAIT_REQUEUE_PI | \
+					 FUTEX_PRIVATE_FLAG)
+#endif
+#ifndef FUTEX_CMP_REQUEUE_PI_PRIVATE
+#define FUTEX_CMP_REQUEUE_PI_PRIVATE	(FUTEX_CMP_REQUEUE_PI | \
+					 FUTEX_PRIVATE_FLAG)
+#endif
+
+static const _stp_val_array const _stp_futex_op_list[] = {
+	V(FUTEX_WAIT),
+	V(FUTEX_WAKE),
+	V(FUTEX_FD),
+	V(FUTEX_REQUEUE),
+	V(FUTEX_CMP_REQUEUE),
+	V(FUTEX_WAKE_OP),
+	V(FUTEX_LOCK_PI),
+	V(FUTEX_UNLOCK_PI),
+	V(FUTEX_TRYLOCK_PI),
+	V(FUTEX_WAIT_BITSET),
+	V(FUTEX_WAKE_BITSET),
+	V(FUTEX_WAIT_REQUEUE_PI),
+	V(FUTEX_CMP_REQUEUE_PI),
+	V(FUTEX_WAIT_PRIVATE),
+	V(FUTEX_WAKE_PRIVATE),
+	V(FUTEX_REQUEUE_PRIVATE),
+	V(FUTEX_CMP_REQUEUE_PRIVATE),
+	V(FUTEX_WAKE_OP_PRIVATE),
+	V(FUTEX_LOCK_PI_PRIVATE),
+	V(FUTEX_UNLOCK_PI_PRIVATE),
+	V(FUTEX_TRYLOCK_PI_PRIVATE),
+	V(FUTEX_WAIT_BITSET_PRIVATE),
+	V(FUTEX_WAKE_BITSET_PRIVATE),
+	V(FUTEX_WAIT_REQUEUE_PI_PRIVATE),
+	V(FUTEX_CMP_REQUEUE_PI_PRIVATE),
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_futex_wake_ops_list[] = {
+	V(FUTEX_OP_SET),
+	V(FUTEX_OP_ADD),
+	V(FUTEX_OP_OR),
+	V(FUTEX_OP_ANDN),
+	V(FUTEX_OP_XOR),
+	{0, NULL}
+};
+static const _stp_val_array const _stp_futex_wake_cmps_list[] = {
+	V(FUTEX_OP_CMP_EQ),
+	V(FUTEX_OP_CMP_NE),
+	V(FUTEX_OP_CMP_LT),
+	V(FUTEX_OP_CMP_LE),
+	V(FUTEX_OP_CMP_GT),
+	V(FUTEX_OP_CMP_GE),
+	{0, NULL}
+};
+%}
+
+function _futex_op_str:string(op:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_futex_op_list, (unsigned int)STAP_ARG_op,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+function _futex_wake_op_str:string(encoded_op:long)
+%{ /* pure */
+	int encoded_op = (int)STAP_ARG_encoded_op;
+	int op = (encoded_op >> 28) & 7;
+	int cmp = (encoded_op >> 24) & 15;
+	int oparg = (encoded_op << 8) >> 20;
+	int cmparg = (encoded_op << 20) >> 20;
+	int slen;
+
+	strlcpy(STAP_RETVALUE, "{", MAXSTRINGLEN);
+	slen = strlen(STAP_RETVALUE);
+
+	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28)) {
+		strlcat(STAP_RETVALUE + slen, "FUTEX_OP_OPARG_SHIFT|",
+			MAXSTRINGLEN - slen);
+		slen = strlen(STAP_RETVALUE);
+	}
+
+	_stp_lookup_str(_stp_futex_wake_ops_list, op,
+			STAP_RETVALUE + slen, MAXSTRINGLEN - slen);
+	slen = strlen(STAP_RETVALUE);
+
+	_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, ", %d, ",
+		      oparg);
+	slen = strlen(STAP_RETVALUE);
+
+	_stp_lookup_str(_stp_futex_wake_cmps_list, cmp,
+			STAP_RETVALUE + slen, MAXSTRINGLEN - slen);
+	slen = strlen(STAP_RETVALUE);
+
+	_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, ", %d}",
+		      cmparg);
+%}
+
+%{
+static const _stp_val_array const _stp_mountflags_list[] = {
+	V(MS_RDONLY),
+	V(MS_NOSUID),
+	V(MS_NODEV),
+	V(MS_NOEXEC),
+	V(MS_SYNCHRONOUS),
+	V(MS_REMOUNT),
+	V(MS_MANDLOCK),
+	V(MS_DIRSYNC),
+	V(MS_NOATIME),
+	V(MS_NODIRATIME),
+	V(MS_BIND),
+	V(MS_MOVE),
+	V(MS_REC),
+	/* MS_SILENT replaced MS_VERBOSE */
+#ifdef MS_SILENT
+	V(MS_SILENT),
+#else
+	V(MS_VERBOSE),
+#endif
+	V(MS_POSIXACL),
+	V(MS_UNBINDABLE),
+	V(MS_PRIVATE),
+	V(MS_SLAVE),
+	V(MS_SHARED),
+#ifdef MS_RELATIME
+	V(MS_RELATIME),
+#endif
+#ifdef MS_KERNMOUNT
+	V(MS_KERNMOUNT),
+#endif
+#ifdef MS_I_VERSION
+	V(MS_I_VERSION),
+#endif
+#ifdef MS_STRICTATIME
+	V(MS_STRICTATIME),
+#endif
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_umountflags_list[] = {
+	V(MNT_FORCE),
+	V(MNT_DETACH),
+	V(MNT_EXPIRE),
+#ifdef UMOUNT_NOFOLLOW
+	V(UMOUNT_NOFOLLOW),
+#endif
+	{0, NULL}
+};
+%}
+
+function _mountflags_str:string(op:long) 
+%{ /* pure */
+	_stp_lookup_or_str(_stp_mountflags_list, (unsigned long)STAP_ARG_op,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+function _umountflags_str:string(op:long) 
+%{ /* pure */
+	_stp_lookup_or_str(_stp_umountflags_list, (unsigned int)STAP_ARG_op,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%(systemtap_v <= "2.7" %?
+// This function is unused, so deprecate it.
+function _statfs_f_type_str(f) {
+   if(f==0xadf5)     return "ADFS_SUPER_MAGIC"
+   if(f==0xADFF)     return "AFFS_SUPER_MAGIC"
+   if(f==0x42465331) return "BEFS_SUPER_MAGIC"
+   if(f==0x1BADFACE) return "BFS_MAGIC"
+   if(f==0xFF534D42) return "CIFS_MAGIC_NUMBER"
+   if(f==0x73757245) return "CODA_SUPER_MAGIC"
+   if(f==0x012FF7B7) return "COH_SUPER_MAGIC"
+   if(f==0x28cd3d45) return "CRAMFS_MAGIC"
+   if(f==0x1373)     return "DEVFS_SUPER_MAGIC"
+   if(f==0x00414A53) return "EFS_SUPER_MAGIC"
+   if(f==0x137D)     return "EXT_SUPER_MAGIC"
+   if(f==0xEF51)     return "EXT2_OLD_SUPER_MAGIC"
+   if(f==0xEF53)     return "EXT2_SUPER_MAGIC"
+   if(f==0xEF53)     return "EXT3_SUPER_MAGIC"
+   if(f==0x4244)     return "HFS_SUPER_MAGIC"
+   if(f==0xF995E849) return "HPFS_SUPER_MAGIC"
+   if(f==0x958458f6) return "HUGETLBFS_MAGIC"
+   if(f==0x9660)     return "ISOFS_SUPER_MAGIC"
+   if(f==0x72b6)     return "JFFS2_SUPER_MAGIC"
+   if(f==0x3153464a) return "JFS_SUPER_MAGIC"
+   if(f==0x137F)     return "MINIX_SUPER_MAGIC"
+   if(f==0x138F)     return "MINIX_SUPER_MAGIC2"
+   if(f==0x2468)     return "MINIX2_SUPER_MAGIC"
+   if(f==0x2478)     return "MINIX2_SUPER_MAGIC2"
+   if(f==0x4d44)     return "MSDOS_SUPER_MAGIC"
+   if(f==0x564c)     return "NCP_SUPER_MAGIC"
+   if(f==0x6969)     return "NFS_SUPER_MAGIC"
+   if(f==0x5346544e) return "NTFS_SB_MAGIC"
+   if(f==0x9fa1)     return "OPENPROM_SUPER_MAGIC"
+   if(f==0x9fa0)     return "PROC_SUPER_MAGIC"
+   if(f==0x002f)     return "QNX4_SUPER_MAGIC"
+   if(f==0x52654973) return "REISERFS_SUPER_MAGIC"
+   if(f==0x7275)     return "ROMFS_MAGIC"
+   if(f==0x517B)     return "SMB_SUPER_MAGIC"
+   if(f==0x012FF7B6) return "SYSV2_SUPER_MAGIC"
+   if(f==0x012FF7B5) return "SYSV4_SUPER_MAGIC"
+   if(f==0x01021994) return "TMPFS_MAGIC"
+   if(f==0x15013346) return "UDF_SUPER_MAGIC"
+   if(f==0x00011954) return "UFS_MAGIC"
+   if(f==0x9fa2)     return "USBDEVICE_SUPER_MAGIC"
+   if(f==0xa501FCF5) return "VXFS_SUPER_MAGIC"
+   if(f==0x012FF7B4) return "XENIX_SUPER_MAGIC"
+   if(f==0x58465342) return "XFS_SUPER_MAGIC"
+   if(f==0x012FD16D) return "_XIAFS_SUPER_MAGIC"
+   return sprintf("UNKNOWN VALUE: %d", f)
+}
+%)
+
+%{
+#include <linux/mman.h>
+
+static const _stp_val_array const _stp_mremap_flags_list[] = {
+	V(MREMAP_MAYMOVE),
+	V(MREMAP_FIXED),
+	{0, NULL}
+};
+%}
+
+function _mremap_flags:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_mremap_flags_list, (uint32_t)STAP_ARG_flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/mman.h>
+
+static const _stp_val_array const _stp_madvice_advice_list[] = {
+	V(MADV_NORMAL),
+	V(MADV_RANDOM),
+	V(MADV_SEQUENTIAL),
+	V(MADV_WILLNEED),
+	V(MADV_DONTNEED),
+	V(MADV_REMOVE),
+	V(MADV_DONTFORK),
+	V(MADV_DOFORK),
+#ifdef MADV_HWPOISON
+	V(MADV_HWPOISON),
+#endif
+#ifdef MADV_SOFT_OFFLINE
+	V(MADV_SOFT_OFFLINE),
+#endif
+#ifdef MADV_MERGEABLE
+	V(MADV_MERGEABLE),
+#endif
+#ifdef MADV_UNMERGEABLE
+	V(MADV_UNMERGEABLE),
+#endif
+#ifdef MADV_HUGEPAGE
+	V(MADV_HUGEPAGE),
+#endif
+#ifdef MADV_NOHUGEPAGE
+	V(MADV_NOHUGEPAGE),
+#endif
+#ifdef MADV_DONTDUMP
+	V(MADV_DONTDUMP),
+#endif
+#ifdef MADV_DODUMP
+	V(MADV_DODUMP),
+#endif
+	{0, NULL}
+};
+%}
+
+function _madvice_advice_str:string(behavior:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_madvice_advice_list,
+			(unsigned int)STAP_ARG_behavior, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/fadvise.h>
+
+static const _stp_val_array const _stp_fadvice_advice_list[] = {
+	V(POSIX_FADV_NORMAL),
+	V(POSIX_FADV_RANDOM),
+	V(POSIX_FADV_SEQUENTIAL),
+	V(POSIX_FADV_WILLNEED),
+	V(POSIX_FADV_DONTNEED),
+	V(POSIX_FADV_NOREUSE),
+#if defined(__s390x__)
+	/* On s390x, 64-bit exes and 32-bit exes have different
+	 * versions of the following values. */
+	{4, "POSIX_FADV_DONTNEED"},
+	{5, "POSIX_FADV_NOREUSE"},
+#endif
+	{0, NULL}
+};
+%}
+
+function _fadvice_advice_str:string(behavior:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_fadvice_advice_list,
+			(unsigned int)STAP_ARG_behavior, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/fcntl.h>
+
+static const _stp_val_array const _stp_fcntl_cmd_list[] = {
+	V(F_DUPFD),
+	V(F_GETFD),
+	V(F_SETFD),
+	V(F_GETFL),
+	V(F_SETFL),
+	V(F_GETLK),
+	V(F_SETLK),
+	V(F_SETLKW),
+	V(F_SETOWN),
+	V(F_GETOWN),
+	V(F_SETSIG),
+	V(F_GETSIG),
+#ifdef F_GETLK64
+	V(F_GETLK64),
+#endif
+#ifdef F_SETLK64
+	V(F_SETLK64),
+#endif
+#ifdef F_SETLKW64
+	V(F_SETLKW64),
+#endif
+#ifdef F_SETOWN_EX
+	V(F_SETOWN_EX),
+#endif
+#ifdef F_GETOWN_EX
+	V(F_GETOWN_EX),
+#endif
+#ifdef F_GETOWNER_UIDS
+	V(F_GETOWNER_UIDS),
+#endif
+#ifdef F_SETLEASE
+	V(F_SETLEASE),
+#endif
+#ifdef F_GETLEASE
+	V(F_GETLEASE),
+#endif
+#ifdef F_DUPFD_CLOEXEC
+ 	V(F_DUPFD_CLOEXEC),
+#endif
+#ifdef F_NOTIFY
+	V(F_NOTIFY),
+#endif
+#ifdef F_SETPIPE_SZ
+	V(F_SETPIPE_SZ),
+#endif
+#ifdef F_GETPIPE_SZ
+	V(F_GETPIPE_SZ),
+#endif
+	{0, NULL}
+};
+%}
+
+function _fcntl_cmd_str:string(cmd:long)
+%{
+	_stp_lookup_str(_stp_fcntl_cmd_list, (unsigned int)STAP_ARG_cmd,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/fs.h>
+#ifndef SEEK_SET
+#define SEEK_SET	0
+#endif
+#ifndef SEEK_CUR
+#define SEEK_CUR	1
+#endif
+#ifndef SEEK_END
+#define SEEK_END	2
+#endif
+#ifndef SEEK_DATA
+#define SEEK_DATA	3
+#endif
+#ifndef SEEK_HOLE
+#define SEEK_HOLE	4
+#endif
+static const _stp_val_array const _stp_seek_whence_list[] = {
+	V(SEEK_SET),
+	V(SEEK_CUR),
+	V(SEEK_END),
+	V(SEEK_DATA),
+	V(SEEK_HOLE),
+	{0, NULL}
+};
+
+%}
+function _seek_whence_str:string(w:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_seek_whence_list, (unsigned int)STAP_ARG_w,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/quota.h>
+
+static const _stp_val_array const _stp_quotactl_cmd_list[] = {
+	V(Q_SYNC),
+	V(Q_QUOTAON),
+	V(Q_QUOTAOFF),
+	V(Q_GETFMT),
+	V(Q_GETINFO),
+	V(Q_SETINFO),
+	V(Q_GETQUOTA),
+	V(Q_SETQUOTA),
+	/* XFS Quota Manager (XQM) Codes */
+	V(Q_XQUOTAON),
+	V(Q_XQUOTAOFF),
+	V(Q_XGETQUOTA),
+	V(Q_XSETQLIM),
+	V(Q_XGETQSTAT),
+	V(Q_XQUOTARM),
+	V(Q_XQUOTASYNC),
+#ifdef Q_XGETQSTATV
+	V(Q_XGETQSTATV),
+#endif
+	{0, NULL}
+};
+%}
+
+function _quotactl_cmd_str:string(cmd:long)
+%{ /* pure */
+	unsigned int cmd = (unsigned int)STAP_ARG_cmd >> SUBCMDSHIFT;
+	unsigned int type = (unsigned int)STAP_ARG_cmd & SUBCMDMASK;
+
+	_stp_lookup_str(_stp_quotactl_cmd_list, cmd, STAP_RETVALUE,
+			MAXSTRINGLEN);
+	if (type == USRQUOTA)
+		strlcat(STAP_RETVALUE, "|USRQUOTA", MAXSTRINGLEN);
+	else if (type == GRPQUOTA)
+		strlcat(STAP_RETVALUE, "|GRPQUOTA", MAXSTRINGLEN);
+	else {
+		int len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      "|0x%x", type);
+	}
+%}
+
+function _quotactl_subcmd:long(cmd:long)
+%{ /* pure */
+	STAP_RETVALUE = (unsigned int)STAP_ARG_cmd >> SUBCMDSHIFT;
+%}
+
+
+%{
+static const _stp_val_array const _stp_quotactl_format_list[] = {
+	V(QFMT_VFS_OLD),
+#ifdef QFMT_VFS_V0
+	V(QFMT_VFS_V0),
+#endif
+#ifdef QFMT_OCFS2
+	V(QFMT_OCFS2),
+#endif
+#ifdef QFMT_VFS_V1
+	V(QFMT_VFS_V1),
+#endif
+	{0, NULL}
+};
+%}
+
+function _quotactl_quota_type_str:string(fmt:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_quotactl_format_list,
+	                (int)STAP_ARG_fmt, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+function _struct_dqblk_u:string(uaddr:long)
+%{ /* pure */
+	struct if_dqblk dqb;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&dqb, ptr,
+		    sizeof(struct if_dqblk)) == 0)
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			         "{dqb_bhardlimit=%llu, dqb_bsoftlimit=%llu, dqb_curspace=%llu, dqb_ihardlimit=%llu, dqb_isoftlimit=%llu, ...}",
+			         (unsigned long long)dqb.dqb_bhardlimit, (unsigned long long)dqb.dqb_bsoftlimit, (unsigned long long)dqb.dqb_curspace,
+			         (unsigned long long)dqb.dqb_ihardlimit, (unsigned long long)dqb.dqb_isoftlimit);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+%}
+
+function _struct_dqinfo_u:string(uaddr:long)
+%{ /* pure */
+	struct if_dqinfo dqi;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&dqi, ptr,
+		    sizeof(struct if_dqinfo)) == 0)
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			         "{dqi_bgrace=%llu, dqi_igrace=%llu, dqi_flags=%d, dqi_valid=%d}",
+			         (unsigned long long)dqi.dqi_bgrace, (unsigned long long)dqi.dqi_igrace,
+			         dqi.dqi_flags, dqi.dqi_valid);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+%}
+
+%{
+#include <linux/socket.h>
+
+static const _stp_val_array const _stp_sockopt_optname_list[] = {
+	V(SO_DEBUG),
+	V(SO_REUSEADDR),
+	V(SO_TYPE),
+	V(SO_ERROR),
+	V(SO_DONTROUTE),
+	V(SO_BROADCAST),
+	V(SO_SNDBUF),
+	V(SO_RCVBUF),
+	V(SO_SNDBUFFORCE),
+	V(SO_RCVBUFFORCE),
+	V(SO_KEEPALIVE),
+	V(SO_OOBINLINE),
+	V(SO_NO_CHECK),
+	V(SO_PRIORITY),
+	V(SO_LINGER),
+	V(SO_BSDCOMPAT),
+#ifdef SO_REUSEPORT
+	V(SO_REUSEPORT),
+#endif
+	V(SO_PASSCRED),
+	V(SO_PEERCRED),
+	V(SO_RCVLOWAT),
+	V(SO_SNDLOWAT),
+	V(SO_RCVTIMEO),
+	V(SO_SNDTIMEO),
+	V(SO_SECURITY_AUTHENTICATION),
+	V(SO_SECURITY_ENCRYPTION_TRANSPORT),
+	V(SO_SECURITY_ENCRYPTION_NETWORK),
+	V(SO_BINDTODEVICE),
+	V(SO_ATTACH_FILTER),
+	V(SO_DETACH_FILTER),
+	V(SO_PEERNAME),
+	V(SO_TIMESTAMP),
+	V(SO_ACCEPTCONN),
+	V(SO_PEERSEC),
+	V(SO_PASSSEC),
+#ifdef SO_TIMESTAMPNS
+	V(SO_TIMESTAMPNS),
+#endif
+#ifdef SO_MARK
+	V(SO_MARK),
+#endif
+#ifdef SO_TIMESTAMPING
+	V(SO_TIMESTAMPING),
+#endif
+#ifdef SO_PROTOCOL
+	V(SO_PROTOCOL),
+#endif
+#ifdef SO_DOMAIN
+	V(SO_DOMAIN),
+#endif
+#ifdef SO_RXQ_OVFL
+	V(SO_RXQ_OVFL),
+#endif
+#ifdef SO_WIFI_STATUS
+	V(SO_WIFI_STATUS),
+#endif
+#ifdef SO_PEEK_OFF
+	V(SO_PEEK_OFF),
+#endif
+#ifdef SO_NOFCS
+	V(SO_NOFCS),
+#endif
+#ifdef SO_LOCK_FILTER
+	V(SO_LOCK_FILTER),
+#endif
+#ifdef SO_SELECT_ERR_QUEUE
+	V(SO_SELECT_ERR_QUEUE),
+#endif
+#ifdef SO_BUSY_POLL
+	V(SO_BUSY_POLL),
+#endif
+#ifdef SO_MAX_PACING_RATE
+	V(SO_MAX_PACING_RATE),
+#endif
+#ifdef SO_BPF_EXTENSIONS
+	V(SO_BPF_EXTENSIONS),
+#endif
+	{0, NULL}
+};
+%}
+
+/* see sys/socket.h (for setsockopt) */
+function _sockopt_optname_str:string(opt:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_sockopt_optname_list, STAP_ARG_opt, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_sockopt_level_list[] = {
+	V(SOL_IP),
+	V(SOL_SOCKET),
+	V(SOL_TCP),
+	V(SOL_UDP),
+	V(SOL_IPV6),
+	V(SOL_ICMPV6),
+	V(SOL_SCTP),
+#ifdef SOL_UDPLITE
+	V(SOL_UDPLITE),
+#endif
+	V(SOL_RAW),
+	V(SOL_IPX),
+	V(SOL_AX25),
+	V(SOL_ATALK),
+	V(SOL_NETROM),
+	V(SOL_ROSE),
+	V(SOL_DECNET),
+#ifdef SOL_X25
+	V(SOL_X25),
+#endif
+	V(SOL_PACKET),
+	V(SOL_ATM),
+	V(SOL_AAL),
+	V(SOL_IRDA),
+	V(SOL_NETBEUI),
+	V(SOL_LLC),
+	V(SOL_DCCP),
+	V(SOL_NETLINK),
+	V(SOL_TIPC),
+#ifdef SOL_RXRPC
+	V(SOL_RXRPC),
+#endif
+#ifdef SOL_PPPOL2TP
+	V(SOL_PPPOL2TP),
+#endif
+#ifdef SOL_BLUETOOTH
+	V(SOL_BLUETOOTH),
+#endif
+#ifdef SOL_PNPIPE
+	V(SOL_PNPIPE),
+#endif
+#ifdef SOL_RDS
+	V(SOL_RDS),
+#endif
+	V(SOL_IUCV),
+#ifdef SOL_CAIF
+	V(SOL_CAIF),
+#endif
+#ifdef SOL_ALG
+	V(SOL_ALG),
+#endif
+#ifdef SOL_NFC
+	V(SOL_NFC),
+#endif
+	{0, NULL}
+};
+%}
+
+/* `man 2 setsockopt` for more information */
+function _sockopt_level_str:string(level:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_sockopt_level_list, STAP_ARG_level, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_sock_family_list[] = {
+	V(PF_UNSPEC),
+	V(PF_LOCAL),			/* same thing as PF_UNIX */
+	V(PF_INET),
+	V(PF_AX25),
+	V(PF_IPX),
+	V(PF_APPLETALK),
+	V(PF_NETROM),
+	V(PF_BRIDGE),
+	V(PF_ATMPVC),
+	V(PF_X25),
+	V(PF_INET6),
+	V(PF_ROSE),
+	V(PF_DECnet),
+	V(PF_NETBEUI),
+	V(PF_SECURITY),
+	V(PF_KEY),
+	V(PF_NETLINK),
+	V(PF_ROUTE),
+	V(PF_PACKET),
+	V(PF_ASH),
+	V(PF_ECONET),
+	V(PF_ATMSVC),
+#ifdef PF_RDS
+	V(PF_RDS),
+#endif
+	V(PF_SNA),
+	V(PF_IRDA),
+	V(PF_PPPOX),
+	V(PF_WANPIPE),
+	V(PF_LLC),
+#ifdef PF_IB
+	V(PF_IB),
+#endif
+#ifdef PF_CAN
+	V(PF_CAN),
+#endif
+	V(PF_TIPC),
+	V(PF_BLUETOOTH),
+	V(PF_IUCV),
+#ifdef PF_RXRPC
+	V(PF_RXRPC),
+#endif
+#ifdef PF_ISDN
+	V(PF_ISDN),
+#endif
+#ifdef PF_PHONET
+	V(PF_PHONET),
+#endif
+#ifdef PF_IEEE802154
+	V(PF_IEEE802154),
+#endif
+#ifdef PF_CAIF
+	V(PF_CAIF),
+#endif
+#ifdef PF_ALG
+	V(PF_ALG),
+#endif
+#ifdef PF_NFC
+	V(PF_NFC),
+#endif
+#ifdef PF_VSOCK
+	V(PF_VSOCK),
+#endif
+	{0, NULL}
+};
+%}
+
+function _sock_family_str:string(f:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_sock_family_list, (unsigned int)STAP_ARG_f,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+function _sock_type_str:string(type:long)
+%{ /* pure */
+#ifdef SOCK_TYPE_MASK
+	int flags = (int)STAP_ARG_type & ~SOCK_TYPE_MASK;
+	int t = (int)STAP_ARG_type & SOCK_TYPE_MASK;
+#else
+	int t = (int)STAP_ARG_type;
+#endif
+	int data_added = 0;
+
+	/*
+	 * This is a bit tricky. We've got 2 types of information
+	 * here. A socket type and a possible combination of socket
+	 * flags. In addition, we only want one final listing of
+	 * any unknown bits set.
+	 *
+	 * We can't call _stp_lookup_str() here since it would go
+	 * ahead and display any unknown type value, and we want to
+	 * wait until after any possible flags are displayed.
+	 */
+	switch (t) {
+	case SOCK_STREAM:
+		strlcpy (STAP_RETVALUE, "SOCK_STREAM", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
+		break;
+	case SOCK_DGRAM:
+		strlcpy (STAP_RETVALUE, "SOCK_DGRAM", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
+		break;
+	case SOCK_RAW:
+		strlcpy (STAP_RETVALUE, "SOCK_RAW", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
+		break;
+	case SOCK_RDM:
+		strlcpy (STAP_RETVALUE, "SOCK_RDM", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
+		break;
+	case SOCK_SEQPACKET:
+		strlcpy (STAP_RETVALUE, "SOCK_SEQPACKET", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
+		break;
+#ifdef SOL_DCCP
+	case SOCK_DCCP:
+		strlcpy (STAP_RETVALUE, "SOCK_DCCP", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
+		break;
+#endif
+	case SOCK_PACKET:
+		strlcpy (STAP_RETVALUE, "SOCK_PACKET", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
+		break;
+	}
+
+#ifdef SOCK_TYPE_MASK
+	/* We can't use _stp_lookup_or_str() here since if none of
+	 * these flags are set it would put a "0x0" on the end, which
+	 * we don't want to add to the socket type. */
+	if (flags & SOCK_CLOEXEC) {
+		if (data_added)
+			strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		strlcat (STAP_RETVALUE, "SOCK_CLOEXEC", MAXSTRINGLEN);
+		flags &= ~SOCK_CLOEXEC;
+		data_added = 1;
+	}
+	if (flags & SOCK_NONBLOCK) {
+		if (data_added)
+			strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		strlcat (STAP_RETVALUE, "SOCK_NONBLOCK", MAXSTRINGLEN);
+		flags &= ~SOCK_NONBLOCK;
+		data_added = 1;
+	}
+	
+	/* If we have any leftover flags bits, add them back to the
+	 * type bits to get displayed together. */
+	t |= flags;
+#endif
+
+	/* Display any leftover bits. */
+	if (t != 0 || !data_added) {
+		int slen;
+		if (data_added)
+			strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		slen = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen,
+			      "0x%x", t);
+	}
+%}
+
+%{
+static const _stp_val_array const _stp_sock_flags_list[] = {
+#ifdef SOCK_TYPE_MASK
+	V(SOCK_CLOEXEC),
+	V(SOCK_NONBLOCK),
+#endif
+	{0, NULL}
+};
+%}
+
+function _sock_flags_str:string(f:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_sock_flags_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+// Be sure we have the IPPROTO_* defines. But, on some older kernels
+// we don't have all of them defined. Also note that on some older
+// kernels these values are enum values, not defines. But, the
+// following code should work anyway.
+#include <linux/in.h>
+#ifndef IPPROTO_TP
+#define IPPROTO_TP 29
+#endif
+#ifndef IPPROTO_MTP
+#define IPPROTO_MTP 92
+#endif
+#ifndef IPPROTO_ENCAP
+#define IPPROTO_ENCAP 98
+#endif
+#ifndef IPPROTO_UDPLITE
+#define IPPROTO_UDPLITE 136
+#endif
+%}
+
+function _sock_protocol_str:string(family:long, protocol:long) {
+    if (family == %{ /* pure */ PF_INET %} || family == %{ /* pure */ PF_INET6 %}) {
+	if (protocol == %{ /* pure */ IPPROTO_IP %}) return "IPPROTO_IP"
+	if (protocol == %{ /* pure */ IPPROTO_ICMP %}) return "IPPROTO_ICMP"
+	if (protocol == %{ /* pure */ IPPROTO_IGMP %}) return "IPPROTO_IGMP"
+	if (protocol == %{ /* pure */ IPPROTO_IPIP %}) return "IPPROTO_IPIP"
+	if (protocol == %{ /* pure */ IPPROTO_TCP %}) return "IPPROTO_TCP"
+	if (protocol == %{ /* pure */ IPPROTO_EGP %}) return "IPPROTO_EGP"
+	if (protocol == %{ /* pure */ IPPROTO_PUP %}) return "IPPROTO_PUP"
+	if (protocol == %{ /* pure */ IPPROTO_UDP %}) return "IPPROTO_UDP"
+	if (protocol == %{ /* pure */ IPPROTO_IDP %}) return "IPPROTO_IDP"
+	if (protocol == %{ /* pure */ IPPROTO_TP %}) return "IPPROTO_TP"
+	if (protocol == %{ /* pure */ IPPROTO_DCCP %}) return "IPPROTO_DCCP"
+	if (protocol == %{ /* pure */ IPPROTO_IPV6 %}) return "IPPROTO_IPV6"
+	if (protocol == %{ /* pure */ IPPROTO_RSVP %}) return "IPPROTO_RSVP"
+	if (protocol == %{ /* pure */ IPPROTO_GRE %}) return "IPPROTO_GRE"
+	if (protocol == %{ /* pure */ IPPROTO_ESP %}) return "IPPROTO_ESP"
+	if (protocol == %{ /* pure */ IPPROTO_AH %}) return "IPPROTO_AH"
+	if (protocol == %{ /* pure */ IPPROTO_MTP %}) return "IPPROTO_MTP"
+	if (protocol == %{ /* pure */ IPPROTO_ENCAP %}) return "IPPROTO_ENCAP"
+	if (protocol == %{ /* pure */ IPPROTO_PIM %}) return "IPPROTO_PIM"
+	if (protocol == %{ /* pure */ IPPROTO_COMP %}) return "IPPROTO_COMP"
+	if (protocol == %{ /* pure */ IPPROTO_SCTP %}) return "IPPROTO_SCTP"
+	if (protocol == %{ /* pure */ IPPROTO_UDPLITE %}) return "IPPROTO_UDPLITE"
+	if (protocol == %{ /* pure */ IPPROTO_RAW %}) return "IPPROTO_RAW"
+    }
+    return sprintf("%d", protocol)
+}
+
+function _opoll_op_str:string(o:long)
+%{ /* pure */
+	static const _stp_val_array const opoll_op_list[] = {
+		V(EPOLL_CTL_ADD),
+		V(EPOLL_CTL_MOD),
+		V(EPOLL_CTL_DEL),
+		{0, NULL}
+	};
+	_stp_lookup_str(opoll_op_list, (unsigned int)STAP_ARG_o,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%(systemtap_v <= "2.7" %?
+// This function isn't actually used anywhere, so let's deprecate it.
+function _epoll_events_str(e) {
+   if(e==1) return "EPOLLIN"
+   if(e==4) return "EPOLLOUT"
+   if(e==2) return "EPOLLPRI"
+   if(e==8) return "EPOLLERR"
+   if(e==16) return "EPOLLHUP"
+   if(e==-2147483648) return "EPOLLET"
+   if(e==1073741824) return "EPOLLONESHOT"
+   return sprintf("UNKNOWN VALUE: %d", e)
+}
+%)
+
+%{
+#include <linux/resource.h>
+
+static const _stp_val_array const _stp_rlimit_resource_list[] = {
+	{ (unsigned int)RLIM_INFINITY, "RLIM_INFINITY"},
+	V(RLIMIT_CPU),
+	V(RLIMIT_FSIZE),
+	V(RLIMIT_DATA),
+	V(RLIMIT_STACK),
+	V(RLIMIT_CORE),
+	V(RLIMIT_RSS),
+	V(RLIMIT_NPROC),
+	V(RLIMIT_NOFILE),
+	V(RLIMIT_MEMLOCK),
+	V(RLIMIT_AS),
+	V(RLIMIT_LOCKS),
+	V(RLIMIT_SIGPENDING),
+	V(RLIMIT_MSGQUEUE),
+	V(RLIMIT_NICE),
+	V(RLIMIT_RTPRIO),
+#ifdef RLIMIT_RTTIME
+	V(RLIMIT_RTTIME),
+#endif
+	V(RLIM_NLIMITS),
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_rusage_who_list[] = {
+	V(RUSAGE_SELF),
+	{(unsigned int)RUSAGE_CHILDREN, "RUSAGE_CHILDREN"},
+	{(unsigned int)RUSAGE_BOTH, "RUSAGE_BOTH"},
+	V(RUSAGE_THREAD),
+	{0, NULL}
+};
+%}
+
+function _rlimit_resource_str:string(r:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_rlimit_resource_list, (unsigned int)STAP_ARG_r,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+function _rusage_who_str:string(w:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_rusage_who_list, (unsigned int)STAP_ARG_w,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+/* for accessing 16-bit values encoded in a long */
+function __short:long(val:long) %{ /* pure */
+	STAP_RETVALUE = (short)STAP_ARG_val;
+%}
+
+function __ushort:long(val:long) %{ /* pure */
+	STAP_RETVALUE = (unsigned short)STAP_ARG_val;
+%}
+
+/* uid_t is unsigned, but calling functions take "-1" as a parameter */
+/* so this hack is necessary to correct that mismatch. */
+function __int32:long(val:long) %{ /* pure */
+	STAP_RETVALUE = (int32_t)STAP_ARG_val;
+%}
+
+function __uint32:long(val:long) %{ /* pure */
+	STAP_RETVALUE = (uint32_t)STAP_ARG_val;
+%}
+
+/* Unsigned values can get get sign-extended and become negative. */
+function __ulong:long(val:long) %{ /* pure */
+	STAP_RETVALUE = (unsigned long)STAP_ARG_val;
+%}
+
+function __long:long(val:long) %{ /* pure */
+	STAP_RETVALUE = (long)STAP_ARG_val;
+%}
+
+# For utimensat and futimesat, the directory fd can have a special value
+function _dfd_str:string(d:long)
+{
+	if (d == %{ /* pure */ AT_FDCWD %}) return "AT_FDCWD"
+	return sprint(d)
+}
+
+%{
+static const _stp_val_array const _stp_adjtimex_return_str_list[] = {
+	V(TIME_OK),
+	V(TIME_INS),
+	V(TIME_DEL),
+	V(TIME_OOP),
+	V(TIME_WAIT),
+	V(TIME_ERROR),
+	V(TIME_BAD),
+       {0, NULL}
+};
+%}
+
+function _adjtimex_return_str:string(ret:long)
+%{ /* pure */
+	int len;
+	snprintf (STAP_RETVALUE, MAXSTRINGLEN, "%d (", (int)STAP_ARG_ret);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str2(_stp_adjtimex_return_str_list, (int)STAP_ARG_ret,
+	                 STAP_RETVALUE + len, MAXSTRINGLEN - len, 10);
+	strlcat (STAP_RETVALUE, ")", MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_signal_list[] = {
+	{0, "SIG_0"},
+	V(SIGHUP),
+	V(SIGINT),
+	V(SIGQUIT),
+	V(SIGILL),
+	V(SIGTRAP),
+	V(SIGABRT),
+	V(SIGBUS),
+	V(SIGFPE),
+	V(SIGKILL),
+	V(SIGUSR1),
+	V(SIGSEGV),
+	V(SIGPIPE),
+	V(SIGUSR2),
+	V(SIGALRM),
+	V(SIGTERM),
+	V(SIGCHLD),
+	V(SIGCONT),
+	V(SIGSTOP),
+	V(SIGTSTP),
+	V(SIGTTIN),
+	V(SIGTTOU),
+	V(SIGURG),
+#ifdef SIGXCPU
+	V(SIGXCPU),
+#endif
+#ifdef SIGXFSZ
+	V(SIGXFSZ),
+#endif
+	V(SIGVTALRM),
+	V(SIGPROF),
+	V(SIGWINCH),
+	{SIGIO,"SIGIO/SIGPOLL"},
+	V(SIGPWR),
+#ifdef SIGSYS
+	V(SIGSYS),
+#endif
+	{SIGTRAP|0x80,"TRACESYSGOOD"},
+	{0, NULL}
+};
+
+static void _stp_sigset_str(sigset_t *mask, char *ptr, int len)
+{
+	const _stp_val_array * const array = _stp_signal_list;
+	int i = 0, flag = 0;
+	while (array[i].name) {
+		if (array[i].val > 0 && array[i].val <= _NSIG
+		    && sigismember(mask, array[i].val)) {
+			if (flag)
+				strlcat(ptr, "|", len);
+			else
+				strlcat(ptr, "[",  len);
+			strlcat(ptr, array[i].name, len);
+			flag = 1;
+		}
+		i++;
+	}
+	if (flag == 0)
+		strlcat(ptr, "[EMPTY]", len);
+	else
+		strlcat(ptr, "]", len);
+}
+%}
+
+function _signal_name:string(sig:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_signal_list, (unsigned int)STAP_ARG_sig,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_semctl_list[] = {
+	V(IPC_INFO),
+	V(SEM_INFO),
+	V(SEM_STAT),
+	V(GETALL),
+	V(GETVAL),
+	V(GETPID),
+	V(GETNCNT),
+	V(GETZCNT),
+	V(IPC_STAT),
+	V(SETVAL),
+	V(SETALL),
+	V(IPC_RMID),
+	V(IPC_SET),
+	{0, NULL}
+};
+%}
+
+function _semctl_cmd:string(cmd:long)
+%{ /* pure */
+	unsigned int cmd = STAP_ARG_cmd;
+	int len;
+
+#ifdef IPC_64
+	if (cmd & IPC_64) {
+		strlcpy(STAP_RETVALUE, "IPC_64|", MAXSTRINGLEN);
+		cmd &= ~IPC_64;
+	}
+#endif
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_semctl_list, cmd, STAP_RETVALUE + len,
+			MAXSTRINGLEN - len);
+%}
+
+function _stp_sigset_u:string(setptr:long)
+%{ /* pure */
+	char *ptr = (char *)(unsigned long)STAP_ARG_setptr;
+	sigset_t set;
+
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char*)&set,ptr,sizeof(sigset_t)) == 0)
+			_stp_sigset_str(&set, STAP_RETVALUE, MAXSTRINGLEN);
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+	}
+%}
+
+function _stp_compat_sigset_u:string(setptr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	char *ptr = (char *)(unsigned long)STAP_ARG_setptr;
+
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		compat_sigset_t set;
+
+		if (_stp_copy_from_user((char*)&set, ptr,
+					sizeof(compat_sigset_t)) == 0) {
+			sigset_t new_set;
+			sigset_from_compat(&new_set, &set);
+			_stp_sigset_str(&new_set, STAP_RETVALUE, MAXSTRINGLEN);
+		}
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+	}
+#endif
+%}
+
+%{
+static const _stp_val_array const _stp_fork_list[] = {
+	V(CLONE_VM),
+	V(CLONE_FS),
+	V(CLONE_FILES),
+	V(CLONE_SIGHAND),
+	V(CLONE_PTRACE),
+	V(CLONE_VFORK),
+	V(CLONE_PARENT),
+	V(CLONE_THREAD),
+	V(CLONE_NEWNS),
+	V(CLONE_SYSVSEM),
+	V(CLONE_SETTLS),
+	V(CLONE_PARENT_SETTID),
+	V(CLONE_CHILD_CLEARTID),
+	V(CLONE_DETACHED),
+	V(CLONE_UNTRACED),
+	V(CLONE_CHILD_SETTID),
+#ifdef CLONE_STOPPED
+	V(CLONE_STOPPED),
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+	V(CLONE_NEWUTS),
+	V(CLONE_NEWIPC),
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
+	V(CLONE_NEWUSER),
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	V(CLONE_NEWPID),
+	V(CLONE_NEWNET),
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+	V(CLONE_IO),
+#endif
+	{0, NULL}
+};
+%}
+
+function __fork_flags:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_fork_list, STAP_ARG_flags & ~0xff, STAP_RETVALUE, MAXSTRINGLEN);
+	if ( STAP_ARG_flags & 0xff ) {
+		/* flags contains the termination signal */
+		if (*STAP_RETVALUE)
+			strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		_stp_lookup_str(_stp_signal_list, STAP_ARG_flags & 0xff, STAP_RETVALUE, MAXSTRINGLEN);
+	}
+%}
+
+%{
+static const _stp_val_array const _stp_atflag_list[] = {
+#ifdef AT_SYMLINK_NOFOLLOW
+	V(AT_SYMLINK_NOFOLLOW),
+#endif
+#ifdef AT_REMOVEDIR
+	V(AT_REMOVEDIR),
+#endif
+#ifdef AT_SYMLINK_FOLLOW
+	V(AT_SYMLINK_FOLLOW),
+#endif
+#ifdef AT_NO_AUTOMOUNT
+	V(AT_NO_AUTOMOUNT),
+#endif
+#ifdef AT_EMPTY_PATH
+	V(AT_EMPTY_PATH),
+#endif
+	{0, NULL}
+};
+%}
+
+function _at_flag_str:string(f:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_atflag_list, STAP_ARG_f, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/eventpoll.h>
+%}
+function _epoll_create1_flag_str:string(f:long)
+%{ /* pure */
+	static const _stp_val_array const epoll_create1_flags_list[] = {
+#ifdef EPOLL_CLOEXEC
+		V(EPOLL_CLOEXEC),
+#endif
+		{0, NULL}
+	};
+	_stp_lookup_or_str(epoll_create1_flags_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
+#include <linux/eventfd.h>
+#endif
+
+static const _stp_val_array const _stp_eventfd2_flag_list[] = {
+#ifdef EFD_NONBLOCK
+	V(EFD_NONBLOCK),
+#endif
+#ifdef EFD_CLOEXEC
+	V(EFD_CLOEXEC),
+#endif
+#ifdef EFD_SEMAPHORE
+	V(EFD_SEMAPHORE),
+#endif
+	{0, NULL}
+};
+%}
+function _eventfd2_flag_str:string(flags:long)
+%{ /* pure */
+	uint32_t flags = (uint32_t)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_eventfd2_flag_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
+#include <linux/signalfd.h>
+#endif
+
+static const _stp_val_array const _stp_signalfd4_flags_list[] = {
+#ifdef SFD_NONBLOCK
+	V(SFD_NONBLOCK),
+#endif
+#ifdef SFD_CLOEXEC
+	V(SFD_CLOEXEC),
+#endif
+	{0, NULL}
+};
+%}
+function _signalfd4_flags_str:string(f:long)
+%{ /* pure */
+	uint32_t flags = (uint32_t)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_signalfd4_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+#if (defined(CONFIG_INOTIFY) || defined(CONFIG_INOTIFY_USER))
+#include <linux/inotify.h>
+#endif
+
+static const _stp_val_array const _stp_inotify_init1_flag_list[] = {
+#if defined(IN_NONBLOCK)
+	V(IN_NONBLOCK),
+#endif
+#if defined(IN_CLOEXEC)
+	V(IN_CLOEXEC),
+#endif
+	{0, NULL}
+};
+%}
+
+function _inotify_init1_flag_str:string(f:long)
+%{ /* pure */
+	unsigned int flags = (unsigned int)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_inotify_init1_flag_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+function _dup3_flag_str:string(f:long)
+%{ /* pure */
+	unsigned int flags = (unsigned int)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_open_mode_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/shm.h>
+static const _stp_val_array const _stp_shmat_list[] = {
+	V(SHM_RDONLY),
+	V(SHM_RND),
+	V(SHM_REMAP),
+	V(SHM_EXEC),
+	{0, NULL}
+};
+%}
+
+function _shmat_flags_str:string(f:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_shmat_list, STAP_ARG_f, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+
+%{
+#include <linux/mman.h>
+static const _stp_val_array const _stp_mprotect_list[] = {
+	{0, "PROT_NONE"},
+	V(PROT_READ),
+	V(PROT_WRITE),
+	V(PROT_EXEC),
+	V(PROT_SEM),
+	{0, NULL}
+};
+%}
+
+function _mprotect_prot_str:string(prot:long) 
+%{ /* pure */
+	_stp_lookup_or_str(_stp_mprotect_list, STAP_ARG_prot, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/mman.h>
+static const _stp_val_array const _stp_mmap_list[] = {
+	V(MAP_SHARED),
+	V(MAP_PRIVATE),
+	V(MAP_FIXED),
+	V(MAP_ANONYMOUS),
+	V(MAP_GROWSDOWN),
+	V(MAP_DENYWRITE),
+	V(MAP_EXECUTABLE),
+	V(MAP_LOCKED),
+	V(MAP_NORESERVE),
+	V(MAP_POPULATE),
+	V(MAP_NONBLOCK),
+	{0, NULL}
+};
+%}
+
+function _mmap_flags:string(flags:long) 
+%{ /* pure */
+	_stp_lookup_or_str(_stp_mmap_list, STAP_ARG_flags, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%( systemtap_v <= "3.0" %?
+# old mmap functions passed in a struct like this.
+#
+function get_mmap_args:string (args:long)
+%{ /* pure */
+#if defined (__x86_64__) || defined (__ia64__)
+	struct mmap_arg_struct {
+		unsigned int addr;
+		unsigned int len;
+		unsigned int prot;
+		unsigned int flags;
+		int fd;
+		unsigned int offset;
+	} a;
+#else
+	struct mmap_arg_struct {
+		unsigned long addr;
+		unsigned long len;
+		unsigned long prot;
+		unsigned long flags;
+		long fd;
+		unsigned long offset;
+	} a;
+#endif
+
+	if(_stp_copy_from_user((char *)&a,(char *)(unsigned long)STAP_ARG_args, sizeof(a))== 0) {
+		int len;
+		_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx, %lu, ",
+			      (unsigned long)a.addr, (unsigned long)a.len);
+		_stp_lookup_or_str(_stp_mprotect_list, a.prot, STAP_RETVALUE, MAXSTRINGLEN);
+		strlcat (STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		_stp_lookup_or_str(_stp_mmap_list, a.flags, STAP_RETVALUE, MAXSTRINGLEN);
+		strlcat (STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len, "%ld, %ld", (long)a.fd, (long)a.offset);
+	} else
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)STAP_ARG_args);
+%}
+%)
+
+
+function _sighandler_str:string(uaddr:long)
+%{ /* pure */
+	static const _stp_val_array const _stp_sa_handler_list[] = {
+		{0, "SIG_DFL"},
+		{1, "SIG_IGN"},
+		{0, NULL}
+	};
+	_stp_lookup_str(_stp_sa_handler_list, (long)STAP_ARG_uaddr, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+static void _stp_sigaction_str(struct sigaction *act, char *ptr, int len)
+{
+  static const _stp_val_array const _stp_sa_handler_list[] = {
+    {0, "SIG_DFL"},
+    {1, "SIG_IGN"},
+    {0, NULL}
+  };
+
+  static const _stp_val_array const _stp_sa_flags_list[] = {
+    V(SA_NOCLDSTOP),
+    V(SA_NOCLDWAIT),
+    V(SA_RESETHAND),
+    V(SA_ONSTACK),
+    V(SA_RESTART),
+    V(SA_NODEFER),
+    V(SA_SIGINFO),
+    V(SA_RESTORER),
+    {0, NULL}
+  };
+  
+  int slen;
+  _stp_lookup_str(_stp_sa_handler_list, (long)act->sa_handler,
+		  ptr, len);
+  if (act->sa_handler != SIG_IGN && act->sa_handler != SIG_DFL)
+    {
+      strlcat (ptr, ", ", len);
+      _stp_lookup_or_str(_stp_sa_flags_list, act->sa_flags, ptr, len);
+      strlcat (ptr, ", ", len);
+#if !defined (__ia64__)
+      slen = strlen(ptr);
+      _stp_snprintf(ptr + slen, len - slen,
+		    "0x%lx, ", (long)act->sa_restorer);
+#endif
+      _stp_sigset_str(&act->sa_mask, ptr, len);
+    }
+}
+%}
+
+function _stp_sigmask_str:string(sigmask:long)
+%{ /* pure */
+  unsigned long mask = (unsigned long)STAP_ARG_sigmask;
+  sigset_t set;
+
+  siginitset(&set, mask);
+  _stp_sigset_str(&set, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+function _struct_sigaction_u:string(uaddr:long)
+%{ /* pure */
+  struct sigaction act;
+  char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+  
+  if (ptr == NULL)
+    strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+  else
+    {
+      if(_stp_copy_from_user((char*)&act, ptr,
+			     sizeof(struct sigaction)) == 0)
+	_stp_sigaction_str(&act, STAP_RETVALUE, MAXSTRINGLEN);
+      else
+	snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx", (unsigned long)ptr);
+    }
+%}
+
+function _struct_sigaction32_u:string(uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+  
+#ifdef AUTOCONF_COMPAT_SIGACTION
+  struct compat_sigaction act32;
+#else
+  // There seems to be no public cross arch header that defines this.
+  // For x86, you can find it in asm/ia32.h.  For s390x, it is defined
+  // in a private header.
+  struct sigaction32 {
+    compat_uptr_t  sa_handler;
+    unsigned int sa_flags;
+    unsigned int sa_restorer;       /* Another 32 bit pointer */
+    compat_sigset_t sa_mask;        /* A 32 bit mask */
+  };
+  
+  struct sigaction32 act32;
+#endif
+
+  char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+  
+  if (ptr == NULL)
+    strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+  else
+    {
+      if(_stp_copy_from_user((char*)&act32, ptr,
+			     sizeof(act32)) == 0)
+	{
+	  struct sigaction act;
+
+	  act.sa_handler = (void *)compat_ptr(act32.sa_handler);
+	  act.sa_flags = (unsigned long)act32.sa_flags;
+	  act.sa_restorer = (void *)compat_ptr(act32.sa_restorer);
+
+	  /* swap words around to get right endian order. */
+	  switch (_NSIG_WORDS)
+	    {
+	    case 4: act.sa_mask.sig[3] = act32.sa_mask.sig[6]
+		| (((long)act32.sa_mask.sig[7]) << 32);
+	    case 3: act.sa_mask.sig[2] = act32.sa_mask.sig[4]
+		| (((long)act32.sa_mask.sig[5]) << 32);
+	    case 2: act.sa_mask.sig[1] = act32.sa_mask.sig[2]
+		| (((long)act32.sa_mask.sig[3]) << 32);
+	    case 1: act.sa_mask.sig[0] = act32.sa_mask.sig[0]
+		| (((long)act32.sa_mask.sig[1]) << 32);
+	    }
+
+	  _stp_sigaction_str(&act, STAP_RETVALUE, MAXSTRINGLEN);	  
+	}
+      else
+	snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx", (unsigned long)ptr);
+    }
+#endif
+%}
+
+function _struct_old_sigaction32_u:string(uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+
+#ifdef CONFIG_COMPAT_OLD_SIGACTION
+  struct compat_old_sigaction act32;
+#else
+  // There seems to be no public cross arch header that defines this.
+  // For x86, you can find it in asm/ia32.h.  For s390x, it is defined
+  // in a private header.
+  struct old_sigaction32 {
+    compat_uptr_t  sa_handler;
+    compat_old_sigset_t sa_mask;    /* A 32 bit mask */
+    unsigned int sa_flags;
+    unsigned int sa_restorer;       /* Another 32 bit pointer */
+  };
+
+  struct old_sigaction32 act32;
+#endif
+  char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+  
+  if (ptr == NULL)
+    strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+  else
+    {
+      if(_stp_copy_from_user((char*)&act32, ptr, sizeof(act32)) == 0)
+	{
+	  struct sigaction act;
+
+	  act.sa_handler = (void *)compat_ptr(act32.sa_handler);
+	  act.sa_restorer = (void *)compat_ptr(act32.sa_restorer);
+	  act.sa_flags = (unsigned long)act32.sa_flags;
+	  siginitset(&act.sa_mask, act32.sa_mask);
+	  _stp_sigaction_str(&act, STAP_RETVALUE, MAXSTRINGLEN);	  
+	}
+      else
+	snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx", (unsigned long)ptr);
+    }
+#endif
+%}
+
+/*
+ * Function irqflags_str :
+ * 	Returns the symbolic string representation of the IRQ flags.
+ *
+ */
+
+%{
+#include <linux/interrupt.h>
+#ifndef IRQF_ONESHOT
+#define IRQF_ONESHOT 0x00002000
+#endif
+static const _stp_val_array const _stp_irq_list[] = {
+#ifdef IRQF_DISABLED
+	V(IRQF_DISABLED),
+#endif
+#ifdef IRQF_SAMPLE_RANDOM
+	V(IRQF_SAMPLE_RANDOM),
+#endif
+#ifdef IRQF_SHARED
+	V(IRQF_SHARED),
+#endif
+#ifdef IRQF_PROBE_SHARED
+	V(IRQF_PROBE_SHARED),
+#endif
+#ifdef IRQF_TIMER
+	V(IRQF_TIMER),
+#endif
+#ifdef IRQF_PERCPU
+	V(IRQF_PERCPU),
+#endif
+#ifdef IRQF_NOBALANCING
+	V(IRQF_NOBALANCING),
+#endif
+#ifdef IRQF_IRQPOLL
+	V(IRQF_IRQPOLL),
+#endif
+	V(IRQF_ONESHOT),
+	{0, NULL}
+};
+%}
+
+function irqflags_str:string(f:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_irq_list, STAP_ARG_f, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+@__private30 function _stp_struct_iovec_u:string(iov_uaddr:long)
+%{ /* pure */
+	char *iov_uaddr = (void *)(intptr_t)STAP_ARG_iov_uaddr;
+	struct iovec iov;
+	if (iov_uaddr == NULL)
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char*)&iov, iov_uaddr,
+					sizeof(struct iovec)) == 0) {
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+				      "[{%#lx, %lu}]", iov.iov_base,
+				      iov.iov_len);
+	   	}
+		else
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				      (unsigned long)iov_uaddr);
+	}
+%}
+
+@__private30 function _stp_struct_compat_iovec_u:string(iov_uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	char *iov_uaddr = (void *)(intptr_t)STAP_ARG_iov_uaddr;
+	struct compat_iovec iov;
+	if (iov_uaddr == NULL)
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char*)&iov, iov_uaddr,
+					sizeof(struct compat_iovec)) == 0) {
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+				      "[{%#lx, %lu}]", iov.iov_base,
+				      iov.iov_len);
+	   	}
+		else
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				      (unsigned long)iov_uaddr);
+	}
+#endif
+%}
+
+%{
+#include <linux/ptrace.h>
+static const _stp_val_array const _stp_ptrace_options_list[] = {
+#ifdef PTRACE_O_EXITKILL
+	V(PTRACE_O_EXITKILL),
+#endif
+	V(PTRACE_O_TRACECLONE),
+	V(PTRACE_O_TRACEEXEC),
+	V(PTRACE_O_TRACEEXIT),
+	V(PTRACE_O_TRACEFORK),
+	V(PTRACE_O_TRACESYSGOOD),
+	V(PTRACE_O_TRACEVFORK),
+	V(PTRACE_O_TRACEVFORKDONE),
+#ifdef PTRACE_O_TRACESECCOMP
+	V(PTRACE_O_TRACESECCOMP),
+#endif
+	{0, NULL}
+};
+%}
+
+/* PTRACE_SETOPTIONS parser of the DATA parameter. */
+function _ptrace_options_str:string(f:long)
+%{ /* pure */
+	unsigned long f = (unsigned long)STAP_ARG_f;  
+	_stp_lookup_or_str(_stp_ptrace_options_list, f, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+/* ptrace syscall provisioning of argstr. */
+%{
+#include <linux/elf.h>
+static const _stp_val_array const _stp_elf_notes_list[] = {
+	V(NT_PRSTATUS),
+	V(NT_PRFPREG),
+	V(NT_PRPSINFO),
+	V(NT_TASKSTRUCT),
+	V(NT_AUXV),
+#ifdef NT_SIGINFO
+	V(NT_SIGINFO),
+#endif
+#ifdef NT_FILE
+	V(NT_FILE),
+#endif
+	V(NT_PRXFPREG),
+#ifdef NT_PPC_VMX
+	V(NT_PPC_VMX),
+#endif
+#ifdef NT_PPC_SPE
+	V(NT_PPC_SPE),
+#endif
+#ifdef NT_PPC_VSX
+	V(NT_PPC_VSX),
+#endif
+#ifdef NT_386_TLS
+	V(NT_386_TLS),
+#endif
+#ifdef NT_386_IOPERM
+	V(NT_386_IOPERM),
+#endif
+#ifdef NT_X86_XSTATE
+	V(NT_X86_XSTATE),
+#endif
+#ifdef NT_S390_HIGH_GPRS
+	V(NT_S390_HIGH_GPRS),
+#endif
+#ifdef NT_S390_TIMER
+	V(NT_S390_TIMER),
+#endif
+#ifdef NT_S390_TODCMP
+	V(NT_S390_TODCMP),
+#endif
+#ifdef NT_S390_TODPREG
+	V(NT_S390_TODPREG),
+#endif
+#ifdef NT_S390_CTRS
+	V(NT_S390_CTRS),
+#endif
+#ifdef NT_S390_PREFIX
+	V(NT_S390_PREFIX),
+#endif
+#ifdef NT_S390_LAST_BREAK
+	V(NT_S390_LAST_BREAK),
+#endif
+#ifdef NT_S390_SYSTEM_CALL
+	V(NT_S390_SYSTEM_CALL),
+#endif
+#ifdef NT_S390_TDB
+	V(NT_S390_TDB),
+#endif
+#ifdef NT_S390_VXRS_LOW
+	V(NT_S390_VXRS_LOW),
+#endif
+#ifdef NT_S390_VXRS_HIGH
+	V(NT_S390_VXRS_HIGH),
+#endif
+#ifdef NT_ARM_VFP
+	V(NT_ARM_VFP),
+#endif
+#ifdef NT_ARM_TLS
+	V(NT_ARM_TLS),
+#endif
+#ifdef NT_ARM_HW_BREAK
+	V(NT_ARM_HW_BREAK),
+#endif
+#ifdef NT_ARM_HW_WATCH
+	V(NT_ARM_HW_WATCH),
+#endif
+#ifdef NT_ARM_SYSTEM_CALL
+	V(NT_ARM_SYSTEM_CALL),
+#endif
+#ifdef NT_METAG_CBUF
+	V(NT_METAG_CBUF),
+#endif
+#ifdef NT_METAG_RPIPE
+	V(NT_METAG_RPIPE),
+#endif
+#ifdef NT_METAG_TLS
+	V(NT_METAG_TLS),
+#endif
+	{0, NULL}
+};
+%}
+
+@__private30 function _stp_elf_notes_str:string(value:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_elf_notes_list, (unsigned long)STAP_ARG_value,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#ifndef PTRACE_GETREGSET
+# define PTRACE_GETREGSET	0x4204
+#endif
+#ifndef PTRACE_SETREGSET
+# define PTRACE_SETREGSET	0x4205
+#endif
+#ifndef PTRACE_SEIZE
+# define PTRACE_SEIZE		0x4206
+#endif
+#ifndef PTRACE_INTERRUPT
+# define PTRACE_INTERRUPT	0x4207
+#endif
+#ifndef PTRACE_LISTEN
+# define PTRACE_LISTEN		0x4208
+#endif
+#ifndef PTRACE_PEEKSIGINFO
+# define PTRACE_PEEKSIGINFO	0x4209
+#endif
+#ifndef PTRACE_GETSIGMASK
+# define PTRACE_GETSIGMASK	0x420a
+#endif
+#ifndef PTRACE_SETSIGMASK
+# define PTRACE_SETSIGMASK	0x420b
+#endif
+
+/* These are the architecture-independent ptrace requests (although
+ * some return architecture-dependent register buffers). */
+
+static const _stp_val_array const _stp_ptrace_request_list[] = {
+	V(PTRACE_TRACEME),
+	V(PTRACE_PEEKTEXT),
+	V(PTRACE_PEEKDATA),
+	V(PTRACE_PEEKUSR),
+	V(PTRACE_POKETEXT),
+	V(PTRACE_POKEDATA),
+	V(PTRACE_POKEUSR),
+	V(PTRACE_CONT),
+	V(PTRACE_KILL),
+	V(PTRACE_SINGLESTEP),
+	V(PTRACE_ATTACH),
+	V(PTRACE_DETACH),
+	V(PTRACE_SYSCALL),
+	V(PTRACE_SETOPTIONS),
+	V(PTRACE_GETEVENTMSG),
+	V(PTRACE_GETSIGINFO),
+	V(PTRACE_SETSIGINFO),
+	V(PTRACE_GETREGSET),
+	V(PTRACE_SETREGSET),
+	V(PTRACE_SEIZE),
+	V(PTRACE_INTERRUPT),
+	V(PTRACE_LISTEN),
+	V(PTRACE_PEEKSIGINFO),
+	V(PTRACE_GETSIGMASK),
+	V(PTRACE_SETSIGMASK),
+	{0, NULL}
+};
+%}
+
+@__private30 function __ptrace_request_str:string(request:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_ptrace_request_list,
+			(unsigned long)STAP_ARG_request, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+function _ptrace_argstr(request, pid, addr, data)
+{
+	// Handle arch-specific ptrace requests first.
+	retval=_arch_ptrace_argstr(request, pid, addr, data)
+	if (retval != "")
+		return retval
+
+	// Handle generic ptrace requests.
+	if (request == %{ /* pure */ PTRACE_PEEKTEXT %}
+	    || request == %{ /* pure */ PTRACE_PEEKDATA %}
+	    || request == %{ /* pure */ PTRACE_PEEKUSR %})
+		/* For PTRACE_PEEK{TEXT,DATA,USR}, 'data' is ignored
+		 * from the user's point of view, but glibc stores the
+		 * result at the 'data' address. */
+		return sprintf("%s, %d, %p, [%p]",
+			       __ptrace_request_str(request), pid, addr, data)
+	if (request == %{ /* pure */ PTRACE_POKETEXT %}
+	    || request == %{ /* pure */ PTRACE_POKEDATA %}
+	    || request == %{ /* pure */ PTRACE_POKEUSR %}
+	    || request == %{ /* pure */ PTRACE_PEEKSIGINFO %})
+		return sprintf("%s, %d, %p, %p",
+			       __ptrace_request_str(request), pid, addr, data)
+	if (request == %{ /* pure */ PTRACE_CONT %}
+	    || request == %{ /* pure */ PTRACE_SYSCALL %}
+	    || request == %{ /* pure */ PTRACE_SINGLESTEP %}
+	    || request == %{ /* pure */ PTRACE_DETACH %})
+		return sprintf("%s, %d, %#x, %s",
+			       __ptrace_request_str(request), pid, addr,
+			       _signal_name (data))
+	if (request == %{ /* pure */ PTRACE_GETSIGINFO %}
+	    || request == %{ /* pure */ PTRACE_SETSIGINFO %}
+	    || request == %{ /* pure */ PTRACE_GETEVENTMSG %}
+	    || request == %{ /* pure */ PTRACE_GETSIGMASK %}
+	    || request == %{ /* pure */ PTRACE_SETSIGMASK %})
+		return sprintf("%s, %d, %#x, %p",
+			       __ptrace_request_str(request), pid, addr, data)
+	if (request == %{ /* pure */ PTRACE_GETREGSET %}
+	    || request == %{ /* pure */ PTRACE_SETREGSET %})
+		return sprintf("%s, %d, %s, %s",
+			       __ptrace_request_str(request), pid,
+			       _stp_elf_notes_str(addr),
+			       (@__compat_task
+			        ? _stp_struct_compat_iovec_u(data)
+				: _stp_struct_iovec_u(data)))
+	if (request == %{ /* pure */ PTRACE_TRACEME %}
+	    || request == %{ /* pure */ PTRACE_KILL %}
+	    || request == %{ /* pure */ PTRACE_ATTACH %}
+	    || request == %{ /* pure */ PTRACE_SEIZE %}
+	    || request == %{ /* pure */ PTRACE_INTERRUPT %}
+	    || request == %{ /* pure */ PTRACE_LISTEN %})
+		return sprintf("%s, %d, %#x, %#x",
+			       __ptrace_request_str(request), pid, addr, data)
+	if (request == %{ /* pure */ PTRACE_SETOPTIONS %})
+		return sprintf("PTRACE_SETOPTIONS, %d, %#x, %s", pid,
+			       addr, _ptrace_options_str(data))
+
+	return sprintf("%s, %d, %p, %p", __ptrace_request_str(request),
+		       pid, addr, data)
+}
+
+/* ptrace.return syscall decoder for PTRACE_GETEVENTMSG. */
+function _ptrace_return_geteventmsg_data(request,data)
+{
+	if (request == %{ /* pure */ PTRACE_GETEVENTMSG %})
+		return user_long(data)
+}
+
+%{
+#include <linux/swap.h>
+
+static const _stp_val_array const _stp_swapon_flags_list[] = {
+	V(SWAP_FLAG_PREFER),
+#ifdef SWAP_FLAG_DISCARD
+	V(SWAP_FLAG_DISCARD),
+#endif
+#ifdef SWAP_FLAG_DISCARD_ONCE
+	V(SWAP_FLAG_DISCARD_ONCE),
+#endif
+#ifdef SWAP_FLAG_DISCARD_PAGES
+	V(SWAP_FLAG_DISCARD_PAGES),
+#endif
+	{0, NULL}
+};
+%}
+
+function _swapon_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_swapon_flags_list,
+			   (flags & ~SWAP_FLAG_PRIO_MASK), STAP_RETVALUE,
+			   MAXSTRINGLEN);
+	if (STAP_ARG_flags & SWAP_FLAG_PREFER) {
+		int slen;
+		slen = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, 
+			      "|%d", flags & SWAP_FLAG_PRIO_MASK);
+	}
+%}
+
+/* do_fork helper function to determine fork type. */
+@__private30 function __is_user_regs:long (regs:long)
+%{
+	/* pure */
+	struct pt_regs * regs = (void *)((unsigned long)STAP_ARG_regs);
+/* copied from asm/ptrace.h */
+#if defined(__i386__)
+#ifdef STAPCONF_X86_UNIREGS
+	int cs = kread(&regs->cs);
+#else
+	int cs = kread(&regs->xcs);
+#endif
+	STAP_RETVALUE = (!!((cs & 3)));
+#elif defined(__x86_64__)
+	unsigned long cs = kread(&regs->cs);
+	STAP_RETVALUE = (!!((cs & 3)));
+#elif defined(__ia64__)
+	unsigned long psr = kread(&regs->cr_ipsr);
+	STAP_RETVALUE = (((struct ia64_psr *) &psr)->cpl != 0);
+#elif defined(__powerpc64__)
+	unsigned long msr = kread(&regs->msr);
+	STAP_RETVALUE = ((msr >> MSR_PR_LG) & 0x1);
+#elif defined(__powerpc__)
+	unsigned long msr = kread(&regs->msr);
+	STAP_RETVALUE = ((msr >> MSR_PR) != 0);
+#elif defined(__arm__)
+	long cpsr = kread(&regs->ARM_cpsr);
+	STAP_RETVALUE = ((cpsr & 0xf) == 0);
+#elif defined(__s390__) || defined(__s390x__)
+	unsigned long mask = kread(&regs->psw.mask);
+	STAP_RETVALUE = ((mask & PSW_MASK_PSTATE) != 0);
+#elif defined(__aarch64__)
+	long pstate = kread(&regs->pstate);
+	STAP_RETVALUE = ((pstate & PSR_MODE_MASK) == PSR_MODE_EL0t);
+#else
+#error "Unimplemented architecture"
+#endif
+CATCH_DEREF_FAULT();
+%}
+
+%{
+#include <linux/ipc.h>
+#include <linux/shm.h>
+static const _stp_val_array const _stp_shmget_flags_list[] = {
+	V(IPC_CREAT),
+	V(IPC_EXCL),
+	V(SHM_HUGETLB),
+	V(SHM_NORESERVE),
+	{0, NULL}
+};
+%}
+
+function _stp_shmget_flags_str:string(shmflg:long)
+%{ /* pure */
+	unsigned int shmflg = (unsigned int)STAP_ARG_shmflg;  
+	unsigned int modebits;
+
+	/* Lowest 9 bits are mode bits. */
+	modebits = shmflg & 0777;
+	shmflg &= ~0777;
+	_stp_lookup_or_str(_stp_shmget_flags_list, shmflg, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+	if (modebits) {
+		int slen;
+		slen = strlen(STAP_RETVALUE);
+		if (slen)
+			_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen,
+				      "|%#o", modebits);
+		else		
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%#o",
+				      modebits);
+	}
+%}
+
+function _stp_msgget_key_str:string(key:long)
+{
+	if (key == %{ /* pure */ IPC_PRIVATE %}) return "IPC_PRIVATE"
+	return sprintf("%d", key)
+}
+
+%{
+#include <linux/msg.h>
+
+static const _stp_val_array const _stp_msgctl_list[] = {
+	V(IPC_INFO),
+	V(IPC_STAT),
+	V(IPC_RMID),
+	V(IPC_SET),
+	V(MSG_INFO),
+	V(MSG_STAT),
+	{0, NULL}
+};
+%}
+
+function _stp_msgctl_cmd_str:string(cmd:long)
+%{ /* pure */
+	unsigned int cmd = STAP_ARG_cmd;
+
+	if (cmd & IPC_64) {
+		strlcpy (STAP_RETVALUE, "IPC_64|", MAXSTRINGLEN);
+		cmd &= ~IPC_64;
+	}
+	_stp_lookup_str(_stp_msgctl_list, cmd, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_msgflg_list[] = {
+	V(MSG_NOERROR),
+	V(MSG_EXCEPT),
+	V(IPC_NOWAIT),
+	{0, NULL}
+};
+%}
+
+function _stp_msgflg_str:string(msgflg:long)
+%{ /* pure */
+	unsigned int msgflg = STAP_ARG_msgflg;
+
+	_stp_lookup_or_str(_stp_msgflg_list, msgflg, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+// Copied from ipc/compat.c.
+
+#ifdef CONFIG_COMPAT
+struct compat_ipc_kludge {
+	compat_uptr_t msgp;
+	compat_long_t msgtyp;
+};
+#endif
+%}
+
+function _stp_compat_msgrcv_msgbuf:long(uaddr:long, version:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int version = (int)(unsigned long)STAP_ARG_version;
+	void *msgbuf = ptr;
+
+	if (!version) {
+		struct compat_ipc_kludge ipck;
+
+		msgbuf = NULL;
+		if (ptr != NULL
+		    && _stp_copy_from_user((char*)&ipck, ptr,
+					   sizeof(ipck)) == 0) {
+			msgbuf = compat_ptr(ipck.msgp);
+		}
+	}
+	STAP_RETVALUE = (unsigned long)msgbuf;
+#endif
+%}
+
+function _stp_compat_msgrcv_msgtyp:long(uaddr:long, version:long, msgtyp:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int version = (int)(unsigned long)STAP_ARG_version;
+	long msgtyp = (long)STAP_ARG_msgtyp;
+
+	if (!version) {
+		struct compat_ipc_kludge ipck;
+
+		if (ptr != NULL
+		    && _stp_copy_from_user((char*)&ipck, ptr,
+					   sizeof(ipck)) == 0) {
+			msgtyp = ipck.msgtyp;
+		}
+	}
+	STAP_RETVALUE = msgtyp;
+#endif
+%}
+
+%{
+#include <linux/xattr.h>
+
+static const _stp_val_array const _stp_xattr_flags_list[] = {
+	V(XATTR_CREATE),
+	V(XATTR_REPLACE),
+	{0, NULL}
+};
+%}
+
+function _stp_xattr_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned int flags = STAP_ARG_flags;
+
+	_stp_lookup_or_str(_stp_xattr_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+function _stp_xattr_val_str:string(uaddr:long, size:long)
+%{ /* pure */
+	void *uaddr = (void *)(unsigned long)STAP_ARG_uaddr;
+	unsigned long size = STAP_ARG_size;
+	unsigned char buffer[50];
+	size_t copy_size = clamp_t(size_t, size, 0, sizeof(buffer));
+
+	if (uaddr != NULL && copy_size > 0
+	    && _stp_copy_from_user(buffer, uaddr, copy_size) == 0) {
+		size_t i;
+		unsigned char *out = STAP_RETVALUE;
+		// Save 3 chars: 2 for the leading and trailing
+		// double-quote chars, one for the trailing NUL.
+		size_t out_size = MAXSTRINGLEN - 3;
+
+		*out++ = '"';
+		for (i = 0; i < copy_size; ++i) {
+#define _stp_is_printable_ascii(c) ((c) >= ' ' && (c) <= 0x7e)
+#define _stp_tohex(n) "0123456789abcdef"[n]
+
+			if (_stp_is_printable_ascii(buffer[i])) {
+				if (--out_size >= 0)
+					*out++ = buffer[i];
+			}
+			else {
+				if (out_size < 4)
+					break;
+				out_size -= 4;
+				if (out_size >= 0) {	
+					*out++ = '\\';
+					*out++ = 'x';
+					*out++ = _stp_tohex(buffer[i] / 16);
+					*out++ = _stp_tohex(buffer[i] % 16);
+				}
+			}
+			if (out_size == 0)
+				break;
+		}
+		// Don't print terminating NUL from the input data if
+		// there is one.
+		if (i > 1 && buffer[i - 1] == '\0'
+		    && _stp_is_printable_ascii(buffer[i - 2]))
+			out -= 4;
+		*out++ = '"';
+		*out = '\0';
+	}
+	else
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)uaddr);
+%}
+
+%{
+#include <linux/ioprio.h>
+
+static const _stp_val_array const _stp_ioprio_who_list[] = {
+	V(IOPRIO_WHO_PROCESS),
+	V(IOPRIO_WHO_PGRP),
+	V(IOPRIO_WHO_USER),
+	{0, NULL}
+};
+static const _stp_val_array const _stp_ioprio_class_list[] = {
+	V(IOPRIO_CLASS_NONE),
+	V(IOPRIO_CLASS_RT),
+	V(IOPRIO_CLASS_BE),
+	V(IOPRIO_CLASS_IDLE),
+	{0, NULL}
+};
+%}
+
+function _stp_ioprio_which_str:string(who:long)
+%{ /* pure */
+	_stp_lookup_str2(_stp_ioprio_who_list, (int)STAP_ARG_who,
+			 STAP_RETVALUE, MAXSTRINGLEN, 10);
+%}
+
+function _stp_ioprio_value_str:string(value:long)
+%{ /* pure */
+	unsigned int class = IOPRIO_PRIO_CLASS(((unsigned int)STAP_ARG_value));
+	int slen;
+
+	_stp_lookup_str(_stp_ioprio_class_list, class, STAP_RETVALUE,
+			MAXSTRINGLEN);
+	slen = strlen(STAP_RETVALUE);
+	_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, "|%d",
+		      IOPRIO_PRIO_DATA(((int)STAP_ARG_value)));
+%}
+
+%{
+#include <linux/mempolicy.h>
+static const _stp_val_array const _stp_mempolicy_flags_list[] = {
+	V(MPOL_F_NODE),
+	V(MPOL_F_ADDR),
+#ifdef MPOL_F_MEMS_ALLOWED
+	V(MPOL_F_MEMS_ALLOWED),
+#endif
+	{0, NULL}
+};
+
+#ifndef MPOL_MODE_FLAGS
+#define MPOL_MODE_FLAGS 0
+#endif
+
+static const _stp_val_array const _stp_mempolicy_mode_flags_list[] = {
+#ifdef MPOL_F_STATIC_NODES
+	V(MPOL_F_STATIC_NODES),
+#endif
+#ifdef MPOL_F_RELATIVE_NODES
+	V(MPOL_F_RELATIVE_NODES),
+#endif
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_mempolicy_mode_list[] = {
+	V(MPOL_DEFAULT),
+	V(MPOL_PREFERRED),
+	V(MPOL_BIND),
+	V(MPOL_INTERLEAVE),
+#ifdef MPOL_LOCAL
+	V(MPOL_LOCAL),
+#endif
+	{0, NULL}
+};
+%}
+
+function _mempolicy_flags_str:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_mempolicy_flags_list,
+			   (unsigned long)STAP_ARG_flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+function _mempolicy_mode_str:string(mode:long)
+%{ /* pure */
+	unsigned int mode = (unsigned int)STAP_ARG_mode;
+	int len = 0;
+
+	if (mode != 0xffffffff && mode & MPOL_MODE_FLAGS) {
+		_stp_lookup_str(_stp_mempolicy_mode_flags_list,
+				mode & MPOL_MODE_FLAGS, STAP_RETVALUE,
+				MAXSTRINGLEN);
+		strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		mode &= ~MPOL_MODE_FLAGS;
+	}
+	_stp_lookup_str(_stp_mempolicy_mode_list, mode, STAP_RETVALUE + len,
+			MAXSTRINGLEN - len);
+%}
+
+%{
+#include <linux/keyctl.h>
+
+static const _stp_val_array const _stp_keyctl_cmd_list[] = {
+	V(KEYCTL_GET_KEYRING_ID),
+	V(KEYCTL_JOIN_SESSION_KEYRING),
+	V(KEYCTL_UPDATE),
+	V(KEYCTL_REVOKE),
+	V(KEYCTL_CHOWN),
+	V(KEYCTL_SETPERM),
+	V(KEYCTL_DESCRIBE),
+	V(KEYCTL_CLEAR),
+	V(KEYCTL_LINK),
+	V(KEYCTL_UNLINK),
+	V(KEYCTL_SEARCH),
+	V(KEYCTL_READ),
+	V(KEYCTL_INSTANTIATE),
+	V(KEYCTL_NEGATE),
+	V(KEYCTL_SET_REQKEY_KEYRING),
+	V(KEYCTL_SET_TIMEOUT),
+	V(KEYCTL_ASSUME_AUTHORITY),
+#ifdef KEYCTL_GET_SECURITY
+	V(KEYCTL_GET_SECURITY),
+#endif
+#ifdef KEYCTL_SESSION_TO_PARENT
+	V(KEYCTL_SESSION_TO_PARENT),
+#endif
+#ifdef KEYCTL_REJECT
+	V(KEYCTL_REJECT),
+#endif
+#ifdef KEYCTL_INSTANTIATE_IOV
+	V(KEYCTL_INSTANTIATE_IOV),
+#endif
+#ifdef KEYCTL_INVALIDATE
+	V(KEYCTL_INVALIDATE),
+#endif
+#ifdef KEYCTL_GET_PERSISTENT
+	V(KEYCTL_GET_PERSISTENT),
+#endif
+        {0, NULL}
+};
+
+// For older kernels, we need to define new constants for the
+// @__keyctl_argstr() macro
+#ifndef KEYCTL_GET_SECURITY
+#define KEYCTL_GET_SECURITY 17
+#endif
+#ifndef KEYCTL_SESSION_TO_PARENT
+#define KEYCTL_SESSION_TO_PARENT 18
+#endif
+#ifndef KEYCTL_REJECT
+#define KEYCTL_REJECT 19
+#endif
+#ifndef KEYCTL_INSTANTIATE_IOV
+#define KEYCTL_INSTANTIATE_IOV 20
+#endif
+#ifndef KEYCTL_INVALIDATE
+#define KEYCTL_INVALIDATE 21
+#endif
+#ifndef KEYCTL_GET_PERSISTENT
+#define KEYCTL_GET_PERSISTENT 22
+#endif
+%}
+
+function _stp_keyctl_cmd_str:string(cmd:long)
+%{ /* pure */
+        _stp_lookup_str2(_stp_keyctl_cmd_list, (int)STAP_ARG_cmd,
+                        STAP_RETVALUE, MAXSTRINGLEN, 10);
+%}
+
+%{
+static const _stp_val_array const _stp_keyctl_keyring_shortcut_list[] = {
+        V(KEY_SPEC_THREAD_KEYRING),
+        V(KEY_SPEC_PROCESS_KEYRING),
+        V(KEY_SPEC_SESSION_KEYRING),
+        V(KEY_SPEC_USER_KEYRING),
+        V(KEY_SPEC_USER_SESSION_KEYRING),
+        V(KEY_SPEC_GROUP_KEYRING),
+        V(KEY_SPEC_REQKEY_AUTH_KEY),
+#ifdef KEY_SPEC_REQUESTOR_KEYRING
+        V(KEY_SPEC_REQUESTOR_KEYRING),
+#endif
+        {0, NULL}
+};
+%}
+
+function _stp_keyctl_keyring_shortcut_str:string(id:long)
+%{ /* pure */
+        _stp_lookup_str2(_stp_keyctl_keyring_shortcut_list, (int)STAP_ARG_id,
+                        STAP_RETVALUE, MAXSTRINGLEN, 10);
+%}
+
+%{
+static const _stp_val_array const _stp_keyctl_default_keyrings_list[] = {
+	V(KEY_REQKEY_DEFL_NO_CHANGE),
+	V(KEY_REQKEY_DEFL_DEFAULT),
+	V(KEY_REQKEY_DEFL_THREAD_KEYRING),
+	V(KEY_REQKEY_DEFL_PROCESS_KEYRING),
+	V(KEY_REQKEY_DEFL_SESSION_KEYRING),
+	V(KEY_REQKEY_DEFL_USER_KEYRING),
+	V(KEY_REQKEY_DEFL_USER_SESSION_KEYRING),
+	V(KEY_REQKEY_DEFL_GROUP_KEYRING),
+        {0, NULL}
+};
+%}
+
+function _stp_keyctl_default_keyrings_str:string(id:long)
+%{ /* pure */
+        _stp_lookup_str2(_stp_keyctl_default_keyrings_list, (int)STAP_ARG_id,
+                        STAP_RETVALUE, MAXSTRINGLEN, 10);
+%}
+
+
+
+%{
+#include <linux/key.h>
+
+static const _stp_val_array const _stp_keyctl_perm_list[] = {
+#if defined(CONFIG_KEYS)
+	V(KEY_POS_VIEW),
+	V(KEY_POS_READ),
+	V(KEY_POS_WRITE),
+	V(KEY_POS_SEARCH),
+	V(KEY_POS_LINK),
+	V(KEY_POS_SETATTR),
+	V(KEY_POS_ALL),
+	V(KEY_USR_VIEW),
+	V(KEY_USR_READ),
+	V(KEY_USR_WRITE),
+	V(KEY_USR_SEARCH),
+	V(KEY_USR_LINK),
+	V(KEY_USR_SETATTR),
+	V(KEY_USR_ALL),
+	V(KEY_GRP_VIEW),
+	V(KEY_GRP_READ),
+	V(KEY_GRP_WRITE),
+	V(KEY_GRP_SEARCH),
+	V(KEY_GRP_LINK),
+	V(KEY_GRP_SETATTR),
+	V(KEY_GRP_ALL),
+	V(KEY_OTH_VIEW),
+	V(KEY_OTH_READ),
+	V(KEY_OTH_WRITE),
+	V(KEY_OTH_SEARCH),
+	V(KEY_OTH_LINK),
+	V(KEY_OTH_SETATTR),
+	V(KEY_OTH_ALL),
+#endif /* CONFIG_KEYS */
+	{0, NULL}
+};
+%}
+
+function _stp_keyctl_perm_str:string(mask:long)
+%{ /* pure */
+	uint32_t mask = (uint32_t)STAP_ARG_mask;
+	_stp_lookup_or_str2(_stp_keyctl_perm_list, mask, STAP_RETVALUE,
+			   MAXSTRINGLEN, 10);
+%}
+
+%{
+#include <linux/module.h>
+
+#ifndef MODULE_INIT_IGNORE_MODVERSIONS
+#define MODULE_INIT_IGNORE_MODVERSIONS	1
+#endif
+#ifndef MODULE_INIT_IGNORE_VERMAGIC
+#define MODULE_INIT_IGNORE_VERMAGIC	2
+#endif
+
+static const _stp_val_array const _stp_finit_module_flags_list[] = {
+	V(MODULE_INIT_IGNORE_MODVERSIONS),
+	V(MODULE_INIT_IGNORE_VERMAGIC),
+	{0, NULL}
+};
+%}
+
+function _finit_module_flags_str:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_finit_module_flags_list,
+			   (unsigned int)STAP_ARG_flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
+#include <linux/prctl.h>
+#else
+#include <uapi/linux/prctl.h>
+#endif
+
+static const _stp_val_array const _stp_prctl_option_list[] = {
+	V(PR_SET_PDEATHSIG),
+	V(PR_GET_PDEATHSIG),
+	V(PR_GET_DUMPABLE),
+	V(PR_SET_DUMPABLE),
+	V(PR_GET_UNALIGN),
+	V(PR_SET_UNALIGN),
+	V(PR_GET_KEEPCAPS),
+	V(PR_SET_KEEPCAPS),
+	V(PR_GET_FPEMU),
+	V(PR_SET_FPEMU),
+	V(PR_GET_FPEXC),
+	V(PR_SET_FPEXC),
+	V(PR_GET_TIMING),
+	V(PR_SET_TIMING),
+	V(PR_SET_NAME),
+	V(PR_GET_NAME),
+	V(PR_GET_ENDIAN),
+	V(PR_SET_ENDIAN),
+#ifdef PR_GET_SECCOMP
+	V(PR_GET_SECCOMP),
+#endif
+#ifdef PR_SET_SECCOMP
+	V(PR_SET_SECCOMP),
+#endif
+#ifdef PR_CAPBSET_READ
+	V(PR_CAPBSET_READ),
+#endif
+#ifdef PR_CAPBSET_DROP
+	V(PR_CAPBSET_DROP),
+#endif
+#ifdef PR_GET_TSC
+	V(PR_GET_TSC),
+#endif
+#ifdef PR_SET_TSC
+	V(PR_SET_TSC),
+#endif
+#ifdef PR_GET_SECUREBITS
+	V(PR_GET_SECUREBITS),
+#endif
+#ifdef PR_SET_SECUREBITS
+	V(PR_SET_SECUREBITS),
+#endif
+#ifdef PR_SET_TIMERSLACK
+	V(PR_SET_TIMERSLACK),
+#endif
+#ifdef PR_GET_TIMERSLACK
+	V(PR_GET_TIMERSLACK),
+#endif
+#ifdef PR_TASK_PERF_EVENTS_DISABLE
+	V(PR_TASK_PERF_EVENTS_DISABLE),
+#endif
+#ifdef PR_TASK_PERF_EVENTS_ENABLE
+	V(PR_TASK_PERF_EVENTS_ENABLE),
+#endif
+#ifdef PR_MCE_KILL
+	V(PR_MCE_KILL),
+#endif
+#ifdef PR_MCE_KILL_GET
+	V(PR_MCE_KILL_GET),
+#endif
+#ifdef PR_SET_MM
+	V(PR_SET_MM),
+#endif
+#ifdef PR_SET_PTRACER
+	V(PR_SET_PTRACER),
+#endif
+#ifdef PR_SET_CHILD_SUBREAPER
+	V(PR_SET_CHILD_SUBREAPER),
+#endif
+#ifdef PR_GET_CHILD_SUBREAPER
+	V(PR_GET_CHILD_SUBREAPER),
+#endif
+#ifdef PR_SET_NO_NEW_PRIVS
+	V(PR_SET_NO_NEW_PRIVS),
+#endif
+#ifdef PR_GET_NO_NEW_PRIVS
+	V(PR_GET_NO_NEW_PRIVS),
+#endif
+#ifdef PR_GET_TID_ADDRESS
+	V(PR_GET_TID_ADDRESS),
+#endif
+#ifdef PR_SET_THP_DISABLE
+	V(PR_SET_THP_DISABLE),
+#endif
+#ifdef PR_GET_THP_DISABLE
+	V(PR_GET_THP_DISABLE),
+#endif
+#ifdef PR_MPX_ENABLE_MANAGEMENT
+	V(PR_MPX_ENABLE_MANAGEMENT),
+#endif
+#ifdef PR_MPX_DISABLE_MANAGEMENT
+	V(PR_MPX_DISABLE_MANAGEMENT),
+#endif
+	{0, NULL}
+};
+
+// Options that get passed to PR_SET_UNALIGN and returned by PR_GET_UNALIGN.
+static const _stp_val_array const _stp_prctl_unalign_option_list[] = {
+	V(PR_UNALIGN_NOPRINT),
+	V(PR_UNALIGN_SIGBUS),
+	{0, NULL}
+};
+
+// Options that get passed to PR_SET_FPEMU and returned by PR_GET_FPEMU.
+static const _stp_val_array const _stp_prctl_fpemu_option_list[] = {
+	V(PR_FPEMU_NOPRINT),
+	V(PR_FPEMU_SIGFPE),
+	{0, NULL}
+};
+
+// Options that get passed to PR_SET_FPEXC and returned by PR_GET_FPEXC.
+static const _stp_val_array const _stp_prctl_fpexc_option_list[] = {
+	V(PR_FP_EXC_SW_ENABLE),
+	V(PR_FP_EXC_DIV),
+	V(PR_FP_EXC_OVF),
+	V(PR_FP_EXC_UND),
+	V(PR_FP_EXC_RES),
+	V(PR_FP_EXC_INV),
+	V(PR_FP_EXC_DISABLED),
+	V(PR_FP_EXC_NONRECOV),
+	V(PR_FP_EXC_ASYNC),
+	V(PR_FP_EXC_PRECISE),
+	{0, NULL}
+};
+
+// Options that get passed to PR_SET_TIMING and returned by PR_GET_TIMING.
+static const _stp_val_array const _stp_prctl_timing_option_list[] = {
+	V(PR_TIMING_STATISTICAL),
+	V(PR_TIMING_TIMESTAMP),
+	{0, NULL}
+};
+
+// Options that get passed to PR_SET_ENDIAN and returned by PR_GET_ENDIAN.
+static const _stp_val_array const _stp_prctl_endian_option_list[] = {
+	V(PR_ENDIAN_BIG),
+	V(PR_ENDIAN_LITTLE),
+	V(PR_ENDIAN_PPC_LITTLE),
+	{0, NULL}
+};
+
+#ifdef PR_SET_TSC
+// Options that get passed to PR_SET_TSC and returned by PR_GET_TSC.
+static const _stp_val_array const _stp_prctl_tsc_option_list[] = {
+	V(PR_TSC_ENABLE),
+	V(PR_TSC_SIGSEGV),
+	{0, NULL}
+};
+#endif
+
+#ifdef PR_MCE_KILL
+// Options that get passed to PR_MCE_KILL and returned by PR_MCE_KILL_GET.
+static const _stp_val_array const _stp_prctl_mce_kill_option_list[] = {
+	V(PR_MCE_KILL_CLEAR),
+	V(PR_MCE_KILL_SET),
+	{0, NULL}
+};
+// Options for PR_MCE_KILL with PR_MCE_KILL_SET.
+static const _stp_val_array const _stp_prctl_mce_kill_option2_list[] = {
+	V(PR_MCE_KILL_LATE),
+	V(PR_MCE_KILL_EARLY),
+	V(PR_MCE_KILL_DEFAULT),
+	{0, NULL}
+};
+#endif
+
+#ifdef PR_SET_MM
+// Options that get passed to PR_SET_MM.
+static const _stp_val_array const _stp_prctl_mm_option_list[] = {
+	V(PR_SET_MM_START_CODE),
+	V(PR_SET_MM_END_CODE),
+	V(PR_SET_MM_START_DATA),
+	V(PR_SET_MM_END_DATA),
+	V(PR_SET_MM_START_STACK),
+	V(PR_SET_MM_START_BRK),
+	V(PR_SET_MM_BRK),
+	V(PR_SET_MM_ARG_START),
+	V(PR_SET_MM_ARG_END),
+	V(PR_SET_MM_ENV_START),
+	V(PR_SET_MM_ENV_END),
+	V(PR_SET_MM_AUXV),
+	V(PR_SET_MM_EXE_FILE),
+#ifdef PR_SET_MM_MAP
+	V(PR_SET_MM_MAP),
+#endif
+#ifdef PR_SET_MM_MAP_SIZE
+	V(PR_SET_MM_MAP_SIZE),
+#endif
+	{0, NULL}
+};
+#endif
+
+#ifdef PR_SET_PTRACER
+// Options that get passed to PR_SET_PTRACER.
+static const _stp_val_array const _stp_prctl_ptracer_option_list[] = {
+	V(PR_SET_PTRACER_ANY),
+	{0, NULL}
+};
+#endif
+
+#include <linux/capability.h>
+
+static const _stp_val_array const _stp_linux_capability_list[] = {
+	V(CAP_CHOWN),
+	V(CAP_DAC_OVERRIDE),
+	V(CAP_DAC_READ_SEARCH),
+	V(CAP_FOWNER),
+	V(CAP_FSETID),
+	V(CAP_KILL),
+	V(CAP_SETGID),
+	V(CAP_SETUID),
+	V(CAP_SETPCAP),
+	V(CAP_LINUX_IMMUTABLE),
+	V(CAP_NET_BIND_SERVICE),
+	V(CAP_NET_BROADCAST),
+	V(CAP_NET_ADMIN),
+	V(CAP_NET_RAW),
+	V(CAP_IPC_LOCK),
+	V(CAP_IPC_OWNER),
+	V(CAP_SYS_MODULE),
+	V(CAP_SYS_RAWIO),
+	V(CAP_SYS_CHROOT),
+	V(CAP_SYS_PTRACE),
+	V(CAP_SYS_PACCT),
+	V(CAP_SYS_ADMIN),
+	V(CAP_SYS_BOOT),
+	V(CAP_SYS_NICE),
+	V(CAP_SYS_RESOURCE),
+	V(CAP_SYS_TIME),
+	V(CAP_SYS_TTY_CONFIG),
+	V(CAP_MKNOD),
+	V(CAP_LEASE),
+	V(CAP_AUDIT_WRITE),
+	V(CAP_AUDIT_CONTROL),
+#ifdef CAP_SETFCAP
+	V(CAP_SETFCAP),
+#endif
+#ifdef CAP_MAC_OVERRIDE
+	V(CAP_MAC_OVERRIDE),
+#endif
+#ifdef CAP_MAC_ADMIN
+	V(CAP_MAC_ADMIN),
+#endif
+#ifdef CAP_SYSLOG
+	V(CAP_SYSLOG),
+#endif
+#ifdef CAP_WAKE_ALARM
+	V(CAP_WAKE_ALARM),
+#endif
+#ifdef CAP_BLOCK_SUSPEND
+	V(CAP_BLOCK_SUSPEND),
+#endif
+#ifdef CAP_AUDIT_READ
+	V(CAP_AUDIT_READ),
+#endif
+	{0, NULL}
+};
+
+#ifdef PR_SET_SECUREBITS
+#include <linux/securebits.h>
+
+#ifndef SECBIT_NOROOT
+#define SECBIT_NOROOT		(issecure_mask(SECURE_NOROOT))
+#endif
+#ifndef SECBIT_NOROOT_LOCKED
+#define SECBIT_NOROOT_LOCKED	(issecure_mask(SECURE_NOROOT_LOCKED))
+#endif
+#ifndef SECBIT_NO_SETUID_FIXUP
+#define SECBIT_NO_SETUID_FIXUP	(issecure_mask(SECURE_NO_SETUID_FIXUP))
+#endif
+#ifndef SECBIT_NO_SETUID_FIXUP_LOCKED
+#define SECBIT_NO_SETUID_FIXUP_LOCKED \
+			(issecure_mask(SECURE_NO_SETUID_FIXUP_LOCKED))
+#endif
+#ifndef SECBIT_KEEP_CAPS
+#define SECBIT_KEEP_CAPS	(issecure_mask(SECURE_KEEP_CAPS))
+#endif
+#ifndef SECBIT_KEEP_CAPS_LOCKED
+#define SECBIT_KEEP_CAPS_LOCKED (issecure_mask(SECURE_KEEP_CAPS_LOCKED))
+#endif
+
+static const _stp_val_array const _stp_linux_securebits_list[] = {
+	V(SECBIT_NOROOT),
+	V(SECBIT_NOROOT_LOCKED),
+	V(SECBIT_NO_SETUID_FIXUP),
+	V(SECBIT_NO_SETUID_FIXUP_LOCKED),
+	V(SECBIT_KEEP_CAPS),
+	V(SECBIT_KEEP_CAPS_LOCKED),
+	{0, NULL}
+};
+#endif
+%}
+
+function _prctl_argstr:string(option:long, arg2:long, arg3:long, arg4:long,
+			      arg5:long)
+%{ /* pure */
+	int len;
+
+	_stp_lookup_str(_stp_prctl_option_list, (unsigned int)STAP_ARG_option,
+			STAP_RETVALUE, MAXSTRINGLEN);
+	switch ((unsigned int)STAP_ARG_option) {
+	// Options that take no arguments:
+	case PR_GET_DUMPABLE:
+	case PR_GET_TIMING:
+	case PR_GET_KEEPCAPS:
+#ifdef PR_GET_SECCOMP
+	case PR_GET_SECCOMP:
+#endif
+#ifdef PR_TASK_PERF_EVENTS_DISABLE
+	case PR_TASK_PERF_EVENTS_DISABLE:
+#endif
+#ifdef PR_TASK_PERF_EVENTS_ENABLE
+	case PR_TASK_PERF_EVENTS_ENABLE:
+#endif
+#ifdef PR_GET_TIMERSLACK
+	case PR_GET_TIMERSLACK:
+#endif
+#ifdef PR_MCE_KILL_GET
+	case PR_MCE_KILL_GET:
+#endif
+#ifdef PR_GET_NO_NEW_PRIVS
+	case PR_GET_NO_NEW_PRIVS:
+#endif
+#ifdef PR_GET_THP_DISABLE
+	case PR_GET_THP_DISABLE:
+#endif
+#ifdef PR_MPX_ENABLE_MANAGEMENT
+	case PR_MPX_ENABLE_MANAGEMENT:
+#endif
+#ifdef PR_MPX_DISABLE_MANAGEMENT
+	case PR_MPX_DISABLE_MANAGEMENT:
+#endif
+#ifdef PR_GET_SECUREBITS
+	case PR_GET_SECUREBITS:
+#endif
+		// We're done.
+		break;
+
+	// Options that use arg2:
+	case PR_SET_UNALIGN:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_unalign_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+	case PR_SET_FPEMU:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_fpemu_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+	case PR_SET_FPEXC:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_fpexc_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+	case PR_SET_TIMING:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_timing_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+	case PR_SET_ENDIAN:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_endian_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+#ifdef PR_SET_TSC
+	case PR_SET_TSC:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_tsc_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+#endif
+#ifdef PR_SET_PTRACER
+	case PR_SET_PTRACER:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		// Notice we passing arg2 as a signed long
+		// here. PR_SET_PTRACER_ANY is -1.
+		_stp_lookup_str2(_stp_prctl_ptracer_option_list,
+				 (_stp_is_compat_task()
+				  ? (long)(int)STAP_ARG_arg2
+				  : (long)STAP_ARG_arg2),
+				 STAP_RETVALUE + len,
+				 MAXSTRINGLEN - len, 10);
+		break;
+#endif
+#if defined(PR_CAPBSET_READ) && defined(PR_CAPBSET_DROP)
+	case PR_CAPBSET_READ:
+	case PR_CAPBSET_DROP:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_linux_capability_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+#endif
+#ifdef PR_SET_SECUREBITS
+	case PR_SET_SECUREBITS:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_or_str(_stp_linux_securebits_list,
+				   (unsigned long)STAP_ARG_arg2,
+				   STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+#endif
+	case PR_SET_PDEATHSIG:
+	case PR_GET_PDEATHSIG:
+	case PR_GET_UNALIGN:
+	case PR_GET_FPEMU:
+	case PR_GET_FPEXC:
+	case PR_SET_NAME:
+	case PR_GET_NAME:
+	case PR_GET_ENDIAN:
+#ifdef PR_GET_TSC
+	case PR_GET_TSC:
+#endif
+#ifdef PR_GET_TID_ADDRESS
+	case PR_GET_TID_ADDRESS:
+#endif
+#ifdef PR_GET_CHILD_SUBREAPER
+	case PR_GET_CHILD_SUBREAPER:
+#endif
+#ifdef PR_SET_THP_DISABLE
+	case PR_SET_THP_DISABLE:
+#endif
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", 0x%lx", (unsigned long)STAP_ARG_arg2);
+		break;
+	case PR_SET_DUMPABLE:
+	case PR_SET_KEEPCAPS:
+#ifdef PR_SET_CHILD_SUBREAPER
+	case PR_SET_CHILD_SUBREAPER:
+#endif
+#ifdef PR_SET_NO_NEW_PRIVS
+	case PR_SET_NO_NEW_PRIVS:
+#endif
+#ifdef PR_SET_TIMERSLACK
+	case PR_SET_TIMERSLACK:
+#endif
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", %lu", (unsigned long)STAP_ARG_arg2);
+		break;
+
+	// Options that use arg[23]:
+#ifdef PR_MCE_KILL
+	case PR_MCE_KILL:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_mce_kill_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		switch ((unsigned long)STAP_ARG_arg2) {
+		case PR_MCE_KILL_SET:
+			strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+			len = strlen(STAP_RETVALUE);
+			_stp_lookup_str(_stp_prctl_mce_kill_option2_list,
+					(unsigned long)STAP_ARG_arg3,
+					STAP_RETVALUE + len,
+					MAXSTRINGLEN - len);
+			break;
+		case PR_MCE_KILL_CLEAR:
+			break;
+		default:
+			len = strlen(STAP_RETVALUE);
+			_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", 0x%lx", (unsigned long)STAP_ARG_arg3);
+			break;
+		}
+		break;
+#endif
+#ifdef PR_SET_SECCOMP
+	case PR_SET_SECCOMP:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_seccomp_mode_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", 0x%lx", (unsigned long)STAP_ARG_arg3);
+		break;
+#endif
+#ifdef PR_SET_MM
+	case PR_SET_MM:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_mm_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", 0x%lx", (unsigned long)STAP_ARG_arg3);
+		break;
+#endif
+
+	// Options that use arg[2-5]
+	default:
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", 0x%lx, 0x%lx, 0x%lx, 0x%lx",
+			      (unsigned long)STAP_ARG_arg2,
+			      (unsigned long)STAP_ARG_arg3,
+			      (unsigned long)STAP_ARG_arg4,
+			      (unsigned long)STAP_ARG_arg5);
+		break;
+	}
+%}
+
+%{
+// RHEL5 x86_64 (2.6.18-398.el5) has __NR_timerfd_create but no
+// timerfd.h.
+#ifdef STAPCONF_TIMERFD_H
+#include <linux/timerfd.h>
+#endif
+
+static const _stp_val_array const _stp_timerfd_flags_list[] = {
+#ifdef TFD_TIMER_ABSTIME
+	V(TFD_TIMER_ABSTIME),
+#endif
+#ifdef TFD_TIMER_CANCEL_ON_SET
+	V(TFD_TIMER_CANCEL_ON_SET),
+#endif
+#ifdef TFD_CLOEXEC
+	V(TFD_CLOEXEC),
+#endif
+#ifdef TFD_NONBLOCK
+	V(TFD_NONBLOCK),
+#endif
+	{0, NULL}
+};
+%}
+
+function _stp_timerfd_flags_str:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_timerfd_flags_list,
+			   (unsigned int)STAP_ARG_flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%} 
+
+%{
+// RHEL5 linux/pipe_fs_i.h has SPLICE* defs. RHEL6+ has it in
+// separate linux/splice.h, which does not exist on RHEL5.
+#include <linux/pipe_fs_i.h>
+#ifndef SPLICE_F_MOVE
+#include <linux/splice.h>
+#endif
+
+static const _stp_val_array const _stp_splice_flags_list[] = {
+#ifdef SPLICE_F_MOVE
+	V(SPLICE_F_MOVE),
+#endif
+#ifdef SPLICE_F_NONBLOCK
+	V(SPLICE_F_NONBLOCK),
+#endif
+#ifdef SPLICE_F_MORE
+	V(SPLICE_F_MORE),
+#endif
+#ifdef SPLICE_F_GIFT
+	V(SPLICE_F_GIFT),
+#endif
+	{0, NULL}
+};
+%}
+
+function _stp_splice_flags_str:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_splice_flags_list,
+			   (unsigned int)STAP_ARG_flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/falloc.h>
+
+static const _stp_val_array const _stp_fallocate_mode_list[] = {
+	V(FALLOC_FL_KEEP_SIZE),
+#ifdef FALLOC_FL_PUNCH_HOLE
+	V(FALLOC_FL_PUNCH_HOLE),
+#endif
+#ifdef FALLOC_FL_NO_HIDE_STALE
+	V(FALLOC_FL_NO_HIDE_STALE),
+#endif
+#ifdef FALLOC_FL_COLLAPSE_RANGE
+	V(FALLOC_FL_COLLAPSE_RANGE),
+#endif
+#ifdef FALLOC_FL_ZERO_RANGE
+	V(FALLOC_FL_ZERO_RANGE),
+#endif
+	{0, NULL}
+};
+%}
+
+function _stp_fallocate_mode_str:string(mode:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_fallocate_mode_list,
+			   (unsigned int)STAP_ARG_mode, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%} 
+
+%{
+#ifdef __NR_arch_prctl
+#include <asm/prctl.h>
+#endif
+static const _stp_val_array const _stp_arch_prctl_func_list[] = {
+#ifdef ARCH_SET_FS
+	V(ARCH_SET_FS),
+#endif
+#ifdef ARCH_GET_FS
+	V(ARCH_GET_FS),
+#endif
+#ifdef ARCH_SET_GS
+	V(ARCH_SET_GS),
+#endif
+#ifdef ARCH_GET_GS
+	V(ARCH_GET_GS),
+#endif
+	{0, NULL}
+};
+%}
+
+function _stp_arch_prctl_func_str:string(func:long)
+%{ /* pure */
+	_stp_lookup_str2(_stp_arch_prctl_func_list,
+	                   (int)STAP_ARG_func, STAP_RETVALUE,
+	                   MAXSTRINGLEN, 10);
+%}
+
+
+%{
+static const _stp_val_array const _stp_adjtimex_modes_list[] = {
+       V(ADJ_OFFSET),
+       V(ADJ_FREQUENCY),
+       V(ADJ_MAXERROR),
+       V(ADJ_ESTERROR),
+       V(ADJ_STATUS),
+       V(ADJ_TIMECONST),
+       V(ADJ_TICK),
+       V(ADJ_OFFSET_SINGLESHOT),
+       {0, NULL}
+};
+%}
+
+function _struct_timex_u:string(uaddr:long)
+%{
+	struct timex ts;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int len;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&ts, ptr,
+		    sizeof(struct timex)) == 0)
+		{
+			memset(STAP_RETVALUE, 0, MAXSTRINGLEN);
+			STAP_RETVALUE[0] = '{';
+			_stp_lookup_or_str(_stp_adjtimex_modes_list,
+			                   (unsigned int)ts.modes, STAP_RETVALUE + 1,
+			                   MAXSTRINGLEN - 1);
+			len = strlen(STAP_RETVALUE);
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			         ", constant=%lu, esterror=%lu, freq=%lu, maxerror=%lu, offset=%lu, precision=%lu, status=%d, tick=%lu, tolerance=%lu}",
+			         ts.constant, ts.esterror, ts.freq, ts.maxerror, ts.offset, ts.precision, ts.status, ts.tick, ts.tolerance);
+
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+%}
+
+function _struct_compat_timex_u:string(uaddr:long)
+%{
+#ifdef CONFIG_COMPAT
+	struct compat_timex ts;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int len;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&ts, ptr,
+		    sizeof(struct compat_timex)) == 0)
+		{
+			memset(STAP_RETVALUE, 0, MAXSTRINGLEN);
+			STAP_RETVALUE[0] = '{';
+			_stp_lookup_or_str(_stp_adjtimex_modes_list,
+			                   (unsigned int)ts.modes, STAP_RETVALUE + 1,
+			                   MAXSTRINGLEN - 1);
+			len = strlen(STAP_RETVALUE);
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			         ", constant=%u, esterror=%u, freq=%u, maxerror=%u, offset=%u, precision=%u, status=%d, tick=%u, tolerance=%u}",
+			         ts.constant, ts.esterror, ts.freq, ts.maxerror, ts.offset, ts.precision, ts.status, ts.tick, ts.tolerance);
+
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+#endif
+%}
+
+%{
+#include <linux/fs.h>
+static const _stp_val_array const _stp_sync_file_range_list[] = {
+#ifdef SYNC_FILE_RANGE_WAIT_BEFORE
+  V(SYNC_FILE_RANGE_WAIT_BEFORE),
+#endif
+#ifdef SYNC_FILE_RANGE_WRITE
+  V(SYNC_FILE_RANGE_WRITE),
+#endif
+#ifdef SYNC_FILE_RANGE_WAIT_AFTER
+  V(SYNC_FILE_RANGE_WAIT_AFTER),
+#endif
+  {0, NULL}
+};
+%}
+
+function _sync_file_range_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_sync_file_range_list, flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#include <asm/siginfo.h>
+static const _stp_val_array const _stp_siginfo_si_code_list[] = {
+  V(SI_USER),
+  V(SI_KERNEL),
+  V(SI_QUEUE),
+  V(SI_TIMER),
+  V(SI_MESGQ),
+  V(SI_ASYNCIO),
+  V(SI_SIGIO),
+  V(SI_TKILL),
+  V(SI_DETHREAD),
+  {0, NULL}
+};
+
+/* SIGILL si_codes */
+static const _stp_val_array const _stp_sigill_si_code_list[] = {
+  V(ILL_ILLOPC),
+  V(ILL_ILLOPN),
+  V(ILL_ILLADR),
+  V(ILL_ILLTRP),
+  V(ILL_PRVOPC),
+  V(ILL_PRVREG),
+  V(ILL_COPROC),
+  V(ILL_BADSTK),
+  {0, NULL}
+};
+
+/* SIGFPE si_codes */
+static const _stp_val_array const _stp_sigfpe_si_code_list[] = {
+  V(FPE_INTDIV),
+  V(FPE_INTOVF),
+  V(FPE_FLTDIV),
+  V(FPE_FLTOVF),
+  V(FPE_FLTUND),
+  V(FPE_FLTRES),
+  V(FPE_FLTINV),
+  V(FPE_FLTSUB),
+  {0, NULL}
+};
+
+/* SIGSEGV si_codes */
+static const _stp_val_array const _stp_sigsegv_si_code_list[] = {
+  V(SEGV_MAPERR),
+  V(SEGV_ACCERR),
+#ifdef SEGV_BNDERR
+  V(SEGV_BNDERR),
+#endif
+  {0, NULL}
+};
+
+/* SIGBUS si_codes */
+static const _stp_val_array const _stp_sigbus_si_code_list[] = {
+  V(BUS_ADRALN),
+  V(BUS_ADRERR),
+  V(BUS_OBJERR),
+#ifdef BUS_MCEERR_AR
+  V(BUS_MCEERR_AR),
+#endif
+#ifdef BUS_MCEERR_AO
+  V(BUS_MCEERR_AO),
+#endif
+  {0, NULL}
+};
+
+/* SIGTRAP si_codes */
+static const _stp_val_array const _stp_sigtrap_si_code_list[] = {
+  V(TRAP_BRKPT),
+  V(TRAP_TRACE),
+#ifdef TRAP_BRANCH
+  V(TRAP_BRANCH),
+#endif
+#ifdef TRAP_HWBKPT
+  V(TRAP_HWBKPT),
+#endif
+  {0, NULL}
+};
+
+/* SIGCHLD si_codes */
+static const _stp_val_array const _stp_sigchld_si_code_list[] = {
+  V(CLD_EXITED),
+  V(CLD_KILLED),
+  V(CLD_DUMPED),
+  V(CLD_TRAPPED),
+  V(CLD_STOPPED),
+  V(CLD_CONTINUED),
+  {0, NULL}
+};
+
+/* SIGPOLL si_codes */
+static const _stp_val_array const _stp_sigpoll_si_code_list[] = {
+  V(POLL_IN),
+  V(POLL_OUT),
+  V(POLL_MSG),
+  V(POLL_ERR),
+  V(POLL_PRI),
+  V(POLL_HUP),
+  {0, NULL}
+};
+
+/* SIGSYS si_codes */
+static const _stp_val_array const _stp_sigsys_si_code_list[] = {
+#ifdef SYS_SECCOMP
+  V(SYS_SECCOMP),
+#endif
+  {0, NULL}
+};
+%}
+
+function _stp_siginfo_u:string(uaddr:long)
+%{ /* pure */
+	siginfo_t sinfo;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int len;
+
+	if (ptr == NULL) {
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+		return;
+	}
+	if (_stp_copy_from_user((void *)&sinfo, ptr,
+				sizeof(sinfo)) != 0) {
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)ptr);
+		return;
+	}
+
+	strlcpy(STAP_RETVALUE, "{si_signo=", MAXSTRINGLEN);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_signal_list, sinfo.si_signo,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	strlcpy(STAP_RETVALUE + len, ", si_code=", MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_siginfo_si_code_list, sinfo.si_code,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+
+	// OK, this is odd. If si_code didn't match anything in
+	// _stp_siginfo_si_code_list, we need to decode si_code based
+	// on the si_signo value.
+	if (*(STAP_RETVALUE + len) == '0') {
+		const _stp_val_array *array = NULL;
+		switch (sinfo.si_signo) {
+		case SIGILL:
+			array = _stp_sigill_si_code_list;
+			break;
+		case SIGFPE:
+			array = _stp_sigfpe_si_code_list;
+			break;
+		case SIGSEGV:
+			array = _stp_sigsegv_si_code_list;
+			break;
+		case SIGBUS:
+			array = _stp_sigbus_si_code_list;
+			break;
+		case SIGTRAP:
+			array = _stp_sigtrap_si_code_list;
+			break;
+		case SIGCHLD:
+			array = _stp_sigchld_si_code_list;
+			break;
+		case SIGPOLL:
+			array = _stp_sigpoll_si_code_list;
+			break;
+		case SIGSYS:
+			array = _stp_sigsys_si_code_list;
+			break;
+		default:
+			// Do nothing. The original si_code lookup
+			// added a hex version.
+			break;
+		}
+		if (array)
+			_stp_lookup_str(array, sinfo.si_code,
+					STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	}
+	len = strlen(STAP_RETVALUE);
+#ifdef SI_FROMUSER
+	if (SI_FROMUSER(&sinfo)) {
+		switch (sinfo.si_code) {
+		case SI_TIMER:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_tid=%#x, si_overrun=%d",
+				 sinfo.si_tid, sinfo.si_overrun);
+			break;
+		default:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_pid=%lu, si_uid=%lu",
+				 (unsigned long)sinfo.si_pid,
+				 (unsigned long)sinfo.si_uid);
+			break;
+		}
+	}
+	else
+#endif /* SI_FROMUSER */
+	{
+		switch (sinfo.si_signo) {
+		case SIGCHLD:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_pid=%lu, si_uid=%lu, si_status=",
+				 (unsigned long)sinfo.si_pid,
+				 (unsigned long)sinfo.si_uid);
+			len = strlen(STAP_RETVALUE);
+			if (sinfo.si_code == CLD_EXITED)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 "%d", sinfo.si_status);
+			else
+				_stp_lookup_str(_stp_signal_list,
+						sinfo.si_status,
+						STAP_RETVALUE + len,
+						MAXSTRINGLEN - len);
+			break;
+		case SIGILL:
+		case SIGFPE:
+		case SIGSEGV:
+		case SIGBUS:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_addr=%#lx", (unsigned long)sinfo.si_addr);
+			break;
+		case SIGPOLL:
+			if (sinfo.si_code == POLL_IN
+			    || sinfo.si_code == POLL_OUT
+			    || sinfo.si_code == POLL_MSG)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 ", si_band=%ld", (long)sinfo.si_band);
+			break;
+#if defined(SIGSYS) && defined(__ARCH_SIGSYS)
+		case SIGSYS:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_call_addr=%#lx, si_syscall=%d, si_arch=%u",
+				 (unsigned long)(sinfo.si_call_addr),
+				 sinfo.si_syscall, sinfo.si_arch);
+			break;
+#endif
+		default:
+			if (sinfo.si_pid || sinfo.si_uid)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 ", si_pid=%lu, si_uid=%lu",
+					 (unsigned long)sinfo.si_pid,
+					 (unsigned long)sinfo.si_uid);
+			break;
+		}
+	}
+	len = strlen(STAP_RETVALUE);
+	strlcat(STAP_RETVALUE, "}", MAXSTRINGLEN);
+%}
+
+%{
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
+#include "linux/compat_structs.h"
+#endif
+#endif
+%}
+
+function _stp_compat_siginfo_u:string(uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	compat_siginfo_t sinfo;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int len;
+
+	if (ptr == NULL) {
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+		return;
+	}
+	if (_stp_copy_from_user((void *)&sinfo, ptr,
+				sizeof(sinfo)) != 0) {
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)ptr);
+		return;
+	}
+
+	strlcpy(STAP_RETVALUE, "{si_signo=", MAXSTRINGLEN);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_signal_list, sinfo.si_signo,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	strlcpy(STAP_RETVALUE + len, ", si_code=", MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_siginfo_si_code_list, sinfo.si_code,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+
+	// OK, this is odd. If si_code didn't match anything in
+	// _stp_siginfo_si_code_list, we need to decode si_code based
+	// on the si_signo value.
+	if (*(STAP_RETVALUE + len) == '0') {
+		const _stp_val_array *array = NULL;
+		switch (sinfo.si_signo) {
+		case SIGILL:
+			array = _stp_sigill_si_code_list;
+			break;
+		case SIGFPE:
+			array = _stp_sigfpe_si_code_list;
+			break;
+		case SIGSEGV:
+			array = _stp_sigsegv_si_code_list;
+			break;
+		case SIGBUS:
+			array = _stp_sigbus_si_code_list;
+			break;
+		case SIGTRAP:
+			array = _stp_sigtrap_si_code_list;
+			break;
+		case SIGCHLD:
+			array = _stp_sigchld_si_code_list;
+			break;
+		case SIGPOLL:
+			array = _stp_sigpoll_si_code_list;
+			break;
+		case SIGSYS:
+			array = _stp_sigsys_si_code_list;
+			break;
+		default:
+			// Do nothing. The original si_code lookup
+			// added a hex version.
+			break;
+		}
+		if (array)
+			_stp_lookup_str(array, sinfo.si_code,
+					STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	}
+	len = strlen(STAP_RETVALUE);
+#ifdef SI_FROMUSER
+	if (SI_FROMUSER(&sinfo)) {
+		switch (sinfo.si_code) {
+		case SI_TIMER:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_tid=%#x, si_overrun=%d",
+				 sinfo.si_tid, sinfo.si_overrun);
+			break;
+		default:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_pid=%lu, si_uid=%lu",
+				 (unsigned long)sinfo.si_pid,
+				 (unsigned long)sinfo.si_uid);
+			break;
+		}
+	}
+	else
+#endif /* SI_FROMUSER */
+	{
+		switch (sinfo.si_signo) {
+		case SIGCHLD:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_pid=%lu, si_uid=%lu, si_status=",
+				 (unsigned long)sinfo.si_pid,
+				 (unsigned long)sinfo.si_uid);
+			len = strlen(STAP_RETVALUE);
+			if (sinfo.si_code == CLD_EXITED)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 "%d", sinfo.si_status);
+			else
+				_stp_lookup_str(_stp_signal_list,
+						sinfo.si_status,
+						STAP_RETVALUE + len,
+						MAXSTRINGLEN - len);
+			break;
+		case SIGILL:
+		case SIGFPE:
+		case SIGSEGV:
+		case SIGBUS:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_addr=%#lx", (unsigned long)sinfo.si_addr);
+			break;
+		case SIGPOLL:
+			if (sinfo.si_code == POLL_IN
+			    || sinfo.si_code == POLL_OUT
+			    || sinfo.si_code == POLL_MSG)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 ", si_band=%ld", (long)sinfo.si_band);
+			break;
+// Checking for SIGSYS/__ARCH_SIGSYS is fine for the "real" siginfo_t,
+// but the compat version can be without the SIGSYS fields, so we'll
+// have to add an arch test.
+#if defined(SIGSYS) && defined(__ARCH_SIGSYS) \
+    && !defined(__s390x__) && !defined(__powerpc64__)
+		case SIGSYS:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_call_addr=%#lx, si_syscall=%d, si_arch=%u",
+				 (unsigned long)sinfo.si_call_addr,
+				 sinfo.si_syscall, sinfo.si_arch);
+			break;
+#endif
+		default:
+			if (sinfo.si_pid || sinfo.si_uid)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 ", si_pid=%lu, si_uid=%lu",
+					 (unsigned long)sinfo.si_pid,
+					 (unsigned long)sinfo.si_uid);
+			break;
+		}
+	}
+	len = strlen(STAP_RETVALUE);
+	strlcat(STAP_RETVALUE, "}", MAXSTRINGLEN);
+#endif /* CONFIG_COMPAT */
+%}
+
+%{
+#include <linux/times.h>
+%}
+
+function _struct_tms_u:string(uaddr:long)
+%{ /* pure */
+	struct tms tm;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&tm, ptr,
+		    sizeof(struct tms)) == 0)
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			         "{tms_utime=%lu, tms_stime=%lu, tms_cutime=%lu, tms_cstime=%lu}",
+			         tm.tms_utime, tm.tms_stime, tm.tms_cutime, tm.tms_cstime);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+%}
+
+%{
+#include <linux/kernel.h>
+%}
+
+function _struct_sysinfo_u:string(uaddr:long)
+%{ /* pure */
+	struct sysinfo si;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&si, ptr,
+		    sizeof(struct sysinfo)) == 0)
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			         "{uptime=%ld, loads=[%lu, %lu, %lu], totalram=%lu, freeram=%lu, "
+			         "sharedram=%lu, bufferram=%lu, totalswap=%lu, freeswap=%lu, procs=%u}",
+			         si.uptime, si.loads[0], si.loads[1], si.loads[2], si.totalram, si.freeram,
+			         si.sharedram, si.bufferram, si.totalswap, si.freeswap, si.procs);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+%}
+
+%{
+#include <linux/kexec.h>
+static const _stp_val_array const _stp_kexec_flags_list[] = {
+#if defined(CONFIG_KEXEC)
+	V(KEXEC_ON_CRASH),
+#ifdef KEXEC_PRESERVE_CONTEXT
+	V(KEXEC_PRESERVE_CONTEXT),
+#endif
+	V(KEXEC_ARCH_DEFAULT),
+	V(KEXEC_ARCH_386),
+	V(KEXEC_ARCH_X86_64),
+	V(KEXEC_ARCH_PPC),
+	V(KEXEC_ARCH_PPC64),
+	V(KEXEC_ARCH_IA_64),
+#ifdef KEXEC_ARCH_ARM
+	V(KEXEC_ARCH_ARM),
+#endif
+	V(KEXEC_ARCH_S390),
+	V(KEXEC_ARCH_SH),
+#ifdef KEXEC_ARCH_MIPS_LE
+	V(KEXEC_ARCH_MIPS_LE),
+#endif
+#ifdef KEXEC_ARCH_MIPS
+	V(KEXEC_ARCH_MIPS),
+#endif
+#endif /* CONFIG_KEXEC */
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_kexec_file_load_flags_list[] = {
+#ifdef KEXEC_FILE_UNLOAD
+	V(KEXEC_FILE_UNLOAD),
+#endif
+#ifdef KEXEC_FILE_ON_CRASH
+	V(KEXEC_FILE_ON_CRASH),
+#endif
+#ifdef KEXEC_FILE_NO_INITRAMFS
+	V(KEXEC_FILE_NO_INITRAMFS),
+#endif
+	{0, NULL}
+};
+%}
+
+function _kexec_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned long flags = (unsigned long)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_kexec_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+function _kexec_file_load_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned long flags = (unsigned long)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_kexec_file_load_flags_list, flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/signal.h>
+
+static const _stp_val_array const _stp_sigaltstack_flags_list[] = {
+  V(SS_ONSTACK),
+  V(SS_DISABLE),
+  {0, NULL}
+};
+
+%}
+
+function _stp_sigaltstack_u:string(uaddr:long)
+%{ /* pure */
+	stack_t stk;
+
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int len;
+
+	if (ptr == NULL || _stp_copy_from_user((void *)&stk, ptr,
+					       sizeof(stk)) != 0) {
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)ptr);
+		return;
+	}
+	snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{ss_sp=0x%lx, ss_flags=",
+		 (unsigned long)stk.ss_sp);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_sigaltstack_flags_list, stk.ss_flags,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len, ", ss_size=%lu}",
+		 (unsigned long)stk.ss_size);
+%}
+
+function _stp_compat_sigaltstack_u:string(uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+#if defined(CONFIG_GENERIC_SIGALTSTACK) \
+    || LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
+	compat_stack_t stk;
+#elif defined(__x86_64__)
+	stack_ia32_t stk;
+#elif defined(__s390x__)
+	stack_t32 stk;
+#elif defined(__powerpc64__)
+	stack_32_t stk;
+#endif
+
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int len;
+
+	if (ptr == NULL || _stp_copy_from_user((void *)&stk, ptr,
+					       sizeof(stk)) != 0) {
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)ptr);
+		return;
+	}
+	snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{ss_sp=0x%lx, ss_flags=",
+		 (unsigned long)stk.ss_sp);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_sigaltstack_flags_list, stk.ss_flags,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len, ", ss_size=%lu}",
+		 (unsigned long)stk.ss_size);
+#endif
+%}
+
+%{
+#include <linux/fs.h>
+static const _stp_val_array const _stp_renameat2_flags_list[] = {
+#ifdef RENAME_NOREPLACE
+	V(RENAME_NOREPLACE),
+#endif
+#ifdef RENAME_EXCHANGE
+	V(RENAME_EXCHANGE),
+#endif
+#ifdef RENAME_WHITEOUT
+	V(RENAME_WHITEOUT),
+#endif
+	{0, NULL}
+};
+%}
+
+function _renameat2_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_renameat2_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+// fanotify_init() and fanotify_mark() were enabled in kernel version
+// 2.6.37 (but present in some earlier kernels).
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
+    && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
+#include <linux/fanotify.h>
+static const _stp_val_array const _stp_fanotify_init_class_flags_list[] = {
+	V(FAN_CLASS_NOTIF),
+	V(FAN_CLASS_CONTENT),
+	V(FAN_CLASS_PRE_CONTENT),
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_fanotify_init_extra_flags_list[] = {
+	V(FAN_CLOEXEC),
+	V(FAN_NONBLOCK),
+	V(FAN_UNLIMITED_QUEUE),
+	V(FAN_UNLIMITED_MARKS),
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_fanotify_mark_flags_list[] = {
+	V(FAN_MARK_ADD),
+	V(FAN_MARK_REMOVE),
+	V(FAN_MARK_FLUSH),
+	V(FAN_MARK_DONT_FOLLOW),
+	V(FAN_MARK_ONLYDIR),
+	V(FAN_MARK_MOUNT),
+	V(FAN_MARK_IGNORED_MASK),
+	V(FAN_MARK_IGNORED_SURV_MODIFY),
+	{0, NULL}
+};
+
+/* Note that FAN_CLOSE is (FAN_CLOSE_WRITE | FAN_CLOSE_NOWRITE). So,
+ * we really can't use it. */
+static const _stp_val_array const _stp_fanotify_mark_mask_list[] = {
+	V(FAN_ACCESS),
+	V(FAN_MODIFY),
+	V(FAN_CLOSE_WRITE),
+	V(FAN_CLOSE_NOWRITE),
+	V(FAN_OPEN),
+	V(FAN_Q_OVERFLOW),
+	V(FAN_OPEN_PERM),
+	V(FAN_ACCESS_PERM),
+	V(FAN_ONDIR),
+	V(FAN_EVENT_ON_CHILD),
+	{0, NULL}
+};
+#endif
+%}
+
+function _fanotify_init_flags_str:string(flags:long)
+%{ /* pure */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
+    && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+	unsigned int flags_part1 = flags & FAN_ALL_CLASS_BITS;
+	unsigned int flags_part2 = flags & ~FAN_ALL_CLASS_BITS;
+
+	_stp_lookup_str(_stp_fanotify_init_class_flags_list, flags_part1,
+			STAP_RETVALUE, MAXSTRINGLEN);
+	if (flags_part2) {
+		strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		_stp_lookup_or_str(_stp_fanotify_init_extra_flags_list,
+				   flags_part2, STAP_RETVALUE, MAXSTRINGLEN);
+	}
+#endif
+%}
+
+function _fanotify_mark_flags_str:string(flags:long)
+%{ /* pure */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
+    && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+
+	_stp_lookup_or_str(_stp_fanotify_mark_flags_list, flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+#endif
+%}
+
+function _fanotify_mark_mask_str:string(mask:long)
+%{ /* pure */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
+    && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
+	__u64 mask = (__u64)STAP_ARG_mask;
+
+	_stp_lookup_or_str(_stp_fanotify_mark_mask_list, mask,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+#endif
+%}
+
+%{
+#if defined(__NR_perf_event_open) && defined(CONFIG_PERF_EVENTS)
+#include <linux/perf_event.h>
+
+static const _stp_val_array const _stp_perf_event_open_flags_list[] = {
+	V(PERF_FLAG_FD_NO_GROUP),
+	V(PERF_FLAG_FD_OUTPUT),
+#ifdef PERF_FLAG_PID_CGROUP
+	V(PERF_FLAG_PID_CGROUP),
+#endif
+#ifdef PERF_FLAG_FD_CLOEXEC
+	V(PERF_FLAG_FD_CLOEXEC),
+#endif
+	{0, NULL}
+};
+#endif
+%}
+
+function _perf_event_open_flags_str:string(flags:long)
+%{
+#if defined(__NR_perf_event_open) && defined(CONFIG_PERF_EVENTS)
+	unsigned long flags = (unsigned long)STAP_ARG_flags;
+
+	_stp_lookup_or_str(_stp_perf_event_open_flags_list, flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+#endif
+%}
+
+%{
+#ifdef CONFIG_CHECKPOINT_RESTORE
+#include <linux/kcmp.h>
+#endif
+
+static const _stp_val_array const _stp_kcmp_type_list[] = {
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	V(KCMP_FILE),
+	V(KCMP_VM),
+	V(KCMP_FILES),
+	V(KCMP_FS),
+	V(KCMP_SIGHAND),
+	V(KCMP_IO),
+	V(KCMP_SYSVSEM),
+	V(KCMP_TYPES),
+#endif
+	{0, NULL}
+};
+%}
+
+function _kcmp_type_str:string(type:long)
+%{
+	unsigned long type = (unsigned long)STAP_ARG_type;
+        _stp_lookup_str(_stp_kcmp_type_list, (unsigned int)STAP_ARG_type,
+                        STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+function _struct_sched_attr_u:string(uaddr:long)
+%{ /* pure */
+/* struct sched_attr introduced in kernel commit d50dde5a10 along with SCHED_ATTR_SIZE_VER0 */
+#ifdef SCHED_ATTR_SIZE_VER0
+	struct sched_attr sa;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	if (ptr == NULL)
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&sa, ptr,
+		    sizeof(struct sched_attr)) == 0)
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			         "{size=%u, sched_policy=%u, sched_flags=%llu, "
+			         "sched_nice=%d, sched_priority=%u, sched_runtime=%llu, "
+			         "sched_deadline=%llu, sched_period=%llu}",
+			         sa.size, sa.sched_policy, sa.sched_flags, sa.sched_nice,
+			         sa.sched_priority, sa.sched_runtime, sa.sched_deadline,
+			         sa.sched_period);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+#endif
+%}
+
+%{
+#ifdef CONFIG_SECCOMP
+#include <linux/seccomp.h>
+#endif
+
+static const _stp_val_array const _stp_seccomp_op_list[] = {
+#ifdef SECCOMP_SET_MODE_STRICT
+	V(SECCOMP_SET_MODE_STRICT),
+#endif
+#ifdef SECCOMP_SET_MODE_FILTER
+	V(SECCOMP_SET_MODE_FILTER),
+#endif
+	{0, NULL}
+};
+%}
+
+function _seccomp_op_str:string(op:long)
+%{
+	_stp_lookup_str(_stp_seccomp_op_list, (unsigned int)STAP_ARG_op,
+	                STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#ifdef CONFIG_BPF_SYSCALL
+#include <uapi/linux/bpf.h>
+#endif
+
+static const _stp_val_array const _stp_bpf_cmd_list[] = {
+#ifdef CONFIG_BPF_SYSCALL
+	V(BPF_MAP_CREATE),
+	V(BPF_MAP_LOOKUP_ELEM),
+	V(BPF_MAP_UPDATE_ELEM),
+	V(BPF_MAP_DELETE_ELEM),
+	V(BPF_MAP_GET_NEXT_KEY),
+	V(BPF_PROG_LOAD),
+#endif
+	{0, NULL}
+};
+%}
+
+function _bpf_cmd_str:string(cmd:long)
+%{
+	_stp_lookup_str(_stp_bpf_cmd_list, (int)STAP_ARG_cmd,
+	                STAP_RETVALUE, MAXSTRINGLEN);
+%}
+

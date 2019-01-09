@@ -1,0 +1,73 @@
+#! /usr/bin/env stap
+# Copyright (C) 2014 Red Hat, Inc.
+# by Josh Stone <jistone@redhat.com>
+#
+# pstree.stp generates a process diagram in DOT form.  For instance, it may be
+# useful on a 'make' command to see all the processes that are started.
+#
+# Run the script with:
+#   stap pstree.stp -c 'command_to_watch' -o output.dot
+#
+# Render the diagram with:
+#   dot -Tsvg output.dot >output.svg
+
+probe begin
+{
+  printf("digraph pstree {\n")
+  printf("rankdir=\"LR\"\n")
+}
+
+function dot_escape(str)
+{
+  # In DOT double-quoted strings, the only escape is " to \"
+  return str_replace(str, "\"", "\\\"")
+}
+
+global depth
+global exe_name
+global exe_name_ctr
+
+probe process.begin
+{
+  if (!(pid() in depth)) {
+    depth[pid()] = 1
+    if (pid() != target())
+      printf("PID%d_%d -> PID%d_1\n", ppid(), depth[ppid()], pid())
+    printf("PID%d_1 [ label=\"(%d) %s\" tooltip=\"forked from %d\" ];\n",
+           pid(), pid(), dot_escape(execname()), ppid())
+  }
+}
+
+probe syscall.execve
+{
+  # Save value of filename. Note that filename is quoted, but we'll
+  # strip these quotes in syscall.execve.return.
+  exe_name[tid(), ++exe_name_ctr[tid()]] = filename
+}
+
+probe syscall.execve.return
+{
+  # We'd like to use '@entry(user_string($filename))' here, but we
+  # can't. On kernels < 3.7, sys_execve was in arch-specific code and
+  # had wildly varying variable names for the filename argument. So,
+  # we'll mimic @entry() here.
+  saved_exe_name = exe_name[tid(), exe_name_ctr[tid()]]
+  delete exe_name[tid(), (exe_name_ctr[tid()])--]
+  if (!(exe_name_ctr[tid()]))
+    delete exe_name_ctr[tid()]
+  
+  if ($return == 0 && pid() in depth) {
+    d = ++depth[pid()]
+    printf("PID%d_%d -> PID%d_%d [ style=\"dashed\" ];\n",
+           pid(), d-1, pid(), d)
+    printf("PID%d_%d [ label=\"(%d) %s\" tooltip=\"%s\" ];\n",
+           pid(), d, pid(),
+           str_replace(saved_exe_name, "\"", ""),
+           dot_escape(cmdline_str()))
+  }
+}
+
+probe end
+{
+  printf("}\n")
+}

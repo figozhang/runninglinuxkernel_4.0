@@ -1,0 +1,17 @@
+#! /usr/bin/env stap
+
+# Copyright (C) 2012 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+# If suspecting particular processes triggering audit records,
+# reinvoke with    stap -d /bin/program -d /lib/library --ldd
+
+probe kernel.function("audit_log_end") {
+      message_address = $ab->skb->head + 16; // audit data follows struct nlmsghdr
+      message = kernel_string(message_address)
+      printf("%s[%d] %s\n", execname(), tid(), message);
+      print_ubacktrace();
+}

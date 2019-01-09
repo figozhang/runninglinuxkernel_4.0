@@ -1,0 +1,1335 @@
+#!/bin/bash
+#
+# stap-server script for managing the systemtap compile server
+#
+# Copyright (C) 2008-2011 Red Hat Inc.
+#
+# This file is part of systemtap, and is free software.  You can
+# redistribute it and/or modify it under the terms of the GNU General
+# Public License (GPL); either version 2, or (at your option) any
+# later version.
+#
+# This script provides management of systemtap compile servers as a service.
+# See stap-server(8) for more information.
+
+if [ -f /etc/rc.d/init.d/functions ]; then
+  # Red Hat init functions
+  . /etc/rc.d/init.d/functions
+else
+  # Default init functions
+  success () {
+    echo -n "OK"
+  }
+  failure () {
+    echo -n "FAILED"
+  }
+fi
+
+# Systemtap function library
+. /home/figo/systemtap_host/libexec/systemtap/stap-env
+
+prog=stap-server
+
+# Commands
+STAP_START_SERVER=${stap_pkglibexecdir}stap-start-server
+STAP_STOP_SERVER=${stap_pkglibexecdir}stap-stop-server
+UNAME=/bin/uname
+
+# Default Global Configuration
+CONFIG_FILE=$stap_sysconfdir/sysconfig/stap-server
+CONFIG_PATH=$stap_sysconfdir/stap-server/conf.d
+STAT_PATH=$stap_localstatedir/run/stap-server
+LOG_FILE=$stap_localstatedir/log/stap-server/log
+
+# Default option settings
+# Optional global config file
+OPT_CONFIG_FILE=
+OPT_OTHER=
+
+OPT_PORT_IX=0
+OPT_LOG_IX=0
+OPT_SSL_IX=0
+OPT_MAXTHREADS_IX=0
+OPT_MAXREQSIZE_IX=0
+OPT_MAXCOMPRESSEDREQ_IX=0
+
+echo_usage () {
+  echo $"Usage: $prog {start|stop|restart|condrestart|try-restart|force-reload|status} [options]"
+  echo $"Options:"
+  echo $"	-c configfile	 		: specify additional global configuration file."
+  echo $"	-a arch			 	: specify the target architecture."
+  echo $"	-r release		 	: specify the kernel release."
+  echo $"	-I path			 	: augment the search path for tapsets."
+  echo $"	-R path		 		: specify the location of the systemtap runtime."
+  echo $"	-B options	 		: specify 'make' options for building systemtap modules."
+  echo $"	-D name[=value]			: add a macro definition for building systemtap modules."
+  echo $"	-u username 			: specify the user who will run the server(s)."
+  echo $"	-i 				: specify a server for each installed kernel release."
+  echo $"	-n nickname 			: specify a server configuration by nickname."
+  echo $"	-p pid	 			: specify a server or server configuration by process id."
+  echo $"	-P			 	: use a password for the server's NSS certificate database."
+  echo $"	-k 			 	: keep server temporary files."
+  echo $"	--port port	 		: specify the network port to be used by the server."
+  echo $"	--log path	 		: specify the location of the server's log file."
+  echo $"	--ssl path 			: specify the location of the server's certificate database."
+  echo $"	--max-threads threads 		: specify the maximum number of worker threads to handle concurrent requests."
+  echo $"	--max-request-size size		: specify the maximum size of an uncompressed client request in bytes."
+  echo $"	--max-compressed-request size   : specify the maximum size of an compressed client request in bytes."
+  echo $""
+  echo $"All options may be specified more than once."
+  echo $""
+  echo $"If -a is not specified, the default architecture is that of the host"
+  echo $"platform."
+  echo $""
+  echo $"If -r is not specified, the default kernel release is that currently"
+  echo $"running on the host platform."
+  echo $""
+  echo $"If -u is not specified, the default user is 'stap-server'"
+  echo $""
+  echo $"If --port is not specified, the default is to use a randomly selected port."
+  echo $""
+  echo $"If --log is not specified, the default is '$stap_localstatedir/log/stap-server/log'."
+  echo $""
+  echo $"If --ssl is not specified, the default is '$stap_sysconfdir/ssl/server'."
+  echo $""
+  echo $"If --max-threads is not specified, the default is the number of processors."
+  echo $""
+  echo $"If --max-threads is specified with a value of 0, all requests are handled in the main thread."
+  echo $""
+  echo $"If --max-request-size is not specified, the default value is 50000 bytes."
+  echo $""
+  echo $"If --max-compressed-request is not specified, the default value is 5000 bytes."
+  echo $""
+  echo $"Each -D, -I and -B option specifies an additional macro, path or option respectively"
+  echo $"to be applied to subsequent servers specified."
+  echo $""
+  echo $"Each --port, --log, --ssl, --max-threads, --max-request-size, and"
+  echo $"--max-compressed-request  option is added to an option-specific list"
+  echo $"which will be applied, in turn, to each server specified. If more "
+  echo $"servers are specified than options in a given list, the default for that"
+  echo $"option will be used for subsequent servers."
+  echo $""
+  echo $"For other options, each new instance overrides the previous setting."
+  echo $""
+  echo $"The -i option is a shortcut which specifies one server for each kernel"
+  echo $"release installed in /lib/modules/. Previous -D, -I, -R, -B and -u"
+  echo $"options will be applied to each server, however previous -a options"
+  echo $"are ignored and the default architecture is used." 
+  echo $""
+  echo $"The -n option allows the specification of a server configuration by"
+  echo $"nickname. When -n is specified, a currently running server with the"
+  echo $"given nickname will be searched for. If no currently running server"
+  echo $"with the given nickname is found, a server configuration with the"
+  echo $"given nickname will be searched for in"
+  echo $"$stap_sysconfdir/stap-server/conf.d/*.conf."
+  echo $"If a server configuration for the given nickname is found, the -a, -r,"
+  echo $"-D, -I, -R, -B and -u options for that server will be used as if they were"
+  echo $"specified on the command line. If no configuration with the given"
+  echo $"nickname is found, and the action is 'start' (or an action behaving"
+  echo $"like 'start' (see below)), the server will be started with the given"
+  echo $"nickname. If no configuration with the given nickname is found, and"
+  echo $"the action is not 'start' (or an action behaving" "like 'start',"
+  echo $"it is an error. If a nickname is not specified for a server, its"
+  echo $"nickname will be its process id."
+  echo $""
+  echo $"The -p option allows the specification of a server configuration by"
+  echo $"process id. When -p is specified, a currently running server with the"
+  echo $"given process id will be searched for. If no such server is found,"
+  echo $"it is an error. If a server with the given pid is found, the -a, -r,"
+  echo $"-D, -I, -R, -B and -u options for that server will be used as if they were"
+  echo $"specified on the command line."
+  echo $""
+  echo $"The -k option tells the server to keep the temporary directories it creates"
+  echo $"during each transaction with a client."
+  echo $""
+  echo $"The specified action is performed for the server(s) specified on the"
+  echo $"command line. If no servers are specified on the command line, the"
+  echo $"behavior is as follows:"
+  echo $""
+  echo $"  start:        Start the servers configured in $stap_sysconfdir/stap-server/conf.d/*.conf."
+  echo $"                If none are configured, start a server for the kernel release"
+  echo $"                and architecture of the host platform."
+  echo $""
+  echo $"  stop:         Stop all currently running servers."
+  echo $""
+  echo $"  restart:      Restart all currently running servers. If no servers are running,"
+  echo $"                behave as if 'start' was specified."
+  echo $""
+  echo $"  condrestart:  Restart all currently running servers. If no servers are running,"
+  echo $"                do nothing."
+  echo $""
+  echo $"  try-restart:  Same as condrestart."
+  echo $""
+  echo $"  force-reload: Stop all currently running servers and behave as if 'start'"
+  echo $"                was specified."
+  echo $""
+  echo $"  status:       Report the status of all current running servers."
+  echo $""
+}
+
+#-----------------------------------------------------------------
+# Helper functions
+#-----------------------------------------------------------------
+log () { # message
+  echo `LC_ALL=en date +"%b %e %T"`": $1" >> "$LOG_FILE"
+}
+clog () { # message [-n]
+  echo $2 "$1"
+  log "$1"
+}
+slog () { # message
+  logger "$1" # if syslogd is running, this message will be sent to syslog.
+  log "$1"
+}
+logex () { # command
+  eval log \"Exec: "$@"\"
+  "$@" >> "$LOG_FILE" 2>&1
+  return $?
+}
+do_failure () { # message
+  slog "Error: $1"
+  failure "$1"
+}
+do_success () { # message
+  log "Pass: $1"
+  success "$1"
+}
+
+#------------------------------------------------------------------
+# Parameter parsing and setup options
+#------------------------------------------------------------------
+parse_args () { # arguments
+  local rc=0
+  i_specified=0
+  while [ -n "$1" ]; do
+    case "$1" in
+      -k | -P)
+        OPT_OTHER="$OPT_OTHER $1"
+        shift 1
+        ;;
+      -a)
+	process_i
+	SERVER_CMDS+=("ARCH=\"`quote_for_cmd "$2"`\"")
+        shift 1
+	;;
+      -B)
+	process_i
+	SERVER_CMDS+=("BUILD+=(\"`quote_for_cmd "$2"`\")")
+        shift 1
+	;;
+      -c)
+        OPT_CONFIG_FILE="$2"
+        shift 1
+        ;;
+      -i)
+	# Delay processing of -i in case a distributed option like --log is specified which could
+	# apply to each server referenced by -i. We will process it just before handling other
+	# options which describe a new server (e.g. -r).
+	i_specified=$(($i_specified + 1))
+	;;
+      -D)
+	process_i
+	SERVER_CMDS+=("DEFINE+=(\"`quote_for_cmd "$2"`\")")
+        shift 1
+	;;
+      -I)
+	process_i
+	SERVER_CMDS+=("INCLUDE+=(\"`quote_for_cmd "$2"`\")")
+        shift 1
+	;;
+      -n)
+	process_i
+	process_n "$2"
+        shift 1
+	;;
+      -p)
+	process_i
+	process_p "$2"
+	test $? = 0 || rc=1
+        shift 1
+	;;
+      -r)
+	process_i
+	process_r "$2"
+	test $? = 0 || rc=1
+        shift 1
+	;;
+      -R)
+	process_i
+	SERVER_CMDS+=("RUNTIME=\"`quote_for_cmd "$2"`\"")
+        shift 1
+	;;
+      -u)
+	process_i
+	SERVER_CMDS+=("USER=\"`quote_for_cmd "$2"`\"")
+        shift 1
+	;;
+      --log)
+	OPT_LOG+=("$2")
+        shift 1
+	;;
+      --port)
+	OPT_PORT+=("$2")
+        shift 1
+	;;
+      --ssl)
+	OPT_SSL+=("$2")
+        shift 1
+	;;
+      --max-threads)
+	OPT_MAXTHREADS+=("$2")
+        shift 1
+	;;
+      --max-request-size)
+	OPT_MAXREQSIZE+=("$2")
+        shift 1
+	;;
+      --max-compressed-request)
+	OPT_MAXCOMPRESSEDREQ+=("$2")
+        shift 1
+	;;
+      --)
+        ;;
+      *)
+	rc=1
+        ;;
+    esac
+    shift 1
+  done
+
+  # Process any lingering -i
+  process_i
+
+  # Add options from any lists and an EXEC command to the end if any server options were specified
+  if test -n "$SERVER_CMDS"; then
+      add_distributed_options
+      SERVER_CMDS+=("EXEC")
+  fi
+
+  test $rc != 0 && echo_usage
+  return $rc
+}
+
+# Some options accumulate into lists when specified more than once. The items in the each list
+# are the applied to each specified server in turn. If a list runs out, then the default for that
+# option is applied.
+add_distributed_options () {
+    # The --log option
+    if test -n "${OPT_LOG[$OPT_LOG_IX]}"; then
+	SERVER_CMDS+=("LOG=\"`quote_for_cmd "${OPT_LOG[$OPT_LOG_IX]}"`\"")
+	OPT_LOG_IX=$(($OPT_LOG_IX + 1))
+    else
+	SERVER_CMDS+=("LOG=\"`quote_for_cmd "$LOG_FILE"`\"")
+    fi
+    # The --port option
+    if test -n "${OPT_PORT[$OPT_PORT_IX]}"; then
+	SERVER_CMDS+=("PORT=\"`quote_for_cmd "${OPT_PORT[$OPT_PORT_IX]}"`\"")
+	OPT_PORT_IX=$(($OPT_PORT_IX + 1))
+    else
+	SERVER_CMDS+=("PORT=\"\"")
+    fi
+    # The --ssl option
+    if test -n "${OPT_SSL[$OPT_SSL_IX]}"; then
+	SERVER_CMDS+=("SSL=\"`quote_for_cmd "${OPT_SSL[$OPT_SSL_IX]}"`\"")
+	OPT_SSL_IX=$(($OPT_SSL_IX + 1))
+    else
+	SERVER_CMDS+=("SSL=\"\"")
+    fi
+    # The --max-threads option
+    if test -n "${OPT_MAXTHREADS[$OPT_MAXTHREADS_IX]}"; then
+	SERVER_CMDS+=("MAXTHREADS=\"`quote_for_cmd "${OPT_MAXTHREADS[$OPT_MAXTHREADS_IX]}"`\"")
+	OPT_MAXTHREADS_IX=$(($OPT_MAXTHREADS_IX + 1))
+    else
+	SERVER_CMDS+=("MAXTHREADS=\"\"")
+    fi
+    # The --max-request-size option
+    if test -n "${OPT_MAXREQSIZE[$OPT_MAXREQSIZE_IX]}"; then
+	SERVER_CMDS+=("MAXREQSIZE=\"`quote_for_cmd "${OPT_MAXREQSIZE[$OPT_MAXREQSIZE_IX]}"`\"")
+	OPT_MAXREQSIZE_IX=$(($OPT_MAXREQSIZE_IX + 1))
+    else
+	SERVER_CMDS+=("MAXREQSIZE=\"\"")
+    fi
+    # The --max-compressed-request option
+    if test -n "${OPT_MAXCOMPRESSEDREQ[$OPT_MAXCOMPRESSEDREQ_IX]}"; then
+	SERVER_CMDS+=("MAXCOMPRESSEDREQ=\"`quote_for_cmd "${OPT_MAXCOMPRESSEDREQ[$OPT_MAXCOMPRESSEDREQ_IX]}"`\"")
+	OPT_MAXCOMPRESSEDREQ_IX=$(($OPT_MAXCOMPRESSEDREQ_IX + 1))
+    else
+	SERVER_CMDS+=("MAXCOMPRESSEDREQ=\"\"")
+    fi
+}
+
+# Process the -i flag.
+process_i () {
+  cd /lib/modules
+  local release
+  while test $i_specified -gt 0; do
+      for release in `ls`; do
+	  if test -n "$SERVER_CMDS"; then
+	      add_distributed_options
+	      SERVER_CMDS+=("EXEC")
+	  fi
+	  process_r $release
+      done
+      i_specified=$(($i_specified - 1))
+  done
+
+  return 0
+}
+
+# Process the -n flag.
+process_n () {
+  local target_NICKNAME="$1"
+
+  # Is there a running server with this nickname?
+  local pid=`get_server_pid_by_nickname "$target_NICKNAME"`
+  if [ -n "$pid" ]; then
+      # Read the configuration and add it to the configuration commands.
+      interpret_server_status "$STAT_PATH/$pid.stat" || continue
+      add_server_commands
+      return
+  fi
+
+  # Is there a server configuration with this nickname?
+  for f in "$CONFIG_PATH"/*.conf; do
+    if [ -f "$f" ]; then
+      interpret_server_config "$f" || continue
+      test "X$NICKNAME" = "X$target_NICKNAME" || continue
+      add_server_commands
+      return
+    fi
+  done
+
+  # No server configuration could be found for this nickname. Add a
+  # NICKNAME_NOT_FOUND=... command to the configuration commands.
+  SERVER_CMDS+=("NICKNAME_NOT_FOUND=\"`quote_for_cmd "$target_NICKNAME"`\"")
+}
+
+# Process the -p flag.
+process_p () {
+  local pid="$1"
+
+  # Are we managing a server with the given pid?
+  test ! -f "$STAT_PATH/$pid.stat" && echo "No stap-server running as pid $pid" && \
+      exit 1
+
+  # Add the configuration of the server running as $pid to SERVER_CMDS
+  interpret_server_status "$STAT_PATH/$pid.stat" || exit 1
+  add_server_commands
+  return 0
+}
+
+# Process the -r flag.
+process_r () {
+    local first_char="${1:1:1}"
+
+    if test "$first_char" = "/"; then # fully specified path
+        local kernel_build_tree="$1"
+        local version_file_name="$kernel_build_tree/include/config/kernel.release"
+        # The file include/config/kernel.release within the kernel
+        # build tree is used to pull out the version information
+	local kernel_release=`cat $version_file_name 2>/dev/null`
+	if test "X$kernel_release" = "X"; then
+	    echo "Missing $version_file_name"
+	    return 1
+	fi
+	SERVER_CMDS+=("RELEASE=\"`quote_for_cmd "$1"`\"") # pass the path as-is
+	return 0
+    fi
+
+    # kernel release specified directly
+    SERVER_CMDS+=("RELEASE=\"`quote_for_cmd "$1"`\"")
+    return 0
+}
+
+load_config () {
+  # Include configs
+  if [ -f "$CONFIG_FILE" ]; then
+      interpret_config_file "$CONFIG_FILE"
+  fi
+  if [ -f "$OPT_CONFIG_FILE" ]; then
+    interpret_config_file "$OPT_CONFIG_FILE"
+  fi
+}
+
+# Default to the currently running kernel release
+get_release () {
+    $UNAME -r
+}
+
+# Default to the currently running kernel release
+get_arch () {
+    stap_get_arch
+}
+
+add_server_commands () {
+    # Add commands based on the current state to SERVER_CMDS
+    SERVER_CMDS+=("ARCH=\"`quote_for_cmd "$ARCH"`\"")
+    SERVER_CMDS+=("RELEASE=\"`quote_for_cmd "$RELEASE"`\"")
+    SERVER_CMDS+=("RUNTIME=\"`quote_for_cmd "$RUNTIME"`\"")
+    SERVER_CMDS+=("DEFINE=()")
+    for d in "${DEFINE[@]}"; do
+	SERVER_CMDS+=("DEFINE+=(\"`quote_for_cmd "$d"`\")")
+    done
+    SERVER_CMDS+=("INCLUDE=()")
+    for i in "${INCLUDE[@]}"; do
+	SERVER_CMDS+=("INCLUDE+=(\"`quote_for_cmd "$i"`\")")
+    done
+    SERVER_CMDS+=("BUILD=()")
+    for b in "${BUILD[@]}"; do
+	SERVER_CMDS+=("BUILD+=(\"`quote_for_cmd "$b"`\")")
+    done
+    SERVER_CMDS+=("USER=\"`quote_for_cmd "$USER"`\"")
+    SERVER_CMDS+=("NICKNAME=\"`quote_for_cmd "$NICKNAME"`\"")
+    SERVER_CMDS+=("LOG=\"`quote_for_cmd "$LOG"`\"")
+    test -n "$PORT" && SERVER_CMDS+=("PORT=\"`quote_for_cmd "$PORT"`\"")
+    test -n "$SSL" && SERVER_CMDS+=("SSL=\"`quote_for_cmd "$SSL"`\"")
+    test -n "$MAXTHREADS" && SERVER_CMDS+=("MAXTHREADS=\"`quote_for_cmd "$MAXTHREADS"`\"")
+    test -n "$MAXREQSIZE" && SERVER_CMDS+=("MAXREQSIZE=\"`quote_for_cmd "$MAXREQSIZE"`\"")
+    test -n "$MAXCOMPRESSEDREQ" && SERVER_CMDS+=("MAXCOMPRESSEDREQ=\"`quote_for_cmd "$MAXCOMPRESSEDREQ"`\"")
+}
+
+echo_server_options () {
+    # Echo the current state.
+    echo -n "-a \"`quote_for_cmd "$ARCH"`\""
+    echo -n " -r \"`quote_for_cmd "$RELEASE"`\""
+    test -n "$RUNTIME" && echo -n " -R \"`quote_for_cmd "$RUNTIME"`\""
+    for d in "${DEFINE[@]}"; do
+	echo -n " -D \"`quote_for_cmd "$d"`\""
+    done
+    for i in "${INCLUDE[@]}"; do
+	echo -n " -I \"`quote_for_cmd "$i"`\""
+    done
+    for b in "${BUILD[@]}"; do
+	echo -n " -B \"`quote_for_cmd "$b"`\""
+    done
+    echo -n " -u \"`quote_for_cmd "$USER"`\""
+    test -n "$NICKNAME" && echo -n " -n \"`quote_for_cmd "$NICKNAME"`\""
+    echo -n " --log \"`quote_for_cmd "$LOG"`\""
+    test -n "$PORT" && echo -n " --port \"`quote_for_cmd "$PORT"`\""
+    test -n "$SSL" && echo -n " --ssl \"`quote_for_cmd "$SSL"`\""
+    test -n "$MAXTHREADS" && echo -n " --max-threads \"`quote_for_cmd "$MAXTHREADS"`\""
+    test -n "$MAXREQSIZE" && echo -n " --max-request-size \"`quote_for_cmd "$MAXREQSIZE"`\""
+    test -n "$MAXCOMPRESSEDREQ" && echo -n " --max-compressed-request \"`quote_for_cmd "$MAXCOMPRESSEDREQ"`\""
+    echo
+}
+
+prepare_stat_dir () {
+  if [ ! -d "$STAT_PATH" ]; then
+    logex mkdir -p "$STAT_PATH"
+    [ $? -ne 0 ] && return 1
+  fi
+  return 0
+}
+
+prepare_log_dir () {
+  local log_path=`dirname "$1"`
+  if [ ! -d "$log_path" ]; then
+      mkdir -p "$log_path"
+      [ $? -ne 0 ] && return 1
+  fi
+  return 0
+}
+
+init_server_opts () {
+  ARCH=`get_arch`
+  RELEASE=`get_release`
+  unset DEFINE
+  unset BUILD
+  unset INCLUDE
+  NICKNAME=
+  NICKNAME_NOT_FOUND=
+  RUNTIME=
+  USER=$STAP_USER
+  test -z "$USER" && USER=`id -un`
+  LOG=$LOG_FILE
+  PORT=
+  SSL=
+  MAXTHREADS=
+  MAXREQSIZE=
+  MAXCOMPRESSEDREQ=
+}
+
+# Double quotes, backslashes within generated command
+# arguments must be quoted.
+quote_for_cmd () {
+    echo "$1" | \
+	sed -e 's/\\/\\\\/g' \
+	    -e 's/"/\\"/g'
+}
+
+# Interpret the contents of a global config file.
+interpret_config_file () {
+    local config_file="$1"
+
+    # Save the results locally first, in case there is an error.
+    local local_CONFIG_PATH=
+    local local_STAT_PATH=
+    local local_LOG_FILE=
+    local local_STAP_USER=
+
+    local input
+    while read -r -u3 input
+    do
+	case "$input" in
+	    CONFIG_PATH=*)
+              local_CONFIG_PATH="${input:12}"
+	      ;;
+	    STAT_PATH=*)
+              local_STAT_PATH="${input:10}"
+	      ;;
+	    LOG_FILE=*)
+              local_LOG_FILE="${input:9}"
+	      ;;
+	    STAP_USER=*)
+              local_STAP_USER="${input:10}"
+	      ;;
+	    \#*)
+	      ;; # Comment, do nothing
+	    "")
+	      ;; # Empty line, do nothing
+	    *)
+	      echo $"Invalid input, \"$input\", in $config_file" >&2
+	      exit 1
+	      ;;
+	esac
+    done 3< "$config_file"
+
+    # Now set the results globally
+    test -n "$local_CONFIG_PATH" && CONFIG_PATH="$local_CONFIG_PATH"
+    test -n "$local_STAT_PATH"   && STAT_PATH="$local_STAT_PATH"
+    test -n "$local_LOG_FILE"    && LOG_FILE="$local_LOG_FILE"
+    test -n "$local_STAP_USER"   && STAP_USER="$local_STAP_USER"
+}
+
+# Interpret the contents of a server config file.
+interpret_server_config () {
+    local config_file="$1"
+
+    # Save the results locally first, in case there is an error.
+    local local_ARCH=
+    local local_RELEASE=
+    local local_DEFINE=()
+    local local_BUILD=()
+    local local_INCLUDE=()
+    local local_RUNTIME=
+    local local_USER=
+    local local_NICKNAME=
+    local local_LOG=
+    local local_PORT=
+    local local_SSL=
+    local local_MAXTHREADS=
+    local local_MAXREQSIZE=
+    local local_MAXCOMPRESSEDREQ=
+
+    local input
+    while read -r -u3 input
+    do
+	case "$input" in
+	    ARCH=*)
+              local_ARCH="${input:5}"
+	      ;;
+	    RELEASE=*)
+              local_RELEASE="${input:8}"
+	      ;;
+	    DEFINE=*)
+	      if [ -z "${input:7}" -o "${input:7}" = "()" ]; then
+		  local_DEFINE=()
+	      else
+		  local_DEFINE=("${input:7}")
+	      fi
+	      ;;
+	    DEFINE+=*)
+	      test -z "${input:8}" -o "${input:8}" = "()" || \
+		  local_DEFINE+=("${input:8}")
+	      ;;
+	    BUILD=*)
+	      if [ -z "${input:6}" -o "${input:6}" = "()" ]; then
+		  local_BUILD=()
+	      else
+		  local_BUILD=("${input:6}")
+	      fi
+	      ;;
+	    BUILD+=*)
+	      test -z "${input:7}" -o "${input:7}" = "()" || \
+		  local_BUILD+=("${input:7}")
+	      ;;
+	    INCLUDE=*)
+	      if [ -z "${input:8}" -o "${input:8}" = "()" ]; then
+		  local_INCLUDE=()
+	      else
+		  local_INCLUDE=("${input:8}")
+	      fi
+	      ;;
+	    INCLUDE+=*)
+	      test -z "${input:8}" -o "${input:8}" = "()" || \
+		  local_INCLUDE+=("${input:9}")
+	      ;;
+	    RUNTIME=*)
+              local_RUNTIME="${input:8}"
+	      ;;
+	    USER=*)
+              local_USER="${input:5}"
+	      ;;
+	    NICKNAME=*)
+              local_NICKNAME="${input:9}"
+	      ;;
+	    LOG=*)
+              local_LOG="${input:4}"
+	      ;;
+	    PORT=*)
+              local_PORT="${input:5}"
+	      ;;
+	    SSL=*)
+              local_SSL="${input:4}"
+	      ;;
+	    MAXTHREADS=*)
+              local_MAXTHREADS="${input:11}"
+	      ;;
+	    MAXREQSIZE=*)
+              local_MAXREQSIZE="${input:11}"
+	      ;;
+	    MAXCOMPRESSEDREQ=*)
+              local_MAXCOMPRESSEDREQ="${input:17}"
+	      ;;
+	    \#*)
+	      ;; # Comment, do nothing
+	    "")
+	      ;; # Empty line, do nothing
+	    *)
+	      echo $"Invalid input, \"$input\", in $config_file" >&2
+	      exit 1
+	      ;;
+	esac
+    done 3< "$config_file"
+
+    # Now set the results globally. All variables are expected to be set, even
+    # if to nothing.
+    ARCH="$local_ARCH"
+    RELEASE="$local_RELEASE"
+    DEFINE=("${local_DEFINE[@]}")
+    BUILD=("${local_BUILD[@]}")
+    INCLUDE=("${local_INCLUDE[@]}")
+    RUNTIME="$local_RUNTIME"
+    USER="$local_USER"
+    NICKNAME="$local_NICKNAME"
+    LOG="$local_LOG"
+    PORT="$local_PORT"
+    SSL="$local_SSL"
+    MAXTHREADS="$local_MAXTHREADS"
+    MAXREQSIZE="$local_MAXREQSIZE"
+    MAXCOMPRESSEDREQ="$local_MAXCOMPRESSEDREQ"
+}
+
+# Interpret the contents of a server status file.
+interpret_server_status () {
+    # The contents of the server status files are currently the same as
+    # that of server config files.
+    interpret_server_config "$1"
+}
+
+# Load the default server config and add the results to SERVER_CMDS.
+load_server_config () {
+  for f in "$CONFIG_PATH"/*.conf; do
+    if [ -f "$f" ]; then
+      # Obtain a configuration from each config file.
+      # Ensure that we get the correct defaults for items not specified.
+      local ARCH=
+      local DEFINE=()
+      local BUILD=()
+      local INCLUDE=()
+      local RUNTIME=
+      local USER=
+      local RELEASE=
+      local LOG=
+      local PORT=
+      local SSL=
+      local MAXTHREADS=
+      local MAXREQSIZE=
+      local MAXCOMPRESSEDREQ=
+      interpret_server_config "$f" || continue
+      # Other options default to empty. These ones don't.
+      [ -z "$ARCH" ]     && ARCH=`get_arch`
+      [ -z "$RELEASE" ]  && RELEASE=`get_release`
+      [ -z "$USER" ]     && USER=$STAP_USER
+      [ -z "$USER" ]     && USER=`id -un`
+      [ -z "$LOG" ]      && LOG="$LOG_FILE"
+      add_server_commands
+      SERVER_CMDS+=("EXEC")
+    fi
+  done
+}
+
+server_still_running () { # PID
+    (ps -e | grep stap-serverd | grep -q $1) && return 0 # Still running
+
+    rm -f "$STAT_PATH/$1.stat"
+    return 1 # Not running
+}
+
+get_server_pid_by_config () {
+    # Need to save the config, since the process of checking the running
+    # servers alters it.
+    local target_ARCH="$ARCH"
+    local target_RELEASE="$RELEASE"
+    local target_RUNTIME="$RUNTIME"
+    local target_INCLUDE=("${INCLUDE[@]}")
+    local target_BUILD=("${BUILD[@]}")
+    local target_DEFINE=("${DEFINE[@]}")
+    local target_USER="$USER"
+    local target_NICKNAME="$NICKNAME"
+    local target_LOG="$LOG"
+    local target_PORT="$PORT"
+    local target_SSL="$SSL"
+    local target_MAXTHREADS="$MAXTHREADS"
+    local target_MAXREQSIZE="$MAXREQSIZE"
+    local target_MAXCOMPRESSEDREQ="$MAXCOMPRESSEDREQ"
+
+    # Check the status file for each running server to see if it matches
+    # the one currently configured. We're checking for a given configuration,
+    # so don't compare the nickname.
+    for f in "$STAT_PATH"/*.stat; do
+	test ! -e "$f" && continue
+	interpret_server_status "$f" || continue
+	test "X$ARCH"         = "X$target_ARCH"         || continue
+	test "X$RELEASE"      = "X$target_RELEASE"      || continue
+	test "X$INCLUDE"      = "X$target_INCLUDE"      || continue
+	test "X$RUNTIME"      = "X$target_RUNTIME"      || continue
+	test "X$BUILD"        = "X$target_BUILD"        || continue
+	test "X$DEFINE"       = "X$target_DEFINE"       || continue
+	test "X$USER"         = "X$target_USER"         || continue
+	test "X$LOG"          = "X$target_LOG"          || continue
+	test "X$PORT"         = "X$target_PORT"         || continue
+	test "X$SSL"          = "X$target_SSL"          || continue
+	test "X$MAXTHREADS"   = "X$target_MAXTHREADS"   || continue
+	test "X$MAXREQSIZE"   = "X$target_MAXREQSIZE"   || continue
+	test "X$MAXCOMPRESSEDREQ"   = "X$target_MAXCOMPRESSEDREQ"   || continue
+	echo `basename "$f" | sed 's/.stat//'` # Server has a pid
+	return
+    done
+
+    ARCH="$target_ARCH"
+    RELEASE="$target_RELEASE"
+    RUNTIME="$target_RUNTIME"
+    INCLUDE=("${target_INCLUDE[@]}")
+    BUILD=("${target_BUILD[@]}")
+    DEFINE=("${target_DEFINE[@]}")
+    USER="$target_USER"
+    NICKNAME="$target_NICKNAME"
+    LOG="$target_LOG"
+    PORT="$target_PORT"
+    SSL="$target_SSL"
+    MAXTHREADS="$target_MAXTHREADS"
+    MAXREQSIZE="$target_MAXREQSIZE"
+    MAXCOMPRESSEDREQ="$target_MAXCOMPRESSEDREQ"
+}
+
+get_server_pid_by_nickname () {
+    # No need to save the current configuration. This function is not called
+    # in a context requiring it.
+    local target_NICKNAME="$1"
+
+    # Check the status file for each running server to see if the nickname
+    # matches the one we want.
+    for f in "$STAT_PATH"/*.stat; do
+	test ! -e "$f" && continue
+	interpret_server_status "$f" || continue
+	test "X$NICKNAME" = "X$target_NICKNAME" || continue
+	echo `basename "$f" | sed 's/\.stat//'` # Server with nickname was found
+	return
+    done
+}
+
+managed_servers () {
+  if [ ! -d "$STAT_PATH" ]; then
+      echo ""
+      return 1
+  fi
+  cd "$STAT_PATH"
+  local list=`ls | sed 's/\.stat//'`
+  if [ -z "$list" ]; then
+      echo ""
+      return 1
+  fi
+
+  echo "$list"
+}
+
+eval_server_command () {
+    local cmd="$1"
+    eval $cmd
+}
+
+start_server () {
+    clog $"Starting $prog `echo_server_options`"
+
+    # Is there already a server running for the requested kernel release
+    # and arch?
+    local server_pid=`get_server_pid_by_config`
+    if test -n "$server_pid"; then
+	if server_still_running $server_pid; then
+	    do_success $"$prog start `echo_server_options`"
+	    return 0 # Success
+	fi
+    fi
+
+    # Create the log directory for this server
+    prepare_log_dir "$LOG"
+    if [ $? -ne 0 ]; then
+	echo $"Failed to make log directory (`dirname "$LOG"`)" >&2
+	exit 1
+    fi
+
+    # Construct the server start command.
+    local server_cmd="$STAP_START_SERVER -r \"`quote_for_cmd "$RELEASE"`\" -a \"`quote_for_cmd "$ARCH"`\" $OPT_OTHER"
+    for b in "${BUILD[@]}"; do
+	server_cmd="$server_cmd -B \"`quote_for_cmd "$b"`\""
+    done
+    for i in "${INCLUDE[@]}"; do
+	server_cmd="$server_cmd -I \"`quote_for_cmd "$i"`\""
+    done
+    for d in "${DEFINE[@]}"; do
+	server_cmd="$server_cmd -D \"`quote_for_cmd "$d"`\""
+    done
+    test -n "$RUNTIME" && server_cmd="$server_cmd -R \"`quote_for_cmd "$RUNTIME"`\""
+    server_cmd="$server_cmd --log=\"`quote_for_cmd "$LOG"`\""
+    test -n "$PORT" && server_cmd="$server_cmd --port \"`quote_for_cmd "$PORT"`\""
+    test -n "$SSL" && server_cmd="$server_cmd --ssl \"`quote_for_cmd "$SSL"`\""
+    test -n "$MAXTHREADS" && server_cmd="$server_cmd --max-threads \"`quote_for_cmd "$MAXTHREADS"`\""
+    test -n "$MAXREQSIZE" && server_cmd="$server_cmd --max-request-size \"`quote_for_cmd "$MAXREQSIZE"`\""
+    test -n "$MAXCOMPRESSEDREQ" && server_cmd="$server_cmd --max-compressed-request \"`quote_for_cmd "$MAXCOMPRESSEDREQ"`\""
+
+    # Start the server here.
+    local pid
+    if [ "$USER" != "`id -un`" ]; then
+	pid=`runuser -s /bin/bash - $USER -c "$server_cmd"`
+    else
+	pid=`eval $server_cmd`
+    fi
+    if [ $? != 0 -o -z "$pid" ]; then
+	if [ -n "$pid" ]; then
+	    rm -f "$STAT_PATH/$pid.stat"
+	fi
+	do_failure $"$prog start `echo_server_options`"
+	return 1 # Failure
+    fi
+
+    # Nickname defaults to the pid.
+    test -z "$NICKNAME" && NICKNAME="$pid"
+
+    # Write the configuration to the status file.
+    local server_status_file="$STAT_PATH/$pid.stat"
+    echo "ARCH=$ARCH" > "$server_status_file"
+    echo "USER=$USER" >> "$server_status_file"
+    for b in "${BUILD[@]}"; do
+	echo "BUILD+=$b" >> "$server_status_file"
+    done
+    for i in "${INCLUDE[@]}"; do
+	echo "INCLUDE+=$i" >> "$server_status_file"
+    done
+    for d in "${DEFINE[@]}"; do
+	echo "DEFINE+=$d" >> "$server_status_file"
+    done
+    echo "NICKNAME=$NICKNAME" >> "$server_status_file"
+    echo "RUNTIME=$RUNTIME" >> "$server_status_file"
+    echo "RELEASE=$RELEASE" >> "$server_status_file"
+    echo "LOG=$LOG" >> "$server_status_file"
+    echo "PORT=$PORT" >> "$server_status_file"
+    echo "SSL=$SSL" >> "$server_status_file"
+    echo "MAXTHREADS=$MAXTHREADS" >> "$server_status_file"
+    echo "MAXREQSIZE=$MAXREQSIZE" >> "$server_status_file"
+    echo "MAXCOMPRESSEDREQ=$MAXCOMPRESSEDREQ" >> "$server_status_file"
+
+    do_success $"$prog start `echo_server_options`"
+}
+
+start () { # server-cmds
+  prepare_stat_dir
+  if [ $? -ne 0 ]; then
+    do_failure $"Failed to make stat directory ($STAT_PATH)"
+    return 1
+  fi
+
+  # Start the specified servers
+  local server_cmds=("$@")
+
+  # If none specified, start the configured servers
+  if [ -z "$server_cmds" ]; then
+    unset SERVER_CMDS
+    load_server_config
+    server_cmds=("${SERVER_CMDS[@]}")
+    # If none configured, start the default servers
+    if test -z "$server_cmds"; then
+	add_distributed_options
+	server_cmds=("${SERVER_CMDS[@]}")
+	server_cmds+=("EXEC")
+    fi
+  fi
+
+  # Start each requested server in turn
+  local rc=0
+  local first=1
+  init_server_opts
+  local cmd
+  local prevCmd
+  for cmd in "${server_cmds[@]}"; do
+      prevCmd="$cmd"
+      # Evaluate commands until the EXEC command is found.
+      if test "$cmd" != "EXEC"; then
+	  eval_server_command "$cmd"
+	  # A specified nickname only sticks if it is the final command.
+	  # Otherwise, we have a configuration based on a nicknamed
+	  # configuration.
+	  echo "$cmd" | grep -q "^NICKNAME=" || NICKNAME=""
+	  continue
+      fi
+      # If a nickname was specified, but the corresponding config was not found,
+      # then it is the nickname for this new configuration.
+      if test -n "$NICKNAME_NOT_FOUND"; then
+	  NICKNAME="$NICKNAME_NOT_FOUND"
+	  NICKNAME_NOT_FOUND=
+      fi
+
+      # Start the configured server
+      test $first = 0 && echo
+      first=0
+      start_server || rc=1
+
+      # Don't use the same nickname for the next server.
+      NICKNAME=
+  done
+
+  return $rc
+}
+
+stop () { # server-cmds
+  local first=1
+  local server_list=
+  local server_cmds=("$@")
+  if [ -n "$server_cmds" ]; then
+      # Get the pids of all the requested servers.
+      init_server_opts
+      local cmd
+      local prevCmd
+      for cmd in "${server_cmds[@]}"; do
+	  prevCmd="$cmd"
+          # Evaluate commands until the EXEC command is found.
+	  if test "$cmd" != "EXEC"; then
+	      eval_server_command "$cmd"
+	      # A specified nickname only sticks if it is the final command.
+	      # Otherwise, we have a configuration based on a nicknamed
+	      # configuration.
+	      echo "$cmd" | grep -q "^NICKNAME=" || NICKNAME=""
+	      continue
+	  fi
+          # If a nickname was specified, but the corresponding config was not
+	  # found, it is an error.
+	  if test -n "$NICKNAME_NOT_FOUND"; then
+	      clog "No configuration found for the nickname '$NICKNAME_NOT_FOUND'"
+	      NICKNAME="$NICKNAME_NOT_FOUND"
+	      do_failure $"$prog stop `echo_server_options`"
+	      NICKNAME_NOT_FOUND=
+	      rc=1
+	      continue
+	  fi
+
+          # Get the pid for this server, if it's running
+	  local server_pid=`get_server_pid_by_config`
+	  if test -n "$server_pid"; then
+	      server_list="$server_list $server_pid"
+	      continue
+	  fi
+
+	  # This server is not running, but give a success stop status anyway.
+	  test $first = 0 && echo
+	  first=0
+	  clog $"Stopping $prog `echo_server_options`"
+	  do_success $"$prog stop `echo_server_options`"
+      done
+  else
+      server_list=`managed_servers`
+      if [ -z "$server_list" ]; then
+	  clog $"Stopping $prog: " -n
+	  do_success $"$prog: No managed servers to stop"
+	  return 0
+      fi
+  fi
+
+  # Stop each server in turn
+  local rc=0
+  local pid
+  for pid in $server_list; do
+      if ! interpret_server_status "$STAT_PATH/$pid.stat"; then
+	  rc=1
+	  continue
+      fi
+
+      test $first = 0 && echo
+      first=0
+      clog $"Stopping $prog `echo_server_options`"
+
+      local this_rc=0
+      if server_still_running $pid; then
+	  if [ "$USER" != "`id -un`" ]; then
+	      runuser -s /bin/bash - $USER -c "$STAP_STOP_SERVER $pid"
+	  else
+	      eval $STAP_STOP_SERVER $pid
+	  fi
+	  if [ $? != 0 ]; then
+	      do_failure $"$prog stop `echo_server_options`"
+	      this_rc=1
+	      rc=1
+	  fi
+      fi
+      if [ $this_rc = 0 ]; then
+	  rm -f "$STAT_PATH/$pid.stat"
+	  do_success $"$prog stop `echo_server_options`"
+      fi
+  done
+
+  return $rc
+}
+
+status () { # server-list
+  local rc=0
+
+  # Report status for the specified servers or all running servers, if none
+  # specified.
+  local server_list=
+  local server_cmds=("$@")
+  if [ -n "$server_cmds" ]; then
+      # Get the pids of all the requested servers.
+      init_server_opts
+      local cmd
+      local prevCmd
+      for cmd in "${server_cmds[@]}"; do
+	  prevCmd="$cmd"
+          # Evaluate commands until the EXEC command is found.
+	  if test "$cmd" != "EXEC"; then
+	      eval_server_command "$cmd"
+	      # A specified nickname only sticks if it is the final command.
+	      # Otherwise, we have a configuration based on a nicknamed
+	      # configuration.
+	      echo "$cmd" | grep -q "^NICKNAME=" || NICKNAME=""
+	      continue
+	  fi
+          # If a nickname was specified, but the corresponding config was not
+	  # found, say so.
+	  if test -n "$NICKNAME_NOT_FOUND"; then
+	      echo "No configuration found for the nickname '$NICKNAME_NOT_FOUND'"
+	      NICKNAME_NOT_FOUND=
+	      rc=3
+	      continue
+	  fi
+
+          # Get the pid for this server, if it's running
+	  local server_pid=`get_server_pid_by_config`
+	  if test -n "$server_pid"; then
+	      server_list="$server_list $server_pid"
+	      continue
+	  fi
+	  # This server is not running
+	  echo "stap-server `echo_server_options` is not running"
+	  rc=3
+      done
+  else
+      server_list=`managed_servers`
+      if [ -z "$server_list" ]; then
+	  echo "No managed stap-server is running"
+	  return 3
+      fi
+  fi
+
+  # Get status of each server in turn
+  local pid
+  for pid in $server_list; do
+      if ! interpret_server_status "$STAT_PATH/$pid.stat"; then
+	  rc=1
+	  continue
+      fi
+      if ! server_still_running $pid; then
+	  echo "stap-server `echo_server_options` started as PID $pid is no longer running"
+	  rc=1
+	  continue
+      fi
+      echo "stap-server `echo_server_options` running as PID $pid"
+  done
+
+  return $rc
+}
+
+# Restart or start if not running
+function restart () { # server-cmds
+  # Restart the specified servers or all servers, if none specified.
+  local rc=0
+  local server_cmds=("$@")
+  if [ -z "$server_cmds" ]; then
+      local server_list=`managed_servers`
+      local pid
+      for pid in $server_list; do
+	  if ! interpret_server_status "$STAT_PATH/$pid.stat"; then
+	      rc=1
+	      continue
+	  fi
+	  unset SERVER_CMDS
+	  add_server_commands
+	  server_cmds+=("${SERVER_CMDS[@]}")
+	  server_cmds+=("EXEC")
+      done
+  fi
+
+  # Stop the specified servers, or all if none specified
+  stop "${server_cmds[@]}" || rc=1
+  echo
+
+  # Restart the same servers. If none were specified then
+  # start the configured or default server(s)).
+  start "${server_cmds[@]}"
+  local this_rc=$?
+  [ $this_rc != 0 ] && rc=$this_rc
+
+  return $rc
+}
+
+# Restart only if running
+function condrestart () { # server-list
+  # Restart the specified servers or all servers, if none specified,
+  # but only if they are already running.
+  local rc=0
+  local server_cmds=("$@")
+  if [ -z "$server_cmds" ]; then
+      local server_list=`managed_servers`
+      local pid
+      for pid in $server_list; do
+	  if ! interpret_server_status "$STAT_PATH/$pid.stat"; then
+	      rc=1
+	      continue
+	  fi
+	  unset SERVER_CMDS
+	  add_server_commands
+	  server_cmds+=("${SERVER_CMDS[@]}")
+	  server_cmds+=("EXEC")
+      done
+      # No server specified or running?
+      if [ -z "$server_cmds" ]; then
+	  clog "No managed stap-server is running" -n
+	  do_success "No managed stap-server is running"
+	  return 0
+      fi
+  fi
+
+  # For each server in the list, stop it if it is running
+  local first=1
+  local this_server_cmds
+  local cmd
+  for cmd in "${server_cmds[@]}"; do
+      # Execute and collect commands until the EXEC command is found.
+      this_server_cmds+=("$cmd")
+      if test "$cmd" != "EXEC"; then
+	  eval_server_command "$cmd"
+	  continue
+      fi
+
+      test $first = 0 && echo
+      first=0
+
+      # Now see if this server is running
+      if ! status "${this_server_cmds[@]}" >/dev/null 2>&1; then
+	clog $"$prog `echo_server_options` is not running"
+	do_success "$prog `echo_server_options` is not running"
+	unset this_server_cmds
+	continue
+      fi
+
+      start_cmds+=("${this_server_cmds[@]}")
+
+      stop "${this_server_cmds[@]}"
+      this_rc=$?
+      [ $this_rc != 0 ] && rc=$this_rc
+
+      unset this_server_cmds
+  done
+
+  # Now restart the servers that were running
+  if [ -n "$start_cmds" ]; then
+      echo
+      start "${start_cmds[@]}"
+      local this_rc=$?
+      [ $this_rc != 0 ] && rc=$this_rc
+  fi
+
+  return $rc
+}
+
+#------------------------------------------------------------------
+# Mainline script
+#------------------------------------------------------------------
+CMD=$1
+shift 1
+
+prepare_log_dir "$LOG_FILE"
+if [ $? -ne 0 ]; then
+    echo $"Failed to make log directory (`dirname $LOG_FILE`)" >&2
+    exit 1
+fi
+
+OPTS=`getopt -s bash -u --options 'a:B:c:D:iI:n:p:kPr:R:u:' \
+                        --longoptions 'log:' \
+                        --longoptions 'port:' \
+                        --longoptions 'ssl:' \
+                        --longoptions 'max-threads:' \
+                        --longoptions 'max-request-size:' \
+                        --longoptions 'max-compressed-request:' \
+                        -- "$@"`
+if [ $? -ne 0 ]; then
+  echo "Error: Argument parse error: $@" >&2
+  echo_usage
+  exit 2
+fi
+
+# Initialize server specs
+parse_args "$@" || exit 2
+load_config
+
+RETVAL=0
+
+case $CMD in
+  start) # Start specified servers. If none specified, start configured servers
+    start "${SERVER_CMDS[@]}"
+    RETVAL=$?
+    ;;
+  stop) # Stop specified servers
+    stop "${SERVER_CMDS[@]}"
+    RETVAL=$?
+    ;;
+  restart) # Restart specified servers
+    restart "${SERVER_CMDS[@]}"
+    RETVAL=$?
+    ;;
+  condrestart|try-restart) # Restart specified servers if they are running
+    condrestart "${SERVER_CMDS[@]}"
+    RETVAL=$?
+    ;;
+  status) # Give status on specified servers
+    status "${SERVER_CMDS[@]}"
+    exit $?
+    ;;
+  reload) # Reloading config without stop/restart is not supported
+    RETVAL=3
+    ;;
+  force-reload) # Reload config with stop/start
+    # stop all running servers
+    stop
+    echo
+    # Restart specified servers
+    # If none specified, restart configured servers
+    start "${SERVER_CMDS[@]}"
+    RETVAL=$?
+    ;;
+  usage|*)
+    echo_usage
+    RETVAL=0
+    ;;
+esac
+
+echo
+exit $RETVAL

@@ -1,0 +1,88 @@
+// pcl aka perf aka perf-events tapset
+// Copyright (C) 2010-2015 Red Hat Inc.
+//
+// This file is free software.  You can redistribute it and/or modify it under
+// the terms of the GNU General Public License (GPL), version 2.
+
+// The type and config values are part of the sys_perf_event_open() ABI,
+// 'perf_event_attr' struct.  See <include/uapi/linux/perf_event.h>.
+
+// PERF_TYPE_HW
+probe perf.hw.cpu_cycles          = perf.type(0).config(0) { }
+probe perf.hw.instructions        = perf.type(0).config(1) { }
+probe perf.hw.cache_references    = perf.type(0).config(2) { }
+probe perf.hw.cache_misses        = perf.type(0).config(3) { }
+probe perf.hw.branch_instructions = perf.type(0).config(4) { }
+probe perf.hw.branch_misses       = perf.type(0).config(5) { }
+probe perf.hw.bus_cycles          = perf.type(0).config(6) { }
+probe perf.hw.stalled_cycles_frontend = perf.type(0).config(7) { }
+probe perf.hw.stalled_cycles_backend = perf.type(0).config(8) { }
+probe perf.hw.ref_cpu_cycles      = perf.type(0).config(9) { }
+
+// PERF_TYPE_SOFTWARE
+probe perf.sw.cpu_clock           = perf.type(1).config(0) { }
+probe perf.sw.task_clock          = perf.type(1).config(1) { }
+probe perf.sw.page_faults         = perf.type(1).config(2) { }
+probe perf.sw.context_switches    = perf.type(1).config(3) { }
+probe perf.sw.cpu_migrations      = perf.type(1).config(4) { }
+probe perf.sw.page_faults_min     = perf.type(1).config(5) { }
+probe perf.sw.page_faults_maj     = perf.type(1).config(6) { }
+probe perf.sw.alignment_faults    = perf.type(1).config(7) { }
+probe perf.sw.emulation_faults    = perf.type(1).config(8) { }
+
+// PERF_TYPE_TRACEPOINT: PR10745
+// probe perf.tracepoint.FOO      = perf.type(2).config(NNN) { }
+
+// PERF_TYPE_HW_CACHE, encoded into config (cache_op_result_id<<16 | cache_op_id<<8 | cache_id)
+probe perf.hw_cache.l1d.read.access      = perf.type(3).config(0x000000) {}
+probe perf.hw_cache.l1d.read.miss        = perf.type(3).config(0x010000) {}
+probe perf.hw_cache.l1d.write.access     = perf.type(3).config(0x000100) {}
+probe perf.hw_cache.l1d.write.miss       = perf.type(3).config(0x010100) {}
+probe perf.hw_cache.l1d.prefetch.access  = perf.type(3).config(0x000200) {}
+probe perf.hw_cache.l1d.prefetch.miss    = perf.type(3).config(0x010200) {}
+
+// according to kernel tools/perf/util/parse-events.c, WRITE not available
+probe perf.hw_cache.l1i.read.access      = perf.type(3).config(0x000001) {}
+probe perf.hw_cache.l1i.read.miss        = perf.type(3).config(0x010001) {}
+//probe perf.hw_cache.l1i.write.access     = perf.type(3).config(0x000101) {}
+//probe perf.hw_cache.l1i.write.miss       = perf.type(3).config(0x010101) {}
+probe perf.hw_cache.l1i.prefetch.access  = perf.type(3).config(0x000201) {}
+probe perf.hw_cache.l1i.prefetch.miss    = perf.type(3).config(0x010201) {}
+
+probe perf.hw_cache.ll.read.access       = perf.type(3).config(0x000002) {}
+probe perf.hw_cache.ll.read.miss         = perf.type(3).config(0x010002) {}
+probe perf.hw_cache.ll.write.access      = perf.type(3).config(0x000102) {}
+probe perf.hw_cache.ll.write.miss        = perf.type(3).config(0x010102) {}
+probe perf.hw_cache.ll.prefetch.access   = perf.type(3).config(0x000202) {}
+probe perf.hw_cache.ll.prefetch.miss     = perf.type(3).config(0x010202) {}
+
+probe perf.hw_cache.dtlb.read.access     = perf.type(3).config(0x000003) {}
+probe perf.hw_cache.dtlb.read.miss       = perf.type(3).config(0x010003) {}
+probe perf.hw_cache.dtlb.write.access    = perf.type(3).config(0x000103) {}
+probe perf.hw_cache.dtlb.write.miss      = perf.type(3).config(0x010103) {}
+probe perf.hw_cache.dtlb.prefetch.access = perf.type(3).config(0x000203) {}
+probe perf.hw_cache.dtlb.prefetch.miss   = perf.type(3).config(0x010203) {}
+
+// according to kernel tools/perf/util/parse-events.c, WRITE, PREFETCH not available
+probe perf.hw_cache.itlb.read.access     = perf.type(3).config(0x000004) {}
+probe perf.hw_cache.itlb.read.miss       = perf.type(3).config(0x010004) {}
+//probe perf.hw_cache.itlb.write.access    = perf.type(3).config(0x000104) {}
+//probe perf.hw_cache.itlb.write.miss      = perf.type(3).config(0x010104) {}
+//probe perf.hw_cache.itlb.prefetch.access = perf.type(3).config(0x000204) {}
+//probe perf.hw_cache.itlb.prefetch.miss   = perf.type(3).config(0x010204) {}
+
+// according to kernel tools/perf/util/parse-events.c, WRITE, PREFETCH not available
+probe perf.hw_cache.bpu.read.access      = perf.type(3).config(0x000005) {}
+probe perf.hw_cache.bpu.read.miss        = perf.type(3).config(0x010005) {}
+//probe perf.hw_cache.bpu.write.access     = perf.type(3).config(0x000105) {}
+//probe perf.hw_cache.bpu.write.miss       = perf.type(3).config(0x010105) {}
+//probe perf.hw_cache.bpu.prefetch.access  = perf.type(3).config(0x000205) {}
+//probe perf.hw_cache.bpu.prefetch.miss    = perf.type(3).config(0x010205) {}
+
+probe perf.hw_cache.node.read.access      = perf.type(3).config(0x000006) {}
+probe perf.hw_cache.node.read.miss        = perf.type(3).config(0x010006) {}
+probe perf.hw_cache.node.write.access     = perf.type(3).config(0x000106) {}
+probe perf.hw_cache.ndoe.write.miss       = perf.type(3).config(0x010106) {}
+//probe perf.hw_cache.node.prefetch.access  = perf.type(3).config(0x000206) {}
+//probe perf.hw_cache.node.prefetch.miss    = perf.type(3).config(0x010206) {}
+  

@@ -1,0 +1,115 @@
+.\" t
+.TH ERROR::DWARF 7stap 
+.SH JMÉNO
+error::dwarf \- chyby v souvislosti s ladicími informacemi formátu DWARF
+
+.SH POPIS
+
+Systemtap někdy spoléhá na ladicí informace k lokalizaci umístění sond, nebo k
+lokalizaci umístění zkoumaných (či instrumentovaných) proměnných, stejně jako
+to dělá symbolický debugger.  Tyto ladicí informace lze získat analýzou
+zdrojového kódu a překladač je umí uchovávat v rámci formátu DWARF.  Pokud
+systemtap ladicí informace potřebuje, ale překladač je neuchoval, dojde při
+zpracování skriptu k chybě během procesní fáze 2.
+
+.PP
+Obvyklé příčiny tohoto typu chyb:
+
+.TP
+verze překladače
+Překladače GCC 4.5 a starší generovaly ladicí informace omezené kvality.
+Vývojářům bylo doporučováno sestavovat s použitím
+.IR "-O0 -g" ,
+tedy s vypnutím optimalizace.  GCC 4.5 přineslo koncept "variable-tracking
+assignments", což umožňuje generovat kvalitní ladicí informace i s použitím
+optimalizací
+.IR "-O2 -g" .
+Není to dokonalé, ale jde o značné zlepšení.  Poznamenejme, že chyba GCC
+PR51358 způsobuje, že ladicí informace získané při
+.IR "-O0 -g"
+jsou ve skutečnosti horší kvality, než ladicí informace vygenerované s
+.IR "-O2 -g" .
+
+Dalším souvisejícím problémem je kvalita ladicích informací pro oblast prologu
+(PR15123), kdy program sestavený s CFLAGS=-mfentry (obvykle jádro, kvůli ftrace)
+poskytuje nedostatek přesných ladicích informací v souvislosti se vstupem do
+funkce.  To se týká zejména GCC verze 4.8 a starší.  Pokud je to možné, kompilujte s
+.IR "-grecord-gcc-switches"
+a spusťte systemtap s
+.nh
+.IR $PR15123_ASSUME_MFENTRY=1 .
+.hy
+
+.TP
+"inline" funkce
+Dokonce i moderní GCC má problémy s parametry "inline" funkcí.  Může být nutné
+upravit systemtap skript a vložit sondy na mírně odlišná místa.  Zkuste použít
+sondu 
+.IR .statement() " , namísto " .function() " ,"
+a případně ji posuňte o několik řádek níže směrem do těla "inline" funkce.
+Nebo zkuste vložit sondu do místa volání "inline" funkce.  Také je možno využít
+konstrukce
+.nh
+.IR "if @defined($var) { ... }"
+.hy
+k ověření dostupnosti kontextové proměnné před jejím použitím.
+
+.TP
+záměna pořadí instrukcí
+Optimalizovaný kód často zahrnuje smíchání instrukcí z různých zdrojů.  V takovém
+případě může být nemožné umístit sondu na potřebné místo.  To se týká zejména
+sond
+.IR .statement
+vkládaných na dané číslo řádku.  Systemtap může doporučit přesunutí sondy
+na přilehlý řádek, ale ani to nemusí stačit.  Zvažte zavedení sondy na místo určené
+zástupným symbolem, nebo rozsahem řádků.
+
+.TP
+konfigurace elfutils
+Systemtap používá pro zpracování ladicích informací knihovnu elfutils.
+Je možné, že ladicí informace jsou zdánlivě dostupné, ale ne ve formátu
+přijatelném pro nainstalovanou kopii elfutils.  Například lokální GCC může
+produkovat komprimované ladicí informace (\f2.zdebug_*\f1 ELF sekce, nebo
+\f2.xz\f1 soubory), zatímco nainstalovaná kopie elfutils nemá zapnuté příslušné
+dekompresní schopnosti.  Bohužel není snadné odhalit, zda toto je skutečné
+jádro problému který se snažíme vyřešit.  Pokud si sestavujete vlastní
+elfutils, ujistěte se, že všechny dekompresní knihovny/hlavičky jsou v době
+překladu dostupné.
+
+.TP
+konfigurace ladicích informací
+Některé nástroje mohou generovat ladicí informace v podobě nepoužitelné
+pro systemtap.  Příčinou může být například jaderná volba CONFIG_DEBUG_INFO_SPLIT
+(\f2.dwo\f1 soubory).  Dobrých výsledků se lze dosáhnout při použití obvyklého
+ELF/DWARF formátu (případně oddělených ladicích informací (stripped debuginfo)
+jak je obvyklé v distribuci Fedora).
+
+.SH ALTERNATIVY
+
+Pro snížení závislosti na  ELF/DWARF ladicích informacích zvažte použití
+staticky zakompilované instrumentace jako jsou sondážní body typu "tracepoint"
+pro jádro, nebo značky
+.IR <sys/sdt.h>
+pro uživatelské programy.  Jde o řešení s relativně nízkými náklady na
+systémové zdroje (v případě sdt.h, jedna NOP instrukce na značku), přičemž
+dostupnost parametrů/dat je téměř garantována.  To vše bez závislosti na
+ladicích informacích.
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR http://dwarfstd.org/ ,
+.IR http://sourceware.org/systemtap/wiki/TipContextVariables ,
+.IR http://gcc.gnu.org/wiki/Var_Tracking_Assignments ,
+.IR warning::debuginfo (7stap),
+.IR error::reporting (7stap)
+.SH CHYBY                                                                          
+Použijte projektovou bugzillu, nebo mailing list.                                  
+.nh                                                                                
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .             
+.hy                                                                                
+.PP                                                                                
+.IR error::reporting (7stap),                                                      
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs                          
+.hy

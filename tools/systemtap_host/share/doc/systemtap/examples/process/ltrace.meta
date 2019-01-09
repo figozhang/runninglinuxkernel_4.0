@@ -1,0 +1,6 @@
+title: uprobes-based ltrace
+name: ltrace.stp
+keywords: process 
+description: The ltrace.stp script lists calls that the designated process makes through PLTs (procedure linkage tables), generally into shared libraries.
+test_check: stap -p4 ltrace.stp -c ls
+test_installcheck: stap ltrace.stp -c ls || echo PR14738

@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::kernel_string_quoted
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: String and data retrieving functions Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::KERNEL_STR" "3stap" "March 2016" "SystemTap Tapset Reference" "String and data retrieving fun"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::kernel_string_quoted \- Retrieves and quotes string from kernel memory
+.SH "SYNOPSIS"
+.sp
+.nf
+    kernel_string_quoted:string(addr:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIaddr\fR
+.RS 4
+the kernel memory address to retrieve the string from
+.RE
+.SH "DESCRIPTION"
+.PP
+Returns the null terminated C string from a given kernel memory address where any ASCII characters that are not printable are replaced by the corresponding escape sequence in the returned string\&. Note that the string will be surrounded by double quotes\&. If the kernel memory data is not accessible at the given address, the address itself is returned as a string, without double quotes\&.
+.SH SEE ALSO\n 
+.IR tapset::conversions (3stap)

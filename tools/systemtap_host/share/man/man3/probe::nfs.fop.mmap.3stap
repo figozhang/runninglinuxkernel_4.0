@@ -1,0 +1,94 @@
+'\" t
+.\"     Title: probe::nfs.fop.mmap
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Network File Storage Tapsets
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NFS\&.FOP\&.M" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::nfs.fop.mmap \- NFS client mmap operation
+.SH "SYNOPSIS"
+.sp
+.nf
+nfs\&.fop\&.mmap 
+.fi
+.SH "VALUES"
+.PP
+\fIfile_name\fR
+.RS 4
+file name
+.RE
+.PP
+\fIvm_end\fR
+.RS 4
+the first byte after end address within vm_mm
+.RE
+.PP
+\fIino\fR
+.RS 4
+inode number
+.RE
+.PP
+\fIparent_name\fR
+.RS 4
+parent dir name
+.RE
+.PP
+\fIdev\fR
+.RS 4
+device identifier
+.RE
+.PP
+\fIvm_flag\fR
+.RS 4
+vm flags
+.RE
+.PP
+\fIcache_time\fR
+.RS 4
+when we started read\-caching this inode
+.RE
+.PP
+\fIbuf\fR
+.RS 4
+the address of buf in user space
+.RE
+.PP
+\fIvm_start\fR
+.RS 4
+start address within vm_mm
+.RE
+.PP
+\fIattrtimeo\fR
+.RS 4
+how long the cached information is assumed to be valid\&. We need to revalidate the cached attrs for this inode if jiffies \- read_cache_jiffies > attrtimeo\&.
+.RE
+.PP
+\fIcache_valid\fR
+.RS 4
+cache related bit mask flag
+.RE
+.SH SEE ALSO\n 
+.IR tapset::nfs (3stap)

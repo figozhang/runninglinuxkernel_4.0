@@ -1,0 +1,102 @@
+/*
+ * Dwarfless register access for ia64.
+ */
+
+function _stp_sign_extend32:long (value:long) {
+	if (value & 0x80000000)
+		value |= (0xffffffff << 32)
+	return value
+}
+
+function probing_32bit_app:long() %{ /* pure */
+	STAP_RETVALUE = (CONTEXT->user_mode_p && _stp_is_compat_task());
+%}
+
+function arch_bytes:long() %{ /* pure */
+  STAP_RETVALUE = sizeof(long);
+%}
+
+function uarch_bytes:long() {
+  assert(user_mode(), "requires user mode")
+  return probing_32bit_app() ? 4 : 8
+}
+
+/*
+ * Return the value of function arg #argnum (1=first arg). If
+ * truncate=1, mask off the top 32 bits. If sign_extend=1 and
+ * truncate=1, sign-extend the 32-bit value. 
+ */
+function _stp_arg:long (argnum:long, sign_extend:long, truncate:long)
+%{ /* pure */
+	struct pt_regs *regs = (CONTEXT->user_mode_p ? NULL : CONTEXT->kregs);
+	int n;
+	unsigned long arg;
+
+	STAP_RETVALUE = 0;
+	if (!regs) {
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+			"cannot access function args in this context");
+		CONTEXT->last_error = CONTEXT->error_buffer;
+		return;
+	}
+	if (STAP_ARG_argnum < 1 || STAP_ARG_argnum > 7) {
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+			 "cannot access arg(%ld)", (long int)STAP_ARG_argnum);
+		CONTEXT->last_error = CONTEXT->error_buffer;
+		return;
+	}
+	n = (int) STAP_ARG_argnum - 1;
+	arg = (unsigned long)ia64_fetch_register(32 + n, regs,
+						 &CONTEXT->unwaddr);
+	if (STAP_ARG_truncate) {
+		if (STAP_ARG_sign_extend)
+			STAP_RETVALUE = (int64_t) __stp_sign_extend32(arg);
+		else
+			/* High bits may be garbage. */
+			STAP_RETVALUE = (int64_t) (arg & 0xffffffff);
+	}
+	else
+		STAP_RETVALUE = (int64_t) arg;
+	return;
+%}
+
+/* Return the value of function arg #argnum (1=first arg) as a signed int. */
+function int_arg:long (argnum:long) {
+	return _stp_arg(argnum, 1, 1)
+}
+
+function uint_arg:long (argnum:long) {
+	return _stp_arg(argnum, 0, 1)
+}
+
+function long_arg:long (argnum:long) {
+	return _stp_arg(argnum, 1, 0)
+}
+
+function ulong_arg:long (argnum:long) {
+	return _stp_arg(argnum, 0, 0)
+}
+
+function longlong_arg:long (argnum:long) {
+	return _stp_arg(argnum, 0, 0)
+}
+
+function ulonglong_arg:long (argnum:long) {
+	return longlong_arg(argnum)
+}
+
+function pointer_arg:long (argnum:long) {
+	return _stp_arg(argnum, 0, 0)
+}
+
+function s32_arg:long (argnum:long) {
+	return int_arg(argnum)
+}
+
+function u32_arg:long (argnum:long) {
+	return uint_arg(argnum)
+}
+
+function asmlinkage() %{ /* pure */ %}
+
+function fastcall() %{ /* pure */ %}

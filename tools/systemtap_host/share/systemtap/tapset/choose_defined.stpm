@@ -1,0 +1,4 @@
+// Use the first parameter if it's @defined, otherwise use the second parameter
+@define choose_defined(value_if_defined, alternate) %(
+	( @defined(@value_if_defined) ? (@value_if_defined) : (@alternate) )
+%)

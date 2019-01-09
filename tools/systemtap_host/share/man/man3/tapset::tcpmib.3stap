@@ -1,0 +1,152 @@
+.\" -*- nroff -*-
+.TH TAPSET::TCPMIB 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::tcpmib \- systemtap tcpmib tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B tcpmib_get_state 
+Get a socket's state
+.IP
+See 
+.IR function::tcpmib_get_state (3stap)
+ for details.
+.P
+.TP
+.B tcpmib_local_addr 
+Get the source address
+.IP
+See 
+.IR function::tcpmib_local_addr (3stap)
+ for details.
+.P
+.TP
+.B tcpmib_remote_addr 
+Get the remote address
+.IP
+See 
+.IR function::tcpmib_remote_addr (3stap)
+ for details.
+.P
+.TP
+.B tcpmib_local_port 
+Get the local port
+.IP
+See 
+.IR function::tcpmib_local_port (3stap)
+ for details.
+.P
+.TP
+.B tcpmib_remote_port 
+Get the remote port
+.IP
+See 
+.IR function::tcpmib_remote_port (3stap)
+ for details.
+.P
+.TP
+.B tcpmib.ActiveOpens 
+Count an active opening of a socket
+.IP
+ See 
+.IR probe::tcpmib.ActiveOpens (3stap)
+ for details.
+.P
+.TP
+.B tcpmib.AttemptFails 
+Count a failed attempt to open a socket
+.IP
+ See 
+.IR probe::tcpmib.AttemptFails (3stap)
+ for details.
+.P
+.TP
+.B tcpmib.CurrEstab 
+Update the count of open sockets
+.IP
+ See 
+.IR probe::tcpmib.CurrEstab (3stap)
+ for details.
+.P
+.TP
+.B tcpmib.EstabResets 
+Count the reset of a socket
+.IP
+ See 
+.IR probe::tcpmib.EstabResets (3stap)
+ for details.
+.P
+.TP
+.B tcpmib.InSegs 
+Count an incoming tcp segment
+.IP
+ See 
+.IR probe::tcpmib.InSegs (3stap)
+ for details.
+.P
+.TP
+.B tcpmib.OutRsts 
+Count the sending of a reset packet
+.IP
+ See 
+.IR probe::tcpmib.OutRsts (3stap)
+ for details.
+.P
+.TP
+.B tcpmib.OutSegs 
+Count the sending of a TCP segment
+.IP
+ See 
+.IR probe::tcpmib.OutSegs (3stap)
+ for details.
+.P
+.TP
+.B tcpmib.PassiveOpens 
+Count the passive creation of a socket
+.IP
+ See 
+.IR probe::tcpmib.PassiveOpens (3stap)
+ for details.
+.P
+.TP
+.B tcpmib.RetransSegs 
+Count the retransmission of a TCP segment
+.IP
+ See 
+.IR probe::tcpmib.RetransSegs (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::tcpmib_get_state (3stap),
+.BR
+.IR \%function::tcpmib_local_addr (3stap),
+.BR
+.IR \%function::tcpmib_remote_addr (3stap),
+.BR
+.IR \%function::tcpmib_local_port (3stap),
+.BR
+.IR \%function::tcpmib_remote_port (3stap),
+.BR
+.IR \%probe::tcpmib.ActiveOpens (3stap),
+.BR
+.IR \%probe::tcpmib.AttemptFails (3stap),
+.BR
+.IR \%probe::tcpmib.CurrEstab (3stap),
+.BR
+.IR \%probe::tcpmib.EstabResets (3stap),
+.BR
+.IR \%probe::tcpmib.InSegs (3stap),
+.BR
+.IR \%probe::tcpmib.OutRsts (3stap),
+.BR
+.IR \%probe::tcpmib.OutSegs (3stap),
+.BR
+.IR \%probe::tcpmib.PassiveOpens (3stap),
+.BR
+.IR \%probe::tcpmib.RetransSegs (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

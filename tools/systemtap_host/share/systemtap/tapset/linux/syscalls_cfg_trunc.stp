@@ -1,0 +1,3 @@
+
+# Default length for string truncation in e.g. read/write syscall arguments.
+global syscall_string_trunc = 50

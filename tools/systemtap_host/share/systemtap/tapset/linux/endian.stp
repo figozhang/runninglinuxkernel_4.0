@@ -1,0 +1,23 @@
+function big_endian2:long (val:long) %{ /* pure */
+	STAP_RETVALUE = cpu_to_be16(STAP_ARG_val);
+%}
+
+function big_endian4:long (val:long) %{ /* pure */
+	STAP_RETVALUE = cpu_to_be32(STAP_ARG_val);
+%}
+
+function big_endian8:long (val:long) %{ /* pure */
+	STAP_RETVALUE = cpu_to_be64(STAP_ARG_val);
+%}
+
+function little_endian2:long (val:long) %{ /* pure */
+	STAP_RETVALUE = cpu_to_le16(STAP_ARG_val);
+%}
+
+function little_endian4:long (val:long) %{ /* pure */
+	STAP_RETVALUE = cpu_to_le32(STAP_ARG_val);
+%}
+
+function little_endian8:long (val:long) %{ /* pure */
+	STAP_RETVALUE = cpu_to_le64(STAP_ARG_val);
+%}

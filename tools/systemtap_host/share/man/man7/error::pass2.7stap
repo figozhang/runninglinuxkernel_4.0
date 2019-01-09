@@ -1,0 +1,98 @@
+.\" t
+.TH ERROR::PASS2 7stap 
+.SH NAME
+error::pass2 \- systemtap pass-2 errors
+
+.SH DESCRIPTION
+Errors that occur during pass 2 (elaboration) can have a variety of causes.
+Common types include:
+
+.TP
+unavailable probe point classes
+Some types of probe points are only available on certain system versions,
+architectures, and configurations.  For example, user-space 
+.IR process.*
+probes may require utrace or uprobes capability in the kernel for this
+architecture.
+
+.TP
+unavailable probe points
+Some probe points may be individually unavailable even when their class is
+fine.  For example,
+.IR kprobe.function("foobar")
+may fail if function
+.IR foobar
+does not exist in the kernel any more.  Debugging or symbol data may be absent for
+some types of 
+.IR .function " or " .statement
+probes; check for availability of debuginfo.  Try the
+.IR stap\-prep
+program to download possibly-required debuginfo.
+Use a wildcard parameter such as
+.I stap \-l 'kprobe.function("*foo*")'
+to locate still-existing variants.  Use
+.IR ! " or " ?
+probe point suffixes to denote optional / preferred-alternatives, to let
+the working parts of a script continue.
+
+.TP
+typos
+There might be a spelling error in the probe point name ("sycsall" vs.
+"syscall").  Wildcard probes may not find a match at all in the
+tapsets.  Recheck the names using
+.IR "stap \-l PROBEPOINT" .
+Another common mistake is to use the
+.IR .
+operator instead of the correct 
+.IR \->
+when dereferencing context variable subfields or pointers:
+.IR $foo\->bar\->baz
+even if in C one would say
+.IR foo\->bar.baz .
+
+.TP
+unavailable context variables
+Systemtap scripts often wish to refer to variables from the context of the
+probed programs using
+.IR $variable
+notation.  These variables may not always be available, depending on versions
+of the compiler, debugging/optimization flags used, architecture, etc.  Use
+.IR "stap \-L PROBEPOINT"
+to list available context variables for given probes.  Use the
+.IR @defined()
+expression to test for the resolvability of a context variable expression.
+Consider using the
+.IR "stap \-\-skip\-badvars"
+option to silently replace misbehaving context variable expressions with zero.
+Experiment with the
+.IR "stap \-\-prologue\-searching"
+option.
+
+.TP
+module cache inconsistencies
+Occasionally, the systemtap module cache ($HOME/.systemtap/cache) might 
+contain obsolete information from a prior system configuration/version,
+and produce false results as systemtap attempts to reuse it.  Retrying
+with
+.IR "stap \-\-poison\-cache ..."
+forces new information to be generated.  
+.BR Note:
+this should not happen and likely represents a systemtap bug.  Please
+report it.
+
+.SH GATHERING MORE INFORMATION
+Increasing the verbosity of pass-2 with an option such as
+.IR "--vp 02"
+can help pinpoint the problem.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR stap-prep (1),
+.IR stapprobes (3stap),
+.IR probe::* (3stap),
+.IR error::dwarf (7stap),
+.IR error::inode-uprobes (7stap),
+.IR warning::debuginfo (7stap),
+.IR error::reporting (7stap)

@@ -1,0 +1,13 @@
+title: System-Wide Futex Contention
+name: futexes.stp
+version: 1.0
+author: anonymous
+keywords: syscall locking futex
+subsystem: locking
+status: production
+exit: user-controlled
+output: sorted-list on-exit
+scope: system-wide
+description: The script watches the futex syscall on the system. On exit the futex's address, the number of contentions, and the average time for each contention on the futex are printed from lowest pid number to highest.
+test_check: stap -p4 futexes.stp
+test_installcheck: stap futexes.stp -c "sleep 1"

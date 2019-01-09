@@ -1,0 +1,266 @@
+#!/bin/bash
+//usr/bin/env stty -echo; sudo staprun -T 30 `stap -p4 "$0"`; stty echo; exit
+
+// 2048.stp - written by NeoCat
+// Inspired by https://github.com/gabrielecirulli/2048/
+// Licensed under MIT license
+
+// Join the numbers and get to the 2048 tile!
+// HOW TO PLAY: Use your arrow keys to move the tiles. When two tiles with the same number touch, they merge into one!
+
+global k, F, F_copy, clear, changed, score
+global animate, moving, moved, spawning
+
+function color(i) {
+	if (i < 0)
+		printf("\033[0m");
+	else
+		printf("\033[48;5;%dm\033[38;5;%dm",
+		       i == 0 ? 96 :
+		       i == 1 ? 95 :
+		       i == 2 ? 252 :
+		       i == 4 ? 225 :
+		       i == 8 ? 218 :
+		       i == 16 ? 136 :
+		       i == 32 ? 202 :
+		       i == 64 ? 196 :
+		       i == 128 ? 214 :
+		       i == 256 ? 178 :
+		       i == 512 ? 178 : 136,
+		       i < 8 ? 0 : 255)
+}
+function cmove(x,y) {
+	printf("\033[%d;%dH", y, x)
+}
+function disp_number(n, j) {
+	if (!n || j != 1)
+		printf("      ")
+	else if (n < 100)
+		printf(" %3d  ", n)
+	else
+		printf(" %4d ", n)
+}
+function display() {
+	cmove(0,0)
+	frame = "\033[48;5;95m                                  \033[0m"
+	printf("%s\n", frame)
+	for (y = 0; y < 4; y++) {
+		for (j = 0; j < 3; j++) {
+			for (x = 0; x < 4; x++) {
+				i = x + y*4
+				color(1)
+				printf("  ")
+				color(F[i])
+				disp_number(F[i], j)
+			}
+			color(1)
+			printf("  ")
+			color(-1)
+			printf("\n")
+		}
+		printf("%s\n", frame)
+	}
+}
+
+function spawn() {
+	cnt = 0
+	for (i = 0; i < 16; i++)
+		if (!F[i])
+			cnt++;
+	if (cnt == 0) return -1
+	r = get_cycles() % cnt
+	cnt = 0
+	for (i = 0; i < 16; i++) {
+		if (!F[i])
+			if (cnt++ == r) {
+				F[i] = get_cycles()%20 ? 2 : 4
+				return i
+			}
+	}
+	return -1
+}
+
+function move(from, to) {
+	if (!F[from])
+		return 0
+	if (!F[to]) {
+		moving[from] = F[from]
+		moved = 1
+		F[to] = F[from]
+		F[from] = 0
+		return 1
+	}
+	if (F[from] == F[to] && !changed[from] && !changed[to]) {
+		moving[from] = F[from]
+		moved = 1
+		F[to] += F[from]
+		F[from] = 0
+		changed[to] = 1
+		score += F[to]
+		if (F[to] == 2048) clear = 1
+		return 1
+	}
+	return 0
+}
+function up() {
+	updated = 0
+	for (i = 4; i < 16; i++)
+		updated = move(i, i-4) || updated
+	return updated
+}
+function down() {
+	updated = 0
+	for (i = 11; i >= 0; i--)
+		updated = move(i, i+4) || updated
+	return updated
+}
+function left() {
+	updated = 0
+	for (i = 0; i < 16; i++)
+		if (i % 4)
+			updated = move(i, i-1) || updated
+	return updated
+}
+function right() {
+	updated = 0
+	for (i = 15; i >= 0; i--)
+		if (i % 4 != 3)
+			updated = move(i, i+1) || updated
+	return updated
+}
+
+probe begin {
+	for (i = 0; i < 16; i++)
+		F[i] = 0
+	spawn()
+
+	printf("\033[2J") // clear
+	display()
+}
+
+probe timer.ms(30) {
+	if (!animate) next
+	if (animate > 3) {
+		display()
+		animate = 0
+		next_move()
+		next
+	}
+	if (k == 103) {
+		dx = 0
+		dy = -animate
+	}
+	if (k == 105) {
+		dx = -animate*2-2
+		dy = 0
+	}
+	if (k == 106) {
+		dx = animate*2-2
+		dy = 0
+	}
+	if (k == 108) {
+		dx = 0
+		dy = animate
+	}
+	for (y = 0; y < 4; y++) {
+		for (x = 0; x < 4; x++) {
+			i = x + y*4;
+			if (!moving[i]) continue
+			for (j = 0; j < 3; j++) {
+				cmove(x*8+3+dx, y*4+2+j+dy)
+				if (k == 105 || k == 106) {
+					color(0)
+					printf("  ")
+				}
+				color(moving[i])
+				disp_number(moving[i], j)
+				if (k == 105 || k == 106) {
+					color(0)
+					printf("  ")
+				}
+				color(-1)
+			}
+			if (dy) {
+				cmove(x*8+3+dx, y*4+dy+(dy<0?5:1))
+				color(0)
+				printf("      ")
+				color(-1)
+			}
+		}
+	}
+	animate++
+}
+
+function next_move() {
+	delete moving
+	if (spawning) {
+		spawning = 0
+		display()
+		for (i = 0; i < 16; i++)
+			F_copy[i] = F[i];
+		if (!up() && !down() && !left() && !right())
+			gameover = 1
+		for (i = 0; i < 16; i++)
+			F[i] = F_copy[i];
+		cmove(0,18)
+		printf("           Score: %d\n", score)
+		if (clear) {
+			printf("       !! Y O U   W I N !!      \n\n")
+			printf("           Score: %d\n", score)
+		}
+		if (gameover) {
+			printf("      !! G A M E O V E R !!      \n\n")
+			printf("           Score: %d\n", score)
+			exit()
+		}
+		return 0
+	}
+	if (k == 103)
+		animate = up()
+	else if (k == 105)
+		animate = left()
+	else if (k == 106)
+		animate = right()
+	else if (k == 108)
+		animate = down()
+	if (!animate && moved && !spawning) {
+		animate = 9
+		spawning = spawn()
+		cmove(spawning%4*8+4, spawning/4*4+3)
+		color(F[spawning])
+		printf(" %d ", F[spawning])
+	}
+	return animate
+}
+
+probe kernel.function("kbd_event") {
+	if ($value != 1) next
+	key = $event_code
+	if (!key || key == 4) next
+	//cmove(0,19) printf("key = %d ", key)
+	onkeydown(key)
+}
+
+/* RANDOM MOVE: run with option `stap -G rand=1 2048.stp' or
+                                `staprun -T 30 /path/to/*.ko rand=1' */
+global c, rand=0
+probe timer.ms(500) {
+	if (!rand) next
+	dir = get_cycles()/256%4
+	c[0] = 103 c[1] = 105 c[2] = 106 c[3] = 108
+	key = c[dir]
+	cmove(0,19) printf("key = %d ", key)
+	onkeydown(key)
+}
+
+function onkeydown(key) {
+	if (animate) {
+		while (next_move());
+		animate = 0
+		display()
+	}
+	k = key
+	delete changed
+	moved = 0
+	next_move()
+}

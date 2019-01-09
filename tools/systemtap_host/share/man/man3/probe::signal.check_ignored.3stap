@@ -1,0 +1,59 @@
+'\" t
+.\"     Title: probe::signal.check_ignored
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Signal Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SIGNAL\&.CHEC" "3stap" "March 2016" "SystemTap Tapset Reference" "Signal Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::signal.check_ignored \- Checking to see signal is ignored
+.SH "SYNOPSIS"
+.sp
+.nf
+signal\&.check_ignored 
+.fi
+.SH "VALUES"
+.PP
+\fIsig_name\fR
+.RS 4
+A string representation of the signal
+.RE
+.PP
+\fIsig\fR
+.RS 4
+The number of the signal
+.RE
+.PP
+\fIpid_name\fR
+.RS 4
+Name of the process receiving the signal
+.RE
+.PP
+\fIsig_pid\fR
+.RS 4
+The PID of the process receiving the signal
+.RE
+.SH SEE ALSO\n 
+.IR tapset::signal (3stap)

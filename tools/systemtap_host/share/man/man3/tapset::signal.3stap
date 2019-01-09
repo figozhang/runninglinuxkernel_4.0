@@ -1,0 +1,349 @@
+.\" -*- nroff -*-
+.TH TAPSET::SIGNAL 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::signal \- systemtap signal tapset
+ 
+.SH DESCRIPTION
+
+  This family of probe points is used to probe signal activities.
+  Since there are so many signals sent to processes at any given
+  point, it is advisable to filter the information according to the
+  requirements.  For example, filter only for a particular signal
+  (if sig==2) or for a particular process (if pid_name==stap).
+
+.TP
+.P
+.TP
+.B signal.send 
+Signal being sent to a process
+.IP
+ See 
+.IR probe::signal.send (3stap)
+ for details.
+.P
+.TP
+.B signal.send.return 
+Signal being sent to a process completed (deprecated in SystemTap 2.1)
+.IP
+ See 
+.IR probe::signal.send.return (3stap)
+ for details.
+.P
+.TP
+.B signal.checkperm 
+Check being performed on a sent signal
+.IP
+ See 
+.IR probe::signal.checkperm (3stap)
+ for details.
+.P
+.TP
+.B signal.checkperm.return 
+Check performed on a sent signal completed
+.IP
+ See 
+.IR probe::signal.checkperm.return (3stap)
+ for details.
+.P
+.TP
+.B signal.wakeup 
+Sleeping process being wakened for signal
+.IP
+ See 
+.IR probe::signal.wakeup (3stap)
+ for details.
+.P
+.TP
+.B signal.check_ignored 
+Checking to see signal is ignored
+.IP
+ See 
+.IR probe::signal.check_ignored (3stap)
+ for details.
+.P
+.TP
+.B signal.check_ignored.return 
+Check to see signal is ignored completed
+.IP
+ See 
+.IR probe::signal.check_ignored.return (3stap)
+ for details.
+.P
+.TP
+.B signal.force_segv 
+Forcing send of SIGSEGV
+.IP
+ See 
+.IR probe::signal.force_segv (3stap)
+ for details.
+.P
+.TP
+.B signal.force_segv.return 
+Forcing send of SIGSEGV complete
+.IP
+ See 
+.IR probe::signal.force_segv.return (3stap)
+ for details.
+.P
+.TP
+.B signal.syskill 
+Sending kill signal to a process
+.IP
+ See 
+.IR probe::signal.syskill (3stap)
+ for details.
+.P
+.TP
+.B signal.syskill.return 
+Sending kill signal completed
+.IP
+ See 
+.IR probe::signal.syskill.return (3stap)
+ for details.
+.P
+.TP
+.B signal.sys_tkill 
+Sending a kill signal to a thread
+.IP
+ See 
+.IR probe::signal.sys_tkill (3stap)
+ for details.
+.P
+.TP
+.B signal.systkill.return 
+Sending kill signal to a thread completed
+.IP
+ See 
+.IR probe::signal.systkill.return (3stap)
+ for details.
+.P
+.TP
+.B signal.sys_tgkill 
+Sending kill signal to a thread group
+.IP
+ See 
+.IR probe::signal.sys_tgkill (3stap)
+ for details.
+.P
+.TP
+.B signal.sys_tgkill.return 
+Sending kill signal to a thread group completed
+.IP
+ See 
+.IR probe::signal.sys_tgkill.return (3stap)
+ for details.
+.P
+.TP
+.B signal.send_sig_queue 
+Queuing a signal to a process
+.IP
+ See 
+.IR probe::signal.send_sig_queue (3stap)
+ for details.
+.P
+.TP
+.B signal.send_sig_queue.return  
+Queuing a signal to a process completed
+.IP
+ See 
+.IR probe::signal.send_sig_queue.return  (3stap)
+ for details.
+.P
+.TP
+.B signal.pending 
+Examining pending signal
+.IP
+ See 
+.IR probe::signal.pending (3stap)
+ for details.
+.P
+.TP
+.B signal.pending.return 
+Examination of pending signal completed
+.IP
+ See 
+.IR probe::signal.pending.return (3stap)
+ for details.
+.P
+.TP
+.B signal.handle 
+Signal handler being invoked
+.IP
+ See 
+.IR probe::signal.handle (3stap)
+ for details.
+.P
+.TP
+.B signal.handle.return 
+Signal handler invocation completed
+.IP
+ See 
+.IR probe::signal.handle.return (3stap)
+ for details.
+.P
+.TP
+.B signal.do_action 
+Examining or changing a signal action
+.IP
+ See 
+.IR probe::signal.do_action (3stap)
+ for details.
+.P
+.TP
+.B signal.do_action.return 
+Examining or changing a signal action completed
+.IP
+ See 
+.IR probe::signal.do_action.return (3stap)
+ for details.
+.P
+.TP
+.B signal.procmask 
+Examining or changing blocked signals
+.IP
+ See 
+.IR probe::signal.procmask (3stap)
+ for details.
+.P
+.TP
+.B signal.procmask.return 
+Examining or changing blocked signals completed
+.IP
+ See 
+.IR probe::signal.procmask.return (3stap)
+ for details.
+.P
+.TP
+.B signal.flush 
+Flushing all pending signals for a task
+.IP
+ See 
+.IR probe::signal.flush (3stap)
+ for details.
+.P
+.TP
+.B get_sa_flags 
+Returns the numeric value of sa_flags
+.IP
+See 
+.IR function::get_sa_flags (3stap)
+ for details.
+.P
+.TP
+.B get_sa_handler 
+Returns the numeric value of sa_handler
+.IP
+See 
+.IR function::get_sa_handler (3stap)
+ for details.
+.P
+.TP
+.B sigset_mask_str 
+Returns the string representation of a sigset
+.IP
+See 
+.IR function::sigset_mask_str (3stap)
+ for details.
+.P
+.TP
+.B is_sig_blocked 
+Returns 1 if the signal is currently blocked, or 0 if it is not
+.IP
+See 
+.IR function::is_sig_blocked (3stap)
+ for details.
+.P
+.TP
+.B sa_flags_str 
+Returns the string representation of sa_flags
+.IP
+See 
+.IR function::sa_flags_str (3stap)
+ for details.
+.P
+.TP
+.B sa_handler 
+Returns the string representation of an sa_handler
+.IP
+See 
+.IR function::sa_handler (3stap)
+ for details.
+.P
+.TP
+.B signal_str 
+Returns the string representation of a signal number
+.IP
+See 
+.IR function::signal_str (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::get_sa_flags (3stap),
+.BR
+.IR \%function::get_sa_handler (3stap),
+.BR
+.IR \%function::sigset_mask_str (3stap),
+.BR
+.IR \%function::is_sig_blocked (3stap),
+.BR
+.IR \%function::sa_flags_str (3stap),
+.BR
+.IR \%function::sa_handler (3stap),
+.BR
+.IR \%function::signal_str (3stap),
+.BR
+.IR \%probe::signal.send (3stap),
+.BR
+.IR \%probe::signal.send.return (3stap),
+.BR
+.IR \%probe::signal.checkperm (3stap),
+.BR
+.IR \%probe::signal.checkperm.return (3stap),
+.BR
+.IR \%probe::signal.wakeup (3stap),
+.BR
+.IR \%probe::signal.check_ignored (3stap),
+.BR
+.IR \%probe::signal.check_ignored.return (3stap),
+.BR
+.IR \%probe::signal.force_segv (3stap),
+.BR
+.IR \%probe::signal.force_segv.return (3stap),
+.BR
+.IR \%probe::signal.syskill (3stap),
+.BR
+.IR \%probe::signal.syskill.return (3stap),
+.BR
+.IR \%probe::signal.sys_tkill (3stap),
+.BR
+.IR \%probe::signal.systkill.return (3stap),
+.BR
+.IR \%probe::signal.sys_tgkill (3stap),
+.BR
+.IR \%probe::signal.sys_tgkill.return (3stap),
+.BR
+.IR \%probe::signal.send_sig_queue (3stap),
+.BR
+.IR \%probe::signal.send_sig_queue.return (3stap),
+.BR
+.IR \%probe::signal.pending (3stap),
+.BR
+.IR \%probe::signal.pending.return (3stap),
+.BR
+.IR \%probe::signal.handle (3stap),
+.BR
+.IR \%probe::signal.handle.return (3stap),
+.BR
+.IR \%probe::signal.do_action (3stap),
+.BR
+.IR \%probe::signal.do_action.return (3stap),
+.BR
+.IR \%probe::signal.procmask (3stap),
+.BR
+.IR \%probe::signal.procmask.return (3stap),
+.BR
+.IR \%probe::signal.flush (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

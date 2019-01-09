@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: probe::nfs.fop.read
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Network File Storage Tapsets
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NFS\&.FOP\&.R" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::nfs.fop.read \- NFS client read operation
+.SH "SYNOPSIS"
+.sp
+.nf
+nfs\&.fop\&.read 
+.fi
+.SH "VALUES"
+.PP
+\fIdevname\fR
+.RS 4
+block device name
+.RE
+.SH "DESCRIPTION"
+.PP
+SystemTap uses the vfs\&.do_sync_read probe to implement this probe and as a result will get operations other than the NFS client read operations\&.
+.SH SEE ALSO\n 
+.IR tapset::nfs (3stap)

@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::addr
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Context Functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::ADDR" "3stap" "March 2016" "SystemTap Tapset Reference" "Context Functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::addr \- Address of the current probe point\&.
+.SH "SYNOPSIS"
+.sp
+.nf
+    addr:long()
+.fi
+.SH "ARGUMENTS"
+.PP
+None
+.SH "DESCRIPTION"
+.PP
+Returns the instruction pointer from the current probe\*(Aqs register state\&. Not all probe types have registers though, in which case zero is returned\&. The returned address is suitable for use with functions like
+\fBsymname\fR
+and
+\fBsymdata\fR\&.
+.SH SEE ALSO\n 
+.IR tapset::context (3stap)

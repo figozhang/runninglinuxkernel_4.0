@@ -1,0 +1,32 @@
+.\" -*- nroff -*-
+.TH TAPSET::ATOMIC 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::atomic \- systemtap atomic tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B atomic_read 
+Retrieves an atomic variable from kernel memory
+.IP
+See 
+.IR function::atomic_read (3stap)
+ for details.
+.P
+.TP
+.B atomic_long_read 
+Retrieves an atomic long variable from kernel memory
+.IP
+See 
+.IR function::atomic_long_read (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::atomic_read (3stap),
+.BR
+.IR \%function::atomic_long_read (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

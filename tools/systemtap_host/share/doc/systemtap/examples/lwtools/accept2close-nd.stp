@@ -1,0 +1,69 @@
+#!/usr/bin/stap
+/*
+ * accept2close-nd.stp	Show socket duration: accept()->close().
+ *
+ * USAGE: ./accept2close.stp [min_ms]
+ *
+ * NOTE: This will miss sockets that are opened by one process, and then closed
+ * by another (eg, sshd).
+ *
+ * A minimum latency threshold, in milliseconds, can be provided as an optional
+ * argument. Without this, all events are shown.
+ *
+ * Copyright (C) 2015 Brendan Gregg.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * 20-Jun-2014	Brendan Gregg	Created this.
+ */
+
+global duration, ts, min_ns;
+
+probe begin
+{
+	# process arguments
+	if (argv_1 != "") {
+		min_ns = strtol(argv_1, 10) * 1000000;
+		printf("Only tracing events slower than %s ms.\n", argv_1);
+	} else {
+		min_ns = 0;
+	}
+
+	printf("%-24s %-6s %-14s %-4s %s\n", "TIME", "PID", "COMM", "FD",
+	    "DURATION");
+}
+
+probe nd_syscall.accept.return,
+    nd_syscall.accept4.return
+{
+	ts[tid(), returnval()] = gettimeofday_ns();
+}
+
+probe nd_syscall.close
+{
+	last = ts[tid(), int_arg(1)];
+	if (last) {
+		delta = gettimeofday_ns() - last;
+		if (delta >= min_ns) {
+			printf("%-24s %-6d %-14s %-4d %d ms\n",
+			    ctime(gettimeofday_s()),
+			    pid(), execname(), int_arg(1), delta / 1000000);
+			duration <<< delta;
+		}
+		delete ts[tid(), int_arg(1)];
+	}
+}
+
+probe end
+{
+	printf("\nDuration (ns):\n");
+	if (@count(duration)) { print(@hist_log(duration)); }
+}

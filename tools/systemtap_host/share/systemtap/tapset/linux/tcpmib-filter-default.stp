@@ -1,0 +1,27 @@
+/*
+ *      Copyright (C) 2009 IBM Corp.
+ *      Copyright (C) 2010 Red Hat Inc.
+ *
+ *      This file is part of systemtap, and is free software.  You can
+ *      redistribute it and/or modify it under the terms of the GNU General
+ *      Public License (GPL); either version 2, or (at your option) any
+ *      later version.
+ */
+
+/**
+ * sfunction tcpmib_filter_key - Default filter function for tcpmib.* probes
+ *
+ * @sk: pointer to the struct sock being acted on
+ * @op: value to be counted if @sk passes the filter
+ *
+ * This function is a default filter function.
+ * The user can replace this function with their own.
+ * The user-supplied filter function returns an index key based on the values
+ * in @sk.
+ * A return value of 0 means this particular @sk should be not be counted.
+ */
+function tcpmib_filter_key:long (sk:long, op:long)
+{
+       if (!sk) return 0
+       return 1
+}

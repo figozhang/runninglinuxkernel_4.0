@@ -1,0 +1,13 @@
+title: Trace Functions Called in Network Socket Code
+name: socket-trace.stp
+version: 1.0
+author: anonymous
+keywords: network socket
+subsystem: network
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The script instruments each of the functions in the Linux kernel's net/socket.c file. The script prints out trace data. The first element of a line is time delta in microseconds from the previous entry. This is followed by the command name and the PID. The "->" and "<-" indicates function entry and function exit, respectively. The last element of the line is the function name.
+test_check: stap -p4 socket-trace.stp
+test_installcheck: stap socket-trace.stp -c "sleep 1"

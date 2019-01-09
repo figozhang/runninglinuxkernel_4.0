@@ -1,0 +1,55 @@
+netfilter_summary.stp - System-Wide Count of Network Packets by IPs
+
+  The script watches all IPv4 network traffic on the system. On exit
+  the script prints a list showing the number of packets sent along
+  source IP address / destination IP address pair encountered, and the
+  total number of bytes sent among the pair. The list is ordered from
+  greatest to least number of packets seen among the source/destination
+  pairs.
+
+$ stap netfilter_summary.stp -c "sleep 10"
+
+Collecting data... Type Ctrl-C to exit and display results.
+205.251.249.28 -->    10.15.16.105 : 122 packets, 259403 total bytes
+ 54.218.38.124 -->    10.15.16.105 : 6 packets, 3694 total bytes
+  10.15.16.136 -->    10.15.16.255 : 3 packets, 108 total bytes
+    10.11.5.19 -->    10.15.16.105 : 3 packets, 408 total bytes
+173.194.121.14 -->    10.15.16.105 : 2 packets, 104 total bytes
+  10.15.16.206 --> 255.255.255.255 : 2 packets, 280 total bytes
+  194.68.29.18 -->    10.15.16.105 : 2 packets, 242 total bytes
+  10.15.16.138 --> 255.255.255.255 : 2 packets, 280 total bytes
+205.251.242.58 -->    10.15.16.105 : 1 packets, 40 total bytes
+  50.58.123.35 -->    10.15.16.105 : 1 packets, 52 total bytes
+  10.15.16.114 -->    10.15.16.255 : 1 packets, 228 total bytes
+  10.15.16.114 --> 255.255.255.255 : 1 packets, 228 total bytes
+54.230.195.233 -->    10.15.16.105 : 1 packets, 52 total bytes
+ 54.230.192.90 -->    10.15.16.105 : 1 packets, 52 total bytes
+
+The output above was from when the system was doing nothing interesting.
+
+Rerunning the script opening numerous tabs to google.com.
+
+$ stap netfilter_summary.stp -c "sleep 10"
+
+Collecting data... Type Ctrl-C to exit and display results.
+ 173.194.37.87 -->    10.15.16.105 : 547 packets, 700864 total bytes
+173.194.121.15 -->    10.15.16.105 : 214 packets, 240447 total bytes
+ 173.194.37.79 -->    10.15.16.105 : 213 packets, 222228 total bytes
+ 173.194.121.3 -->    10.15.16.105 : 136 packets, 162753 total bytes
+205.251.249.28 -->    10.15.16.105 : 115 packets, 215980 total bytes
+    10.11.5.19 -->    10.15.16.105 : 71 packets, 8894 total bytes
+ 173.194.121.9 -->    10.15.16.105 : 66 packets, 58162 total bytes
+ 173.194.37.81 -->    10.15.16.105 : 52 packets, 11046 total bytes
+  54.213.74.85 -->    10.15.16.105 : 4 packets, 908 total bytes
+     127.0.0.1 -->       127.0.0.1 : 2 packets, 104 total bytes
+  10.10.161.32 -->    10.15.16.105 : 1 packets, 122 total bytes
+173.252.100.27 -->    10.15.16.105 : 1 packets, 93 total bytes
+  64.32.24.176 -->    10.15.16.105 : 1 packets, 149 total bytes
+  10.15.16.136 -->    10.15.16.255 : 1 packets, 36 total bytes
+ 198.58.96.245 -->    10.15.16.105 : 1 packets, 112 total bytes
+
+Heavily used connections will rise to the top of the list.
+
+The script's output gives a basic understanding of where packets are
+being sent to and received from. Other scripts can be used to supplement
+the gathered information.

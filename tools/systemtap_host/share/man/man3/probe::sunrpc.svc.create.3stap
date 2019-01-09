@@ -1,0 +1,59 @@
+'\" t
+.\"     Title: probe::sunrpc.svc.create
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Networking Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SUNRPC\&.SVC\" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::sunrpc.svc.create \- Create an RPC service
+.SH "SYNOPSIS"
+.sp
+.nf
+sunrpc\&.svc\&.create 
+.fi
+.SH "VALUES"
+.PP
+\fIprog\fR
+.RS 4
+the number of the program
+.RE
+.PP
+\fIbufsize\fR
+.RS 4
+the buffer size
+.RE
+.PP
+\fIprogname\fR
+.RS 4
+the name of the program
+.RE
+.PP
+\fIpg_nvers\fR
+.RS 4
+the number of supported versions
+.RE
+.SH SEE ALSO\n 
+.IR tapset::rpc (3stap)

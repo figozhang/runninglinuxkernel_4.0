@@ -1,0 +1,10 @@
+title: Measure block I/O size distribution (non-debuginfo)
+name: bitesize-nd.stp
+author: Brendan Gregg
+keywords: io
+description: This uses the kernel tracepoint block_rq_insert to read the size of I/O. The output includes the name of the process or thread that was on-CPU when the I/O request was inserted on the issue queue.
+scope: system-wide
+usage: ./bitesize-nd.stp
+test_support: stap -p4 bitesize-nd.stp
+test_check: stap -p4 bitesize-nd.stp
+test_installcheck: stap bitesize-nd.stp -c "sleep 1"

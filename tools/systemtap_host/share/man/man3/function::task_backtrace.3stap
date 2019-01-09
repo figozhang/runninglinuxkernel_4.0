@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::task_backtrace
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Context Functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::TASK_BACKT" "3stap" "March 2016" "SystemTap Tapset Reference" "Context Functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::task_backtrace \- Hex backtrace of an arbitrary task
+.SH "SYNOPSIS"
+.sp
+.nf
+    task_backtrace:string(task:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fItask\fR
+.RS 4
+pointer to task_struct
+.RE
+.SH "DESCRIPTION"
+.PP
+This function returns a string of hex addresses that are a backtrace of the stack of a particular task Output may be truncated as per maximum string length\&. Deprecated in SystemTap 1\&.6\&.
+.SH SEE ALSO\n 
+.IR tapset::context-unwind (3stap)

@@ -1,0 +1,54 @@
+'\" t
+.\"     Title: function::probefunc
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Context Functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::PROBEFUNC" "3stap" "March 2016" "SystemTap Tapset Reference" "Context Functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::probefunc \- Return the probe point\*(Aqs function name, if known
+.SH "SYNOPSIS"
+.sp
+.nf
+    probefunc:string()
+.fi
+.SH "ARGUMENTS"
+.PP
+None
+.SH "DESCRIPTION"
+.PP
+This function returns the name of the function being probed based on the current address, as computed by symname(\fBaddr\fR) or usymname(\fBuaddr\fR) depending on probe context (whether the probe is a user probe or a kernel probe)\&.
+.SH "PLEASE NOTE"
+.PP
+this function\*(Aqs behaviour differs between SystemTap 2\&.0 and earlier versions\&. Prior to 2\&.0,
+\fBprobefunc\fR
+obtained the function name from the probe point string as returned by
+\fBpp\fR, and used the current address as a fallback\&.
+.PP
+Consider using
+\fBppfunc\fR
+instead\&.
+.SH SEE ALSO\n 
+.IR tapset::context-symbols (3stap)

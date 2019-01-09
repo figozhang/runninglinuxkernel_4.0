@@ -1,0 +1,122 @@
+.\" -*- nroff -*-
+.TH TAPSET::QUEUE_STATS 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::queue_stats \- systemtap queue_stats tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B qs_wait 
+Function to record enqueue requests
+.IP
+See 
+.IR function::qs_wait (3stap)
+ for details.
+.P
+.TP
+.B qs_run 
+Function to record being moved from wait queue to being serviced 
+.IP
+See 
+.IR function::qs_run (3stap)
+ for details.
+.P
+.TP
+.B qs_done 
+Function to record finishing request 
+.IP
+See 
+.IR function::qs_done (3stap)
+ for details.
+.P
+.TP
+.B qsq_start 
+Function to reset the stats for a queue
+.IP
+See 
+.IR function::qsq_start (3stap)
+ for details.
+.P
+.TP
+.B qsq_utilization 
+Fraction of time that any request was being serviced 
+.IP
+See 
+.IR function::qsq_utilization (3stap)
+ for details.
+.P
+.TP
+.B qsq_blocked 
+Returns the time reqest was on the wait queue 
+.IP
+See 
+.IR function::qsq_blocked (3stap)
+ for details.
+.P
+.TP
+.B qsq_wait_queue_length 
+length of wait queue 
+.IP
+See 
+.IR function::qsq_wait_queue_length (3stap)
+ for details.
+.P
+.TP
+.B qsq_service_time 
+Amount of time per request service 
+.IP
+See 
+.IR function::qsq_service_time (3stap)
+ for details.
+.P
+.TP
+.B qsq_wait_time 
+Amount of time in queue + service per request
+.IP
+See 
+.IR function::qsq_wait_time (3stap)
+ for details.
+.P
+.TP
+.B qsq_throughput 
+Number of requests served per unit time 
+.IP
+See 
+.IR function::qsq_throughput (3stap)
+ for details.
+.P
+.TP
+.B qsq_print 
+Prints a line of statistics for the given queue
+.IP
+See 
+.IR function::qsq_print (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::qs_wait (3stap),
+.BR
+.IR \%function::qs_run (3stap),
+.BR
+.IR \%function::qs_done (3stap),
+.BR
+.IR \%function::qsq_start (3stap),
+.BR
+.IR \%function::qsq_utilization (3stap),
+.BR
+.IR \%function::qsq_blocked (3stap),
+.BR
+.IR \%function::qsq_wait_queue_length (3stap),
+.BR
+.IR \%function::qsq_service_time (3stap),
+.BR
+.IR \%function::qsq_wait_time (3stap),
+.BR
+.IR \%function::qsq_throughput (3stap),
+.BR
+.IR \%function::qsq_print (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

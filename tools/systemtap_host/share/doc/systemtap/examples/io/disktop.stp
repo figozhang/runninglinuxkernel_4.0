@@ -1,0 +1,71 @@
+#!/usr/bin/env stap 
+#
+# Copyright (C) 2007 Oracle Corp.
+#
+# Get the status of reading/writing disk every 5 seconds,
+# output top ten entries 
+#
+# This is free software,GNU General Public License (GPL);
+# either version 2, or (at your option) any later version.
+#
+# Usage:
+#  ./disktop.stp
+#
+
+global io_stat,device
+global read_bytes,write_bytes
+
+probe vfs.read.return {
+  if ($return>0) {
+    if (devname!="N/A") {/*skip read from cache*/
+      io_stat[pid(),execname(),uid(),ppid(),"R"] += $return
+      device[pid(),execname(),uid(),ppid(),"R"] = devname
+      read_bytes += $return
+    }
+  }
+}
+
+probe vfs.write.return {
+  if ($return>0) {
+    if (devname!="N/A") { /*skip update cache*/
+      io_stat[pid(),execname(),uid(),ppid(),"W"] += $return
+      device[pid(),execname(),uid(),ppid(),"W"] = devname
+      write_bytes += $return
+    }
+  }
+}
+
+probe timer.ms(5000) {
+  /* skip non-read/write disk */
+  if (read_bytes+write_bytes) {
+
+    printf("\n%-25s, %-8s%4dKb/sec, %-7s%6dKb, %-7s%6dKb\n\n",
+           ctime(gettimeofday_s()),
+           "Average:", ((read_bytes+write_bytes)/1024)/5,
+           "Read:",read_bytes/1024,
+           "Write:",write_bytes/1024)
+
+    /* print header */
+    printf("%8s %8s %8s %25s %8s %4s %12s\n",
+           "UID","PID","PPID","CMD","DEVICE","T","BYTES")
+  }
+  /* print top ten I/O */
+  foreach ([process,cmd,userid,parent,action] in io_stat- limit 10)
+    printf("%8d %8d %8d %25s %8s %4s %12d\n",
+           userid,process,parent,cmd,
+           device[process,cmd,userid,parent,action],
+           action,io_stat[process,cmd,userid,parent,action])
+
+  /* clear data */
+  delete io_stat
+  delete device
+  read_bytes = 0
+  write_bytes = 0  
+}
+
+probe end{
+  delete io_stat
+  delete device
+  delete read_bytes
+  delete write_bytes
+}

@@ -1,0 +1,18 @@
+#! /usr/bin/env stap
+# The following line command will probe all the functions
+# in kernel's memory management code:
+#
+# stap  functioncallcount.stp "*@mm/*.c"
+
+probe kernel.function(@1).call {  # probe functions listed on commandline
+  called[ppfunc()] <<< 1  # add a count efficiently
+}
+
+global called
+
+probe end {
+  foreach (fn in called-)  # Sort by call count (in decreasing order)
+  #       (fn+ in called)  # Sort by function name
+    printf("%s %d\n", fn, @count(called[fn]))
+  exit()
+}

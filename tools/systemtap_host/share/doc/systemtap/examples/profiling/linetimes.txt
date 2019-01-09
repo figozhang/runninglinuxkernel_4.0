@@ -1,0 +1,228 @@
+# stap linetimes.stp kernel tcp_sendmsg -c 'sleep 30'
+
+kernel tcp_sendmsg call count: 4023
+
+region                                                        avg(us)    max(us)
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1088")                 1         12
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1093")                 1         12
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1099")                 1         16
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1100")                 1          6
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1109")                 1         11
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1115")                 1          7
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1117")                 3          3
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1121")                 1         17
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1135")                 1         13
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1137")                 1         32
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1140")                 1          6
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1141")                 1         16
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1142")                 1          5
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1145")                 1         10
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1148")                 1         10
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1150")                 1          3
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1151")                 1         12
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1152")                 1         22
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1155")                 1         15
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1165")                 1          3
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1167")                 1         11
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1170")                 1         12
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1171")                 1          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1173")                 1          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1176")                 1          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1184")                 1         13
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1187")                 1         12
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1193")                 1         13
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1194")                 1          4
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1197")                 1         51
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1198")                 1         11
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1204")                 1         11
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1209")                 1         15
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1210")                 1         11
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1213")                 1         14
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1215")                 1         21
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1221")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1224")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1227")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1228")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1229")                 1          1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1233")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1236")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1238")                 3          3
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1249")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1252")                 1          1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1253")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1254")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1256")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1259")                 1          4
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1260")                 1         32
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1262")                 1          5
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1263")                 1         52
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1264")                 1         13
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1266")                 1         11
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1267")                 1         12
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1268")                 1         12
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1273")                 1          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1276")                 1          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1279")                 1          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1280")                 2          8
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1298")                 1          9
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1299")                 5         48
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1301")                 1         11
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1302")                 1         11
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1315")                 3          3
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1318")                 3          3
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1319")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1320")                 2          2
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1321")                 1         12
+
+
+control flow graph information
+from
+	to
+=======================
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1088")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1099") 4023
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1093")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1100") 4023
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1099")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1093") 4023
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1100")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1109") 4023
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1109")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1115") 4023
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1115")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1117") 1
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1121") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1117")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1315") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1121")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1135") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1135")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1137") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1137")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1145") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1140")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1148") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1141")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1140") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1142")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1150") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1145")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1141") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1148")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1142") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1150")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1151") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1151")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1152") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1152")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1155") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1155")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1165") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1165")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1167") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1167")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1170") 4087
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1170")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1171") 14
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1184") 4073
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1171")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1173") 14
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1173")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1176") 14
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1176")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1209") 14
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1184")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1187") 4073
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1187")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1193") 4073
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1193")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1194") 228
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1197") 3845
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1194")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1197") 228
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1197")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1204") 4073
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1198")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1209") 4073
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1204")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1198") 4073
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1209")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1210") 4087
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1210")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1213") 4087
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1213")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1215") 4086
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1221") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1215")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1259") 4086
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1221")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1224") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1224")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1228") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1227")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1229") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1228")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1227") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1229")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1233") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1233")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1236") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1236")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1238") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1238")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1249") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1249")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1252") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1252")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1253") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1253")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1254") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1254")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1256") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1256")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1259") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1259")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1260") 4022
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1262") 65
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1260")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1262") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1262")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1264") 4087
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1263")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1266") 4087
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1264")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1263") 4087
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1266")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1267") 4087
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1267")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1268") 4087
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1268")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1273") 65
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1298") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1273")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1167") 1
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1276") 64
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1276")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1279") 64
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1279")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1280") 64
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1280")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1167") 64
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1298")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1299") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1299")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1301") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1301")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1302") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1302")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1321") 4022
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1315")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1318") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1318")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1319") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1319")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1320") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1320")
+	kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1321") 1
+kernel.statement("tcp_sendmsg@net/ipv4/tcp.c:1321")
+	kernel.function("tcp_sendmsg@net/ipv4/tcp.c:1086").return 4023

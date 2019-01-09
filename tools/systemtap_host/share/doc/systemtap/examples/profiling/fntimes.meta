@@ -1,0 +1,7 @@
+title: Show Functions Taking Longer Than Usual
+name: fntimes.stp
+keywords: _best profiling
+exit: user-controlled
+description: The fntimes.stp script monitors the execution time history of a given function family (assumed non-recursive).  Each time (beyond a warmup interval) is then compared to the historical maximum.  If it exceeds a certain threshold (250%), a message is printed.
+test_check: stap -p4 fntimes.stp 'kernel.function("sys_*")'
+test_installcheck: stap fntimes.stp 'kernel.function("sys_*")' -c "sleep 7"

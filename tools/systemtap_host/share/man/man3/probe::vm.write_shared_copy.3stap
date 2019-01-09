@@ -1,0 +1,60 @@
+'\" t
+.\"     Title: probe::vm.write_shared_copy
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Memory Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::VM\&.WRITE_SH" "3stap" "March 2016" "SystemTap Tapset Reference" "Memory Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::vm.write_shared_copy \- Page copy for shared page write
+.SH "SYNOPSIS"
+.sp
+.nf
+vm\&.write_shared_copy 
+.fi
+.SH "VALUES"
+.PP
+\fIaddress\fR
+.RS 4
+The address of the shared write
+.RE
+.PP
+\fIname\fR
+.RS 4
+Name of the probe point
+.RE
+.PP
+\fIzero\fR
+.RS 4
+boolean indicating whether it is a zero page (can do a clear instead of a copy)
+.RE
+.SH "CONTEXT"
+.PP
+The process attempting the write\&.
+.SH "DESCRIPTION"
+.PP
+Fires when a write to a shared page requires a page copy\&. This is always preceded by a vm\&.write_shared\&.
+.SH SEE ALSO\n 
+.IR tapset::memory (3stap)

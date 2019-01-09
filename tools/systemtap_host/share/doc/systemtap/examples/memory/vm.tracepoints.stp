@@ -1,0 +1,20 @@
+#! /usr/bin/env stap
+
+global slabs
+
+probe vm.kmem_cache_alloc {
+	slabs [execname(), bytes_req]<<<1
+}
+
+probe timer.ms(10000)
+{
+	dummy = "";
+	foreach ([name, bytes] in slabs) {
+		if (dummy != name)
+			printf("\nProcess:%s\n", name);
+        	printf("Slab_size:%d\tCount:%d\n", bytes, @count(slabs[name, bytes]));
+		dummy = name;
+	}
+	delete slabs
+	printf("\n-------------------------------------------------------\n\n")
+}

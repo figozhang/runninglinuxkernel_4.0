@@ -1,0 +1,11 @@
+title: Switch log files
+name: switchfile.stp
+version: 1.0
+keywords: io
+subsystem: io
+exit: user-controlled
+output: file
+scope: system-wide
+description: Every second print a log message and switch log files every 5 seconds.
+test_check: stap -p4 switchfile.stp
+test_installcheck: stap -o switchfile.stp.out switchfile.stp -c "sleep 8"

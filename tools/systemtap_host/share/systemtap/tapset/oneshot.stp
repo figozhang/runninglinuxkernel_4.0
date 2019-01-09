@@ -1,0 +1,5 @@
+
+probe oneshot += begin
+{
+  exit ()
+}

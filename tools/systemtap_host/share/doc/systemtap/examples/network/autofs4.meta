@@ -1,0 +1,13 @@
+title: Watch autofs4 Operations
+name: autofs4.stp
+version: 1.0
+author: Jeff Moyer
+keywords: network nfs
+subsystem: network
+status: proposed
+exit: user-controlled
+output: trace
+scope: system-wide
+description: Trace key autofs4 operations such as mounting or unmounting remote filesystems.
+test_check: stap -p4 autofs4.stp
+test_installcheck: stap autofs4.stp -c "sleep 1"

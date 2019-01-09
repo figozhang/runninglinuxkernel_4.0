@@ -1,0 +1,91 @@
+.\" t
+.TH ERROR::PASS2 7stap 
+.SH JMÉNO
+error::pass2 \- chyby procesní fáze 2
+
+.SH POPIS
+Chyby, které se mohou vyskytnout během procesní fáze 2 mají řadu příčin.  Mezi
+ty nejobvyklejší patří:
+
+.TP
+nedostupná třída sondážních bodů
+Některé sondážní body jsou specifické pro verzi, architekturu, nebo konfiguraci.
+Například sondy pro uživatelské procesy
+.IR process.*
+mohou vyžadovat jadernou funkcionalitu "utrace", nebo "uprobes".
+
+.TP
+nedostupné sondážní body
+Některé sondážní body mohou být nedostupné i když jejich třída dostupná je.
+Například
+.IR kprobe.function("foobar")
+může selhat pokud funkce
+.IR foobar
+byla z jádra odstraněna.  Pro některé symboly mohou chybět ladicí informace.  Tím
+obvykle trpí sondážní body 
+.IR .function " nebo " .statement " . "
+Přesvědčte se o dostupnosti ladicích informací.  Vyzkoušejte program
+.IR stap\-prep
+který umí nainstalovat chybějící závislosti.
+Použijte zástupný symbol jako např.
+.I stap \-l 'kprobe.function("*foo*")'
+abyste zjistili dostupné varianty sondážního bodu.  Použijte modifikátory
+.IR ! " nebo " ?
+pro vyznačení volitelnosti, či dostatečnosti daného sondážního bodu, aby funkční
+části skriptu mohly pokračovat v činnosti.
+
+.TP
+překlepy
+V specifikaci sondážních bodů mohou být překlepy, jako např. ("sycsall" vs.
+"syscall").  Zástupné symboly nemusejí být expandovatelné ani na jeden validní
+sondážní bod.  Ověřte platnost/existenci sondážních bodů pomocí
+.IR "stap \-l FILTR" .
+Další běžnou chybou je použití chybného operátoru dereference: 
+.IR .
+namísto správného
+.IR \-> .
+Příklad správného použití je
+.IR $foo\->bar\->baz
+ačkoliv v C by správný zápis byl
+.IR foo\->bar.baz .
+
+.TP
+nedostupné kontextové proměnné
+Systemtap skripty se často pokoušejí přistoupit ke kontextovým proměnným
+v analyzovaném kódu prostřednictvím syntaxe
+.IR $variable " ."
+Dostupnost takových proměnných může záviset na verzi kompilátoru, zvolené
+optimalizaci, architektuře atd.  Použijte
+.IR "stap \-L FILTR"
+k vypsání dostupných kontextových proměnných pro danou sondu.  Použijte
+.IR @defined()
+pro ověření dostupnosti proměnné v rámci skriptu.  Zvažte použití volby
+.IR "stap \-\-skip\-badvars"
+čímž se nedostupné kontextové proměnné tiše přeskočí, a jejich hodnota se
+automaticky nastaví na 0.  Experimentujte s volbou
+.IR "\-\-prologue\-searching" .
+
+.TP
+nekonzistentní cache
+Občas může cache systemtap modulu ($HOME/.systemtap/cache) obsahovat zastaralé
+informace.  Pomocí přepínače
+.IR "stap \-\-poison\-cache ..."
+lze obsah cache zneplatnit.
+.BR Poznámka:
+Toto by se nemělo stát, jde o chybu.  Prosím, nahlaste ji.
+
+.SH VÍCE INFORMACÍ
+Upovídanost procesní fáze 2 lze zvýšit pomocí
+.IR "--vp 02" .
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR stap-prep (1),
+.IR stapprobes (3stap),
+.IR probe::* (3stap),
+.IR error::dwarf (7stap),
+.IR error::inode-uprobes (7stap),
+.IR warning::debuginfo (7stap),
+.IR error::reporting (7stap)

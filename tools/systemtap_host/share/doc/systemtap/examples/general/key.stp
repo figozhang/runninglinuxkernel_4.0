@@ -1,0 +1,22 @@
+#! /usr/bin/env stap
+
+# Useless, but amusing. Based on an idea I saw on a
+# dtrace site. (wav files are from emacs).
+
+// KEY_ENTER = 28
+probe kernel.function("kbd_event") {
+  if ($event_type == 1 && $value) {
+    if ($event_code == 28)
+      system("play return.wav &> /dev/null")
+    else
+      system("play click.wav &> /dev/null")
+  }
+}
+
+probe begin {
+  printf("TYPEWRITER ON\n")
+}
+
+probe end {
+  printf("DONE\n")
+}

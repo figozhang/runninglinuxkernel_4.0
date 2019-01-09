@@ -1,0 +1,171 @@
+#!/usr/bin/perl
+#
+# This script accumulates the execution paths of all calls to kmalloc
+# in the kernel.  On Ctrl-C (or exit of the command provided by -c option),
+# it sorts, filters and displays them on
+# stdout.
+#
+# The -e (exclude) option can be used to specify a comma-separated list
+# - any stack with contents matching any of the items in the list will
+# be excluded from the output.
+#
+# The -m (min) option can be used to specify the minimum number of
+# occurrences a stack needs to be included in the output.
+#
+# The -t (top) option can be used to specify printing only the 
+# top N stack traces.
+#
+# The -c (command) option runs starts the command and script
+# only runs for the duration of the command.
+#
+# The -o (options) option passes the options to systemap.
+#
+# Usage: ./kmalloc-top [-m min] [-e exclude list] [-t top_n] [-c command]
+#           [-o options]
+# Ctrl-c
+
+use Getopt::Std;
+
+my $kmalloc_stacks;
+my $total_kmallocs;
+my $filtered_kmallocs;
+my $sorted_stacks;
+my $first_n = 1000000000;
+my $min_count = 1;
+my $exclude;
+my $options;
+
+$SIG{INT} = \&sigint_handler;
+
+getopts('c:e:m:t:o:');
+
+if ($opt_e) {
+    $exclude = join('|', split(/,/, $opt_e));
+    print "Will exclude stacks containing: $exclude\n";
+}
+
+if ($opt_t) {
+    $first_n = $opt_t;
+    print "Will print only the top $first_n stacks.\n";
+}
+
+if ($opt_m) {
+    $min_count = $opt_m;
+}
+
+if ($opt_c) {
+    $command="-c \"$opt_c\""
+}
+
+if ($opt_o) {
+    $options=$opt_o
+}
+
+print "Will print stacks with counts >= $min_count.\n";
+print STDERR "Press Ctrl-C to stop.\n";
+
+#The systemtap script that instruments the kmalloc
+$script="
+global kmalloc_stack
+
+probe kernel.function(\"__kmalloc\") { kmalloc_stack[backtrace()]++ }
+
+probe timer.ms(100), end
+{
+  foreach (stack in kmalloc_stack) {
+    printf(\"<hashkey>\\n\")
+    print_syms(stack) 
+    printf(\"</hashkey>\\n\")
+    printf(\"<hashval>%d</hashval>\\n\", kmalloc_stack[stack])
+  }
+  delete kmalloc_stack
+}
+";
+
+open STREAM, "stap $options -e '$script' $command|" or die "Couldn't get output stream $!";
+
+while (<STREAM>) {
+    if (/<hashval>(.*?)<\/hashval>/) {
+	update_hash($key, $1);
+	$key = "";
+    } elsif ($_ !~ (/<hashkey>|<\/hashkey>/))  {
+	$key .= $_;
+    }
+}
+
+$num_keys_before_filtering = scalar keys %kmalloc_stacks;
+$total_kmallocs = count_kmallocs();
+filter_stacks();
+sort_stacks();
+top_stacks();
+sort_stacks();
+$num_keys_after_filtering = scalar keys %kmalloc_stacks;
+$filtered_kmallocs = count_kmallocs();
+summarize();
+exit();
+
+sub update_hash
+{
+    my($key, $val) = @_;
+    $kmalloc_stacks{$key} += $val;
+}
+
+sub filter_stacks
+{
+    while (($stack, $count) = each %kmalloc_stacks) {
+	if ($count < $min_count) {
+	    delete $kmalloc_stacks{$stack};
+	} elsif ($exclude && $stack =~ /$exclude/) {
+	    delete $kmalloc_stacks{$stack};
+	}
+    }
+}
+
+sub top_stacks
+{
+    $count=0;
+    foreach $stack(@sorted_stacks) {
+	$count+=1;
+	if ($count > $first_n) {
+	    delete $kmalloc_stacks{$stack};
+	}
+    }
+}
+
+sub sort_stacks
+{
+    @sorted_stacks = sort { $kmalloc_stacks{$b} <=> $kmalloc_stacks{$a} } keys %kmalloc_stacks;
+}
+
+sub count_kmallocs {
+    $count = 0;
+    foreach $stack(%kmalloc_stacks) {
+	$count += $kmalloc_stacks{$stack};
+    }
+    return $count;
+}
+
+sub summarize {
+    print "\n";
+    foreach $stack(@sorted_stacks) {
+	print "This path seen $kmalloc_stacks{$stack} times:\n$stack\n";
+    }
+
+    if ($total_kmallocs > 0) {
+	$percent = ($filtered_kmallocs)*100/$total_kmallocs;
+    } else {
+	$percent = 0;
+    }
+    print "Num stacks before filtering: $num_keys_before_filtering\n";
+    print "Num stacks after filtering: $num_keys_after_filtering\n";
+    print "Total kmallocs (before filtering): $total_kmallocs\n";
+    print "Total kmallocs (after filtering): $filtered_kmallocs\n";
+    print "The filter stacks have $percent of the total kmallocs\n";
+
+    close(STREAM);
+}
+
+sub sigint_handler
+{
+    system("pkill kmalloc-stacks");
+}

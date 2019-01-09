@@ -1,0 +1,94 @@
+'\" t
+.\"     Title: probe::scheduler.ctxswitch
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Scheduler Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SCHEDULER\&.C" "3stap" "March 2016" "SystemTap Tapset Reference" "Scheduler Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::scheduler.ctxswitch \- A context switch is occuring\&.
+.SH "SYNOPSIS"
+.sp
+.nf
+scheduler\&.ctxswitch 
+.fi
+.SH "VALUES"
+.PP
+\fIprevtsk_state\fR
+.RS 4
+the state of the process to be switched out
+.RE
+.PP
+\fIprev_tid\fR
+.RS 4
+The TID of the process to be switched out
+.RE
+.PP
+\fInext_task_name\fR
+.RS 4
+The name of the process to be switched in
+.RE
+.PP
+\fInext_pid\fR
+.RS 4
+The PID of the process to be switched in
+.RE
+.PP
+\fInexttsk_state\fR
+.RS 4
+the state of the process to be switched in
+.RE
+.PP
+\fIprev_pid\fR
+.RS 4
+The PID of the process to be switched out
+.RE
+.PP
+\fIprev_priority\fR
+.RS 4
+The priority of the process to be switched out
+.RE
+.PP
+\fIprev_task_name\fR
+.RS 4
+The name of the process to be switched out
+.RE
+.PP
+\fInext_tid\fR
+.RS 4
+The TID of the process to be switched in
+.RE
+.PP
+\fInext_priority\fR
+.RS 4
+The priority of the process to be switched in
+.RE
+.PP
+\fIname\fR
+.RS 4
+name of the probe point
+.RE
+.SH SEE ALSO\n 
+.IR tapset::scheduler (3stap)

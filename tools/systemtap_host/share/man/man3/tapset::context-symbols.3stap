@@ -1,0 +1,147 @@
+.\" -*- nroff -*-
+.TH TAPSET::CONTEXT-SYMBOLS 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::context-symbols \- systemtap context-symbols tapset
+ 
+.SH DESCRIPTION
+
+ Context functions provide additional information about where an event occurred. These functions can 
+provide information such as a backtrace to where the event occurred and the current register values for the 
+processor.
+
+.TP
+.P
+.TP
+.B stack 
+Return address at given depth of kernel stack backtrace
+.IP
+See 
+.IR function::stack (3stap)
+ for details.
+.P
+.TP
+.B print_stack 
+Print out kernel stack from string
+.IP
+See 
+.IR function::print_stack (3stap)
+ for details.
+.P
+.TP
+.B sprint_stack 
+Return stack for kernel addresses from string
+.IP
+See 
+.IR function::sprint_stack (3stap)
+ for details.
+.P
+.TP
+.B probefunc 
+Return the probe point's function name, if known
+.IP
+See 
+.IR function::probefunc (3stap)
+ for details.
+.P
+.TP
+.B probemod 
+Return the probe point's kernel module name
+.IP
+See 
+.IR function::probemod (3stap)
+ for details.
+.P
+.TP
+.B modname 
+Return the kernel module name loaded at the address
+.IP
+See 
+.IR function::modname (3stap)
+ for details.
+.P
+.TP
+.B symname 
+Return the kernel symbol associated with the given address
+.IP
+See 
+.IR function::symname (3stap)
+ for details.
+.P
+.TP
+.B symdata 
+Return the kernel symbol and module offset for the address
+.IP
+See 
+.IR function::symdata (3stap)
+ for details.
+.P
+.TP
+.B print_syms 
+Print out kernel stack from string
+.IP
+See 
+.IR function::print_syms (3stap)
+ for details.
+.P
+.TP
+.B sprint_syms 
+Return stack for kernel addresses from string
+.IP
+See 
+.IR function::sprint_syms (3stap)
+ for details.
+.P
+.TP
+.B symfileline 
+Return the file name and line number of an address.
+.IP
+See 
+.IR function::symfileline (3stap)
+ for details.
+.P
+.TP
+.B usymfile 
+Return the file name of a given address.
+.IP
+See 
+.IR function::usymfile (3stap)
+ for details.
+.P
+.TP
+.B usymline 
+Return the line number of an address.
+.IP
+See 
+.IR function::usymline (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::stack (3stap),
+.BR
+.IR \%function::print_stack (3stap),
+.BR
+.IR \%function::sprint_stack (3stap),
+.BR
+.IR \%function::probefunc (3stap),
+.BR
+.IR \%function::probemod (3stap),
+.BR
+.IR \%function::modname (3stap),
+.BR
+.IR \%function::symname (3stap),
+.BR
+.IR \%function::symdata (3stap),
+.BR
+.IR \%function::print_syms (3stap),
+.BR
+.IR \%function::sprint_syms (3stap),
+.BR
+.IR \%function::symfileline (3stap),
+.BR
+.IR \%function::usymfile (3stap),
+.BR
+.IR \%function::usymline (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

@@ -1,0 +1,228 @@
+/* Dwarfless register access for powerpc */
+
+@__private30 global _reg_offsets[44]
+
+probe init {
+	/* Same order as pt_regs */
+	_reg_offsets["r0"] = 0
+	_reg_offsets["r1"] = 8
+	_reg_offsets["r2"] = 16
+	_reg_offsets["r3"] = 24
+	_reg_offsets["r4"] = 32
+	_reg_offsets["r5"] = 40
+	_reg_offsets["r6"] = 48
+	_reg_offsets["r7"] = 56
+	_reg_offsets["r8"] = 64
+	_reg_offsets["r9"] = 72
+	_reg_offsets["r10"] = 80
+	_reg_offsets["r11"] = 88
+	_reg_offsets["r12"] = 96
+	_reg_offsets["r13"] = 104
+	_reg_offsets["r14"] = 112
+	_reg_offsets["r15"] = 120
+	_reg_offsets["r16"] = 128
+	_reg_offsets["r17"] = 136
+	_reg_offsets["r18"] = 144
+	_reg_offsets["r19"] = 152
+	_reg_offsets["r20"] = 160
+	_reg_offsets["r21"] = 168
+	_reg_offsets["r22"] = 176
+	_reg_offsets["r23"] = 184
+	_reg_offsets["r24"] = 192
+	_reg_offsets["r25"] = 200
+	_reg_offsets["r26"] = 208
+	_reg_offsets["r27"] = 216
+	_reg_offsets["r28"] = 224
+	_reg_offsets["r29"] = 232
+	_reg_offsets["r30"] = 240
+	_reg_offsets["r31"] = 248
+	_reg_offsets["nip"] = 256
+	_reg_offsets["msr"] = 264
+	_reg_offsets["orig_gpr3"] = 272
+	_reg_offsets["ctr"] = 280
+	_reg_offsets["link"] = 288
+	_reg_offsets["xer"] = 296
+	_reg_offsets["ccr"] = 304
+	_reg_offsets["softe"] = 312
+	_reg_offsets["trap"] = 320
+	_reg_offsets["dar"] = 328
+	_reg_offsets["dsisr"] = 336
+	_reg_offsets["result"] = 344
+
+	/*
+	 * If we ever need to support 32bit powerpc, we can
+	 * get to the register offsets by using just a
+	 * reg32_offset = _reg_offsets["reg"]/2
+	 * or somesuch
+	 */
+}
+
+function probing_32bit_app:long() %{ /* pure */
+        STAP_RETVALUE = (CONTEXT->user_mode_p && _stp_is_compat_task());
+%}
+
+function arch_bytes:long() %{ /* pure */
+  STAP_RETVALUE = sizeof(long);
+%}
+
+function uarch_bytes:long() {
+  assert(user_mode(), "requires user mode")
+  return probing_32bit_app() ? 4 : 8
+}
+
+function _stp_get_register_by_offset:long (offset:long) %{ /* pure */
+	long value;
+	struct pt_regs *regs;
+	regs = (CONTEXT->user_mode_p ? CONTEXT->uregs : CONTEXT->kregs);
+	if (!regs) {
+		CONTEXT->last_error = "No registers available in this context";
+		return;
+	}
+	if (STAP_ARG_offset < 0 || STAP_ARG_offset > sizeof(struct pt_regs) - sizeof(long)) {
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+				"Bad register offset: %lld",
+				(long long)STAP_ARG_offset);
+		CONTEXT->last_error = CONTEXT->error_buffer;
+		return;
+	}
+	memcpy(&value, ((char *)regs) + STAP_ARG_offset, sizeof(value));
+	STAP_RETVALUE = value;
+%}
+
+function _stp_sign_extend32:long (value:long) {
+	if (value & 0x80000000)
+		value |= (0xffffffff << 32)
+	return value
+}
+
+function _stp_register:long (name:string, sign_extend:long) {
+  assert(registers_valid(), "cannot access CPU registers in this context")
+	offset = _reg_offsets[name]
+  assert(offset != 0 || (name in _reg_offsets), "Unknown register: " . name)
+	value = _stp_get_register_by_offset(offset)
+	if (probing_32bit_app()) {
+		if (sign_extend)
+			value = _stp_sign_extend32(value)
+		else
+			value &= 0xffffffff
+	}
+	return value
+}
+
+/* Return the named register value as a signed value. */
+function register:long (name:string) {
+	return _stp_register(name, 1)
+}
+
+/*
+ * Return the named register value as an unsigned value.  Specifically,
+ * don't sign-extend the register value when promoting it to 64 bits.
+ */
+function u_register:long (name:string) {
+	return _stp_register(name, 0)
+}
+
+/*
+ * Return the value of function arg #argnum (1=first arg).
+ * If truncate=1, mask off the top 32 bits.
+ * If sign_extend=1 and (truncate=1 or the probepoint we've hit is in a
+ * 32-bit app), sign-extend the 32-bit value.
+ * If force64=1, return a 64-bit value even if we're in a 32-bit app.
+ */
+function _stp_arg:long (argnum:long, sign_extend:long, truncate:long)
+{
+	return _stp_arg2(argnum, sign_extend, truncate, 0)
+}
+function _stp_arg2:long (argnum:long, sign_extend:long, truncate:long,
+			 force64:long)
+{
+	val = 0
+  assert(!(argnum < 1 || argnum > 8), sprintf("Cannot access arg(%d)", argnum))
+
+	if (argnum == 1)
+		val = u_register("r3")
+	else if (argnum == 2)
+		val = u_register("r4")
+	else if (argnum == 3)
+		val = u_register("r5")
+	else if (argnum == 4)
+		val = u_register("r6")
+	else if (argnum == 5)
+		val = u_register("r7")
+	else if (argnum == 6)
+		val = u_register("r8")
+	else if (argnum == 7)
+		val = u_register("r9")
+	else if (argnum == 8)
+		val = u_register("r10")
+
+	if ((truncate || @__compat_task) && !force64) {
+		if (sign_extend)
+			val = _stp_sign_extend32(val)
+		else
+			/* High bits may be garbage. */
+			val = (val & 0xffffffff);
+	}
+	return val;
+}
+
+/* Return the value of function arg #argnum (1=first arg) as a signed int. */
+function int_arg:long (argnum:long) {
+	return _stp_arg2(argnum, 1, 1, 0)
+}
+
+/* Return the value of function arg #argnum (1=first arg) as an unsigned int. */
+function uint_arg:long (argnum:long) {
+	return _stp_arg2(argnum, 0, 1, 0)
+}
+
+function long_arg:long (argnum:long) {
+	return _stp_arg2(argnum, 1, 0, 0)
+}
+
+function ulong_arg:long (argnum:long) {
+	return _stp_arg2(argnum, 0, 0, 0)
+}
+
+function longlong_arg:long (argnum:long) {
+	if (probing_32bit_app()) {
+		highbits = _stp_arg2(argnum, 0, 1, 0)
+		lowbits = _stp_arg2(argnum+1, 0, 1, 0)
+		return ((highbits << 32) | lowbits)
+	} else
+		return _stp_arg2(argnum, 0, 0, 1)
+}
+
+function ulonglong_arg:long (argnum:long) {
+	return longlong_arg(argnum)
+}
+
+function pointer_arg:long (argnum:long) {
+	return _stp_arg2(argnum, 0, 0, 0)
+}
+
+function s32_arg:long (argnum:long) {
+	return int_arg(argnum)
+}
+
+function u32_arg:long (argnum:long) {
+	return uint_arg(argnum)
+}
+
+function s64_arg:long (argnum:long) {
+	return longlong_arg(argnum)
+}
+
+function u64_arg:long (argnum:long) {
+	return ulonglong_arg(argnum)
+}
+
+function asmlinkage() %{ /* pure */ %}
+
+function fastcall() %{ /* pure */ %}
+
+function regparm(n:long) %{
+	snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+		"regparm is invalid on powerpc.");
+	CONTEXT->last_error = CONTEXT->error_buffer;
+%}

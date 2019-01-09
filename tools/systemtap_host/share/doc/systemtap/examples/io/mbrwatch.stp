@@ -1,0 +1,9 @@
+#! /usr/bin/env stap
+
+probe ioblock.request {
+    if (bdev==bdev_contains && sector<4) {
+	printf("device %s sector %d %s, process %s[%d]\n",
+		devname, sector, (rw==BIO_READ ? "read":"write"), execname(), pid())
+	print_backtrace()
+    }
+}

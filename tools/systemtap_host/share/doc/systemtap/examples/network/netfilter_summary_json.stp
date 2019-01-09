@@ -1,0 +1,38 @@
+#! /usr/bin/env stap
+
+global packets
+
+// Set up the metrics
+probe begin
+{
+  // Set the prefix to be used instead of the module name (optional).
+  json_set_prefix("netfilter")
+
+  // Add the metrics
+  json_add_array("netfilter_data",
+		 "Network data indexed by source and destination addresses.")
+  json_add_array_numeric_metric("netfilter_data", "packets",
+				"Number of packets transferred.", "")
+  json_add_array_numeric_metric("netfilter_data", "bytes","Bytes transferred.",
+				"bytes")
+}
+
+probe netfilter.ipv4.pre_routing {
+      // Using aggregates avoids contention from packets being sent in
+      // parallel from different processors:
+      packets[saddr, daddr] <<< length
+}
+
+probe json_data
+{
+  @json_output_data_start
+
+  foreach ([saddr, daddr] in packets-) {
+    index = sprintf("%15s --> %15s", saddr, daddr)
+    @json_output_array_numeric_value("netfilter_data", index, "packets",
+				     @count(packets[saddr,daddr]))
+    @json_output_array_numeric_value("netfilter_data", index, "bytes",
+				     @sum(packets[saddr,daddr]))
+  }
+  @json_output_data_end
+}

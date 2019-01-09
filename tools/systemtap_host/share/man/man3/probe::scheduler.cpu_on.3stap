@@ -1,0 +1,57 @@
+'\" t
+.\"     Title: probe::scheduler.cpu_on
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Scheduler Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SCHEDULER\&.C" "3stap" "March 2016" "SystemTap Tapset Reference" "Scheduler Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::scheduler.cpu_on \- Process is beginning execution on a cpu
+.SH "SYNOPSIS"
+.sp
+.nf
+scheduler\&.cpu_on 
+.fi
+.SH "VALUES"
+.PP
+\fIname\fR
+.RS 4
+name of the probe point
+.RE
+.PP
+\fItask_prev\fR
+.RS 4
+the process that was previously running on this cpu
+.RE
+.PP
+\fIidle\fR
+.RS 4
+\- boolean indicating whether current is the idle process
+.RE
+.SH "CONTEXT"
+.PP
+The resuming process\&.
+.SH SEE ALSO\n 
+.IR tapset::scheduler (3stap)

@@ -1,0 +1,18 @@
+# stap mbrwatch.stp -c "dd of=/dev/null count=1 if=/dev/sda"
+
+1+0 records in
+1+0 records out
+512 bytes (512 B) copied, 0.0196359 s, 26.1 kB/s
+device sda sector 0 read, process dd[26847]
+ 0xc05ed2e0 : generic_make_request+0x0/0x5b0 [kernel]
+ 0xc05ed8ee : submit_bio+0x5e/0x120 [kernel]
+ 0xc0562f2d : submit_bh+0x1bd/0x240 [kernel]
+ 0xc0564fcd : block_read_full_page+0x25d/0x2f0 [kernel]
+ 0xc04fc201 : __do_page_cache_readahead+0x1f1/0x210 [kernel]
+ 0xc04fc23e : ra_submit+0x1e/0x30 [kernel]
+ 0xc04fc64b : page_cache_sync_readahead+0x3b/0x60 [kernel]
+ 0xc04ebf6a : generic_file_aio_read+0x59a/0x760 [kernel]
+ 0xc0536cc5 : do_sync_read+0xd5/0x120 [kernel]
+ 0xc053766d : vfs_read+0x9d/0x190 [kernel]
+ 0xc05377a1 : sys_read+0x41/0x70 [kernel]
+ 0xc04099bf : sysenter_do_call+0x12/0x28 [kernel]

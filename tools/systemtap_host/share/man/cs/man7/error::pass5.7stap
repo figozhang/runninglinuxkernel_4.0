@@ -1,0 +1,79 @@
+.\" t
+.TH ERROR::PASS5 7stap
+.SH JMÉNO
+error::pass5 \- chyby procesní fáze 5
+
+.SH POPIS
+Chyby vyskytující se v procesní fázi 5 (execution) mohou mít řadu příčin.
+
+.TP
+výjimečné události během provádění skriptu
+Systemtap provádí četné kontroly aby ochránil systémy a uživatele před chybami
+a nežádoucím chováním.  Skript může cíleně zavolat tapset funkci
+.IR error()
+aby signalizoval problém.  Paměť potřebná pro čtení některé z kontextových
+proměnných může být nedostupná.  Zvažte použití
+.IR try / catch
+bloku.  Zvažte též použití přepínačů
+.IR "stap --suppress-handler-errors"
+nebo
+.IR "stap --skip-badvars ."
+
+.TP
+vyčerpání zdrojů
+Může dojít k dosažení jednoho z mnoha limitů na zdroje (čas, místo na disku, ...).
+Může také dojít k přetížení systému, vyčerpání dostupné paměti (příliš mnoho
+prvků v poli atd.).  Některé z chybových hlášení identifikují jméno makra, které
+lze využít ke zvýšení daného limitu.  Zvažte použití voleb
+.IR "stap --suppress-handler-errors"
+a/nebo
+.IR "stap -g --suppress-time-limits ."
+Zvyšte nebo vypněte jednotlivé omezení použitím zmíněných maker, např.
+.IR "stap -DSOME_LIMIT=NNNN ."
+
+.TP
+problém vzdáleného serveru
+Pokud používáte volbu
+.IR "stap --remote"
+pro spuštění systemtap skriptu na vzdáleném stroji, ujistěte se, že je možné k
+tomuto stroji úspěšně vytvořit SSH spojení, a že na něm je nainstalovaný
+"systemtap-runtime".
+
+.TP
+problém instalace
+Je možné, že systemtap nebyl korektně nainstalován.  Například programu
+.IR /usr/bin/staprun
+může chybět potřebné "setuid" oprávnění, nebo uživatel, který spouští skript,
+nemá dostatečná oprávnění (root, nebo skupina
+.IR stapusr
+a členství v souvisejících skupinách).  Proměnné prostředí mohou ovlivňovat
+umístění binárních souborů, jako např.
+.IR /usr/libexec/.../stapio  "."
+
+.TP
+chyby v analyzovaném uživatelském programu
+Program spuštěný prostřednictvím
+.IR "stap -c CMD"
+mohl skončit s nenulovou návratovou hodnotou.
+
+.TP
+Nezachycená výjimka ve zkoumaném programu
+Používáte-li
+.IR --runtime=dyninst ","
+můžete se setkat s chybou, kdy zkoumaný program skončí s chybou
+"terminate called after throwing an instance of 'foo_exception'".
+Toto je bohužel důsledek omezení instrumentačního nástroje Dyninst,
+který někdy zabrání, aby se výjimky správně odvíjely v
+instrumentovaném kódu.
+
+.SH VÍCE INFORMACÍ
+Zvýšit upovídanost procesní fáze 5 lze volbou
+.IR "--vp 00001 ."
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR http://sourceware.org/systemtap/wiki/TipExhaustedResourceErrors ,
+.IR error::fault (7stap),
+.IR error::reporting (7stap)

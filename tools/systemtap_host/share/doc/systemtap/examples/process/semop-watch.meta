@@ -1,0 +1,6 @@
+title: Watch semop(2)/semtimedop(2) operations
+name: semop-watch.stp
+keywords: process locking
+description: Prints a timed trace of semop(2)/semtimedop(2) syscalls
+test_check: stap -p4 semop-watch.stp -c 'sleep 2'
+test_installcheck: stap semop-watch.stp -c 'sleep 2'

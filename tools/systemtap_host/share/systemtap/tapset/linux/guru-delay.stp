@@ -1,0 +1,45 @@
+// Copyright (C) 2012 Red Hat Inc., Bryn M. Reeves <bmr@redhat.com>
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+//
+
+// <tapsetdescription>
+// Functions in the guru-delay tapset allow a probe handler to insert
+// deliberate delays.  This is sometimes useful as a fault-injection
+// aid.  Due to its likelihood of interference with the kernel, guru
+// mode is required, and overload-prevention is suppressed.
+// </tapsetdescription>
+
+%{
+/* guru */
+#undef STP_OVERLOAD
+#include <linux/delay.h>
+%}
+
+
+/**
+ * sfunction mdelay - millisecond delay
+ * @ms: Number of milliseconds to delay.
+ *
+ * Description: This function inserts a multi-millisecond busy-delay into a probe handler.
+ * It requires guru mode.
+ */
+function mdelay(ms:long) %{
+  /* guru */
+  mdelay(STAP_ARG_ms);
+%}
+
+/**
+ * sfunction udelay - microsecond delay
+ * @us: Number of microseconds to delay.
+ *
+ * Description: This function inserts a multi-microsecond busy-delay into a probe handler.
+ * It requires guru mode.
+ */
+function udelay(us:long) %{
+  /* guru */
+  udelay(STAP_ARG_us);
+%}

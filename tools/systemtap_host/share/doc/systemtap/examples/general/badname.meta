@@ -1,0 +1,13 @@
+title: Bad Filename Filter
+name: badname.stp
+version: 1.0
+keywords: filesystem guru
+author: Josh Stone
+subsystem: filesystem
+status: experimental
+exit: user-controlled
+output: none
+scope: system-wide
+description: The badname.stp script shows how one could prevent the creation of files with undesirable names using guru mode.
+test_check: stap -g -p4 badname.stp
+test_installcheck: stap -g badname.stp -c "touch /tmp/myXXXbadnameXXXfile.$$ 2>&1 | grep denied"

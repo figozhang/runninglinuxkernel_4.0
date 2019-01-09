@@ -1,0 +1,28 @@
+thread-times.stp - Profile Kernel Functions
+
+  The thread-times.stp script sets up time-based sampling.  Every five
+  seconds it prints out a sorted list with the top twenty threads
+  occupying the CPUs, broken down as a percentage of user and kernel
+  time.
+
+$ stap thread-times.stp -c "sleep 5"
+
+            comm   tid   %user %kernel (of 8004 ticks)
+      eu-readelf 22304  49.86%   0.09%
+       swapper/0     0   0.00%  49.77%
+            bash  9635   0.01%   0.03%
+            sshd  9634   0.01%   0.02%
+            bash 23434   0.00%   0.02%
+            bash 23431   0.00%   0.01%
+              ls 23421   0.01%   0.00%
+            bash 23428   0.00%   0.01%
+              ls 23427   0.00%   0.01%
+            bash 23425   0.00%   0.01%
+              ls 23424   0.01%   0.00%
+            bash 23420   0.00%   0.01%
+          stapio 23417   0.00%   0.01%
+            bash 23422   0.00%   0.01%
+              ls 23433   0.00%   0.01%
+              ls 23430   0.01%   0.00%
+              ls 23418   0.01%   0.00%
+

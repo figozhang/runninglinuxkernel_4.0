@@ -1,0 +1,44 @@
+.\" t
+.TH ERROR::REPORTING 7stap 
+.SH NAME
+error::reporting \- systemtap error reporting
+
+
+.SH COMMERCIAL SUPPORT
+If you have a commercial support agreement with your OS distributor
+that covers this software, we recommend getting your money's worth 
+by using their problem reporting systems first.
+
+.SH COMMUNITY SUPPORT
+Systemtap community & volunteer developers are eager to hear problem
+reports, so they can improve the software.  Various ways to contact them 
+include: 
+
+.TP
+public mailing list
+systemtap@sourceware.org
+
+.TP
+public IRC
+#systemtap on irc.freenode.net, use fpaste.org for snippets of text
+
+.TP
+public bugzilla
+http://sourceware.org/bugzilla/
+
+.SH INFORMATION TO COLLECT
+In general, please include information about your platform,
+systemtap version, your scripts & custom tapsets, systemtap
+invocation, actual behavior / errors seen, and expected behavior.  
+The 
+.IR stap-report
+script collects useful system/kernel information that helps describe
+the OS environment; please include its output.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR stap-report (1),
+.IR http://sourceware.org/systemtap/wiki/
+

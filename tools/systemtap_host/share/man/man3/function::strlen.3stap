@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::strlen
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: A collection of standard string functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::STRLEN" "3stap" "March 2016" "SystemTap Tapset Reference" "A collection of standard strin"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::strlen \- Returns the length of a string
+.SH "SYNOPSIS"
+.sp
+.nf
+    strlen:long(s:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIs\fR
+.RS 4
+the string
+.RE
+.SH "DESCRIPTION"
+.PP
+This function returns the length of the string, which can be zero up to MAXSTRINGLEN\&.
+.SH SEE ALSO\n 
+.IR tapset::string (3stap)

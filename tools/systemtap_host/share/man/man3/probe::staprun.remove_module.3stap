@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: probe::staprun.remove_module
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: SystemTap Translator Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::STAPRUN\&.REM" "3stap" "March 2016" "SystemTap Tapset Reference" "SystemTap Translator Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::staprun.remove_module \- Removing SystemTap instrumentation module
+.SH "SYNOPSIS"
+.sp
+.nf
+staprun\&.remove_module 
+.fi
+.SH "VALUES"
+.PP
+\fIname\fR
+.RS 4
+the stap module name to be removed (without the \&.ko extension)
+.RE
+.SH "DESCRIPTION"
+.PP
+Fires just before the call to remove the module\&.
+.SH SEE ALSO\n 
+.IR tapset::stap_staticmarkers (3stap)

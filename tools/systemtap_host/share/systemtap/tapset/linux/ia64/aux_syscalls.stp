@@ -1,0 +1,45 @@
+# arch-specific requests of ptrace ___________________________
+#
+%{
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
+
+static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
+	V(PTRACE_SINGLEBLOCK),
+	V(PTRACE_OLD_GETSIGINFO),
+	V(PTRACE_OLD_SETSIGINFO),
+	V(PTRACE_GETREGS),
+	V(PTRACE_SETREGS),
+	V(PTRACE_OLDSETOPTIONS),
+	{0, NULL}
+};
+%}
+
+function __arch_ptrace_request_str:string(request:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_arch_ptrace_request_list,
+			(unsigned long)STAP_ARG_request, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+function _arch_ptrace_argstr(request, pid, addr, data)
+{
+	if (request == %{ /* pure */ PTRACE_SINGLEBLOCK %})
+		return sprintf("PTRACE_SINGLEBLOCK, %d, %#x, %s", pid,
+			       addr, _signal_name (data))
+	if (request == %{ /* pure */ PTRACE_GETREGS %}
+	    || request == %{ /* pure */ PTRACE_SETREGS %}
+	    || request == %{ /* pure */ PTRACE_OLD_GETSIGINFO %}
+	    || request == %{ /* pure */ PTRACE_OLD_SETSIGINFO %})
+		return sprintf("%s, %d, %#x, %p",
+			       __arch_ptrace_request_str(request), pid,
+			       addr, data)
+	if (request == %{ /* pure */ PTRACE_OLDSETOPTIONS %})
+		return sprintf("PTRACE_OLDSETOPTIONS, %d, %#x, %s", pid,
+			       addr, _ptrace_options_str(data))
+}
+
+function _ptrace_return_arch_prctl_addr:long(request:long, addr:long, data:long)
+{
+	return 0
+}

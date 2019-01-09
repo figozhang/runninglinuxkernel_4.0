@@ -1,0 +1,10 @@
+title: System-Wide Network Packet Dropping Tool
+name: netfilter_drop.stp
+keywords: network packets guru
+subsystem: network
+status: experimental
+exit: user-controlled
+scope: system-wide
+description: The script drops the specified number of packets of the specified protocol. Valid protocols are TCP, UDP, or ALL. If ALL is specified, all incoming packets are dropped. The number of packets to drop can be specified with a positive integer. A value of 0 indicates that packets should be dropped until the user manually exits.
+test_check: stap -g -p4 netfilter_drop.stp TCP 1
+test_installcheck: stap -g netfilter_drop.stp TCP 1 -c "sleep 2"

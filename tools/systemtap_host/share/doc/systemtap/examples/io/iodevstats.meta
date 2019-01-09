@@ -1,0 +1,13 @@
+title: List Executables Reading and Writing the Most Data by Device
+name: iodevstats.stp
+version: 1.0
+author: anonymous
+keywords: io profiling
+subsystem: io
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description:  The iodevstats.stp script measures the amount of data successfully read and written by all the executables for each io device on the system.  The output is sorted from greatest sum of bytes read and written to a device by an executable to the least. The output contains device major/minor number, the count of operations (reads and writes), the totals and averages for the number of bytes read and written.
+test_check: stap -p4 iodevstats.stp
+test_installcheck: stap iodevstats.stp -c "sleep 1"

@@ -1,0 +1,53 @@
+.TH execsnoop-nd 8  "2015-01-30" "USER COMMANDS"
+.SH NAME
+execsnoop-nd \- trace process exec() with arguments. Uses Linux SystemTap (non-debuginfo).
+.SH SYNOPSIS
+.B execsnoop-nd.stp
+.SH DESCRIPTION
+This traces exec() from the fork()->exec() sequence, which means it will not
+catch new processes that only fork(). It will also show every exec(), including
+those if a process re-execs.
+
+This is a basic version of execsnoop.
+.SH REQUIREMENTS
+SystemTap.
+.SH EXAMPLES
+.TP
+Trace all new processes and arguments via exec():
+#
+.B execsnoop-nd.stp
+.SH FIELDS
+.TP
+TIME
+Time of the exec(), in human readable format.
+.TP
+PID
+Process ID.
+.TP
+PPID
+Parent process ID.
+.TP
+COMM
+Process name.
+.TP
+ARGS
+Command line arguments.
+.SH OVERHEAD
+This reads and processes exec() events and prints a line of output for each.
+Since the rate of exec() is expected to be low (< 500/s), the overhead is
+expected to be negligible.
+.SH SOURCE
+This is from the SystemTap lwtools collection.
+.IP
+https://github.com/brendangregg/systemtap-lwtools
+.PP
+Also look under the examples directory for a text file containing example
+usage, output, and commentary for this tool.
+.SH OS
+Linux
+.SH STABILITY
+Unstable - in development.
+.SH AUTHOR
+Brendan Gregg
+.SH SEE ALSO
+top(1)

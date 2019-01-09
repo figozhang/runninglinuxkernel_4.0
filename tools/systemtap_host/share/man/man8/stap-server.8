@@ -1,0 +1,627 @@
+.\" -*- nroff -*-
+.TH STAP\-SERVER 8 
+.SH NAME
+stap\-server \- systemtap compile server management
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH SYNOPSIS
+
+.br
+[
+.B service
+]
+.B stap\-server
+{
+.B start
+|
+.B stop
+|
+.B restart
+|
+.B condrestart
+|
+.B try\-restart
+|
+.B force\-reload
+|
+.B status
+} [
+.I options
+]
+
+.SH DESCRIPTION
+
+A systemtap compile server listens for connections from stap clients
+on a secure SSL network port and accepts requests to run the
+.I stap
+front end. Each server advertises its presence and configuration on the local
+network using mDNS (\fIavahi\fR) allowing for automatic detection by clients.
+
+.PP
+The stap\-server script aims to provide:
+.IP \(bu 4
+management of systemtap compile servers as a service.
+.IP \(bu 4
+convenient control over configured servers and individual (ad\-hoc) servers.
+
+.SH ARGUMENTS
+One of the actions below must be specified:
+.TP
+.B start
+Start servers. The specified servers are started.
+If no server is specified, the configured servers are started. If no servers
+are configured, a server for the kernel release and architecture of the host
+is started.
+If a specified server is
+already started, this action will
+be ignored for that server. If a server fails to start, this action fails.
+
+.TP
+.B stop
+Stop server(s). The specified servers are stopped.
+If no server is specified, all currently running servers are stopped.
+If a specified server is
+not running, this action
+will be successful for that server. If a server fails to stop, this action
+fails.
+
+.TP
+.B restart
+Stop and restart servers. The specified servers are stopped and restarted.
+If no server is specified, all currently running servers are stopped and
+restarted. If no servers are running, this action behaves like \fIstart\fR.
+
+.TP
+.B condrestart
+Stop and restart servers. The specified servers are stopped and restarted.
+If a specified server is not running, it is not started. If no server is
+specified, all currently running servers are stopped and restarted.  If no
+servers are running, none will be started.
+
+.TP
+.B try\-restart
+This action is identical to \fIcondrestart\fR.
+
+.TP
+.B force\-reload
+Stop all running servers, reload config files and restart the service as if
+.I start
+was specified.
+
+.TP
+.B status
+Print information about running servers. Information about the specified
+server(s) will be printed. If no server is specified, information about all
+running servers will be printed.
+
+.SH OPTIONS
+The following options are used to provide additional configuration and
+to specify servers to be managed:
+
+.TP
+\fB\-c\fR \fIconfigfile\fR
+This option specifies a global configuration file in addition to the default
+global configuration file described
+below. This file will be processed after the default global
+configuration file. If the \fB\-c\fR option is specified more than once, the
+last
+configuration file specified will be used.
+
+.TP
+\fB\-a\fR \fIarchitecture\fR
+This option specifies the target architecture of the server and is
+analogous to the \fB\-a\fR option of \fIstap\fR. See the
+.IR stap (1)
+manual page for more details.
+The default architecture is the architecture of the host.
+
+.TP
+\fB\-r\fR \fIkernel\-release\fR
+This option specifies the target kernel release of the server and is
+analogous to the \fB\-r\fR option of \fIstap\fR. See the
+.IR stap (1)
+manual page for more details.
+The default release is that of the currently running kernel.
+
+.TP
+\fB\-I\fR \fIpath\fR
+This option specifies an additional path to be searched by the server(s) for
+tapsets and is analogous to the \fB\-I\fR option of \fIstap\fR.
+See the
+.IR stap (1)
+manual page for more details.
+
+.TP
+\fB\-R\fR \fIpath\fR
+This option specifies the location of the systemtap runtime to be used by the
+server(s) and is analogous to the \fB\-R\fR option of \fIstap\fR.
+See the
+.IR stap (1)
+manual page for more details.
+
+.TP
+\fB\-B\fR \fIoptions\fR
+This option specifies options to be passed to \fImake\fR when building systemtap
+modules and is analogous to the \fB\-B\fR option of \fIstap\fR.
+See the
+.IR stap (1)
+manual page for more details.
+
+.TP
+\fB\-i\fR
+This option is a shortcut which specifies one server for each kernel
+release installed in \fI/lib/modules/\fR. Previous
+\fB\-I\fR, \fB\-R\fR, \fB\-B\fR and \fB\-u\fR options will be
+applied to each server, however previous \fB\-a\fR options will be ignored and
+the default architecture will be used.
+
+.TP
+\fB\-n\fR \fInickname\fR
+This option allows the specification of a server configuration by nickname.
+When \fB\-n\fR is specified, a currently running server with the given nickname
+will be searched for. If no currently running server with the given nickname is
+found, a server configuration with the given nickname will be searched for in
+the configuration files for default servers,
+or the path configured in the global configuration file or
+the configuration file specified by the
+\fB\-c\fR option. If a server configuration for the given
+nickname is found, the
+\fB\-a\fR, \fB\-r\fR, \fB\-I\fR, \fB\-R\fR, \fB\-B\fR and \fB\-u\fR options for
+that server will be used as if they were specified on the command line. If no
+configuration with the given nickname is found, and the action is
+.I start
+(or an action behaving like \fIstart\fR
+(see \fBARGUMENTS\fR), the server will be started with the given nickname.
+If no configuration with the given nickname is found, and the action is not
+.I start
+(or an action behaving like \fIstart\fR), it is an error. If a nickname is
+not specified for a server which is being started, its nickname will be its
+process id.
+
+.TP
+\fB\-p\fR \fIpid\fR
+This option allows the specification of a server configuration by process id.
+When \fB\-p\fR is specified, a currently running server with the given process
+id will be searched for. If no such server is found, it is an error. If a server
+with the given process id is found, the
+\fB\-a\fR, \fB\-r\fR, \fB\-I\fR, \fB\-R\fR, \fB\-B\fR and \fB\-u\fR options for
+that server will be used as if they were specified on the command line.
+
+.TP
+\fB\-u\fR \fIuser\-name\fR
+Each systemtap compile server is normally run by the user name
+\fIstap\-server\fR (for the initscript) or as the user invoking
+\fIstap\-server\fR,
+unless otherwise configured (see \fBFILES\fR). This option
+specifies the user name used to run the server(s). The user name specified
+must be a member of the group \fIstap\-server\fR.
+
+.TP
+\fB\-\-log\fR \fIlogfile\fR
+This option allows the specification of a separate log file for each server. 
+Each \-\-log option is added to a list which will be applied, in turn, to each
+server specified. If more servers are specified than \-\-log options, the default
+log file (see \fBFILES\fR) will be used for subsequent servers.
+
+.TP
+\fB\-\-port\fR \fIport\-number\fR
+This option allows the specification of a specific network port for each
+server. Each \-\-port option is added to a list which will be applied, in turn,
+to each server specified. If more servers are specified than
+\-\-port options, a randomly selected port is used for subsequent servers.
+
+.TP
+\fB\-\-ssl\fR \fIcertificate\-db\-path\fR
+This option allows the specification of a separate NSS certificate database
+for each server. Each \-\-ssl option is added to a list which will be applied,
+in turn, to each server specified. If more servers are specified than \-\-ssl
+options, the default certificate database
+(see \fBFILES\fR) for subsequent servers.
+
+.TP
+\fB\-\-max\-threads\fR \fIthreads\fR
+This option allows the specification of the maximum number of worker threads
+to handle concurrent requests. If \fIthreads\fR == 0, each request will be
+handled on the main thread, serially.  The default is the number of available
+processor cores.
+
+.TP
+\fB\-\-max\-request\-size\fR \fIsize\fR
+This options allows the specification of the maximum size of an uncompressed
+client request. The arguement \fIsize\fR is specified in bytes. The
+default is the 50000 bytes.
+
+.TP
+\fB\-\-max\-compressed\-request\fR \fIsize\fR
+This options allows the specification of the maximum size of a compressed
+client request. The arguement \fIsize\fR is specified in bytes. The
+default is the 5000 bytes.
+
+.SH CONFIGURATION
+
+Configuration files allow us to:
+.IP \(bu 4
+specify global configuration of logging, server configuration files, status
+files and other global parameters.
+.IP \(bu 4
+specify which servers are to be started by default.
+
+.SH Global Configuration
+
+The Global Configuration file contains
+variable assignments used to configure the overall operation of the service.
+Each line beginning with a '#' character is ignored. All other lines must be
+of the form \fIVARIABLE=VALUE\fR. This is not a shell script. The entire
+contents of the line after the = will be assigned as\-is to the variable.
+
+The following variables may be assigned:
+
+.TP
+.B CONFIG_PATH
+Specifies the absolute path of the directory containing the default server
+configurations.
+
+.TP
+.B STAT_PATH
+Specifies the absolute path of the running server status directory.
+
+.TP
+.B LOG_FILE
+Specifies the absolute path of the log file.
+
+.TP
+.B STAP_USER
+Specifies the userid which will be used to run the server(s)
+(default: for the initscript \fIstap\-server\fR, otherwise the user running
+\fIstap\-server\fR).
+
+.PP
+Here is an example of a Global Configuration file:
+.SAMPLE
+CONFIG_PATH=~<user>/my-stap-server-configs
+LOG_FILE=/tmp/stap-server/log
+.ESAMPLE
+
+.SH Individual Server Configuration
+
+Each server configuration file configures a server to be started when no
+server is specified for the \fIstart\fR action, or an action behaving like the
+\fIstart\fR action (see \fIARGUMENTS\fR). Each configuration file contains
+variable assignments used to configure an individual server.
+
+Each line beginning with a '#' character is ignored. All other lines must be
+of the form \fIVARIABLE=VALUE\fR. This is not a shell script. The entire
+contents of the line after the = will be assigned as\-is to the variable.
+
+Each configuration file must have a filename suffix of \fI.conf\fR. See
+\fIstappaths\fR(7) for the default location of these files.  This default
+location can be overridden in the global configuration file using the \fB\-c\fR
+option (see \fIOPTIONS\fR).
+
+The following variables may be assigned:
+.TP
+.B ARCH
+Specifies the target architecture for this server and corresponds to the
+\fB\-a\fR option (see \fIOPTIONS\fR). If \fBARCH\fR is not set, the
+architecture of the host will be used.
+
+.TP
+.B RELEASE
+Specifies the kernel release for this server
+and corresponds to the
+\fB\-r\fR option (see \fIOPTIONS\fR). If \fBRELEASE\fR is not set, the
+release
+of the kernel running on the host will be used.
+ 
+.TP
+.B BUILD
+Specifies options to be passed to the \fImake\fR process used by
+\fIsystemtap\fR to build kernel modules.
+This an array variable with each element corresponding to a
+\fB\-B\fR option (see \fIOPTIONS\fR). Using the form \fBBUILD=STRING\fR clears
+the array and sets the first element to \fBSTRING\fR. Using the form
+\fBBUILD+=STRING\fR adds \fBSTRING\fR as an additional element to the array.
+ 
+.TP
+.B INCLUDE
+Specifies a list of directories to be searched by the server for tapsets.
+This is an array variable with each element corresponding to a
+\fB\-I\fR option (see \fIOPTIONS\fR). Using the form \fBINCLUDE=PATH\fR clears
+the array and sets the first element to \fBPATH\fR. Using the form
+\fBINCLUDE+=PATH\fR adds \fBPATH\fR as an additional element to the array.
+
+.TP
+.B RUNTIME
+Specifies the directory which contains the systemtap runtime code to be used
+by this server
+and corresponds to the
+\fB\-R\fR option (see \fIOPTIONS\fR).
+
+.TP
+.B USER
+Specifies the user name to be used to run this server
+and corresponds to the
+\fB\-u\fR option (see \fIOPTIONS\fR).
+
+.TP
+.B NICKNAME
+Specifies the nickname to be used to refer to this server
+and corresponds to the
+\fB\-n\fR option (see \fIOPTIONS\fR).
+
+.TP
+.B LOG
+Specifies the location of the log file to be used by this server and corresponds to the
+\fB\-\-log\fR option (see \fIOPTIONS\fR).
+
+.TP
+.B PORT
+Specifies the network port to be used by this server and corresponds to the
+\fB\-\-port\fR option (see \fIOPTIONS\fR).
+
+.TP
+.B SSL
+Specifies the location of the NSS certificate database to be used by this server and corresponds
+to the
+\fB\-\-ssl\fR option (see \fIOPTIONS\fR).
+
+.TP
+.B MAXTHREADS
+Specifies the maximum number of worker threads to handle concurrent requests to be used by this server
+and corresponds to the \fB\-\-max\-threads\fR option (see \fIOPTIONS\fR).
+
+.TP
+.B MAXREQSIZE
+Specifies the maximum size of an uncompressed client request, to be used by
+this server and correspnds to the  \fB\-\-max\-request\-size\fR option (see \fIOPTIONS\fR).
+
+.TP
+.B MAXCOMPRESSEDREQ
+Specifies the maximum size of an compressed client request, to be used by
+this server and correspnds to the  \fB\-\-max\-compressed\-request\fR option (see \fIOPTIONS\fR).
+
+.PP
+Here is an example of a server configuration file:
+.SAMPLE
+ARCH=
+USER=
+RELEASE=
+NICKNAME=native
+.ESAMPLE
+By keeping the ARCH, USER, and RELEASE fields blank, they will default to the
+current arch and release and use the default user.
+
+A more specific example:
+.SAMPLE
+ARCH=i386
+RELEASE=2.6.18-128.el5
+PORT=5001
+LOG=/path/to/log/file
+.ESAMPLE
+
+And here is a more complicated example:
+.SAMPLE
+USER=serveruser
+RELEASE=/kernels/2.6.18-92.1.18.el5/build
+INCLUDE=/mytapsets
+INCLUDE+=/yourtapsets
+BUILD='VARIABLE1=VALUE1 VARIABLE2=VALUE2'
+DEFINE=STP_MAXMEMORY=1024
+DEFINE+=DEBUG_TRANS
+RUNTIME=/myruntime
+NICKNAME=my-server
+SSL=/path/to/NSS/certificate/database
+.ESAMPLE
+
+.SH SERVER AUTHENTICATION
+The security of the SSL network connection between the client and server
+depends on the proper
+management of server certificates.
+
+.PP
+The trustworthiness of a given systemtap compile server can not be determined
+automatically without a trusted certificate authority issuing systemtap compile server
+certificates. This is
+not practical in everyday use and so, clients must authenticate servers
+against their own database of trusted server certificates. In this context,
+establishing a given server as trusted by a given client means adding
+that server\[aq]s certificate to the
+client\[aq]s database of trusted servers.
+
+.PP
+For the \fIstap\-server\fR initscript, on the local host, this is handled
+automatically.
+When the \fIsystemtap\-server\fR package is installed, the server\[aq]s
+certificate for the default user (\fIstap\-server\fR) is automatically
+generated and installed. This means that servers started by the
+\fIstap\-server\fR initscript,
+with the default user, are automatically trusted by clients on the local
+host, both as an SSL peer and as a systemtap module signer.
+.PP
+Furthermore, when stap is invoked by an unprivileged user
+(not root, not a member of the group stapdev, but a member of the group
+stapusr and possibly the group stapsys), the options \fI\-\-use\-server\fR
+and \fI\-\-privilege\fR
+are automatically added to the specified options.
+This means that unprivileged users 
+on the local host can use a server on the local host
+in unprivileged mode with no further setup or options required. Normal users
+(those in none of the SystemTap groups) can also use compile-servers through the
+\fI\-\-use\-server\fR and \fI\-\-privilege\fR options. But they will of course
+be unable to load the module (the \fI\-p4\fR option can be used to stop short of
+loading).
+
+.PP
+In order to use a server running on another host, that server\[aq]s certificate
+must be installed on the client\[aq]s host.
+See the \fI\-\-trust\-servers\fR option in the
+.IR stap (1)
+manual page for more details and README.unprivileged in the systemtap sources
+for more details.
+
+.SH EXAMPLES
+See the 
+.IR stapex (3stap)
+manual page for a collection of sample \fIsystemtap\fR scripts.
+.PP
+To start the configured servers, or the default server, if none are configured:
+.PP
+.B \& $ [ service ] stap\-server start
+.PP
+To start a server for each kernel installed in /lib/modules:
+.PP
+.B \& $ [ service ] stap\-server start \-i
+.PP
+To obtain information about the running server(s):
+.PP
+.B \& $ [ service ] stap\-server status
+.PP
+To start a server like another one, except targeting a different architecture,
+by referencing the first server\[aq]s nickname:
+.PP
+.B \& $ [ service ] stap\-server start \-n \fINICKNAME\fB \-a \fIARCH\fR
+.PP
+To start a server for a kernel release not installed (cross-compiling)
+.PP
+.B \& $ [ service ] stap\-server start \-a \fIARCH\fB \-r \fI/BUILDDIR\fR
+.PP
+To stop one of the servers by referencing its process id (obtained by running
+\fBstap\-server status\fR):
+.PP
+.B \& $ [ service ] stap\-server stop \-p \fIPID\fR
+.PP
+To run a script using a compile server:
+.PP
+.B \& $ stap SCRIPT \-\-use\-server
+.PP
+To run a script as an unprivileged user using a compile server:
+.PP
+.B \& $ stap SCRIPT
+.PP
+To stop all running servers:
+.PP
+.B \& $ [ service ] stap\-server stop
+.PP
+To restart servers after a global configuration change and/or when default
+servers have been added, changed, or removed:
+.PP
+.B \& $ [ service ] stap\-server force-reload
+
+.SH SAFETY AND SECURITY
+Systemtap is an administrative tool.  It exposes kernel internal data
+structures and potentially private user information.  See the 
+.IR stap (1)
+manual page for additional information on safety and security.
+
+.PP
+As a network server, stap\-server should be activated with care in
+order to limit the potential effects of bugs or mischevious users.
+Consider the following prophylactic measures.
+.TP
+1
+Run stap\-server as an unprivileged user, never as root.
+
+When invoked as a
+service (i.e. \fBservice stap\-server\fR ...), each server is run,
+by default, as the user \fIstap\-server\fR.
+When invoked directly (i.e. \fBstap\-server\fR ...), each server is run,
+by default, as the invoking user. In each case, another user may be selected by
+using the \fI\-u\fR option on invocation, by specifying
+\fISTAP_USER=\fRusername in the global configuration file or by specifying
+\fIUSER=\fRusername in an individual server configuration file. The invoking
+user must have authority to run processes as another user.
+See \fICONFIGURATION\fR.
+
+The selected user must have write access to the server log file.
+The location of the server log file may
+be changed by setting \fILOG_FILE=\fRpath in the global configuration file.
+See \fICONFIGURATION\fR.
+
+The selected user must have 
+read/write access to the directory containing the server status files.
+The location of the server
+status files may be changed by setting \fISTAT_PATH=\fRpath in the global
+configuration file.
+See \fICONFIGURATION\fR.
+
+The selected user must have 
+read/write access to the uprobes.ko build directory and its files.
+
+Neither form of stap\-server will run if the selected user is root.
+
+.TP
+2
+Run stap\-server requests with resource limits that impose maximum 
+cpu time, file size, memory consumption, in order to bound
+the effects of processing excessively large or bogus inputs.
+
+When the user running the server is \fIstap\-server\fR,
+each server request is run with limits specified in \fI~stap-server/.systemtap/rc\fR
+otherwise, no limits are imposed.
+
+.TP
+3
+Run stap\-server with a TMPDIR environment variable that
+points to a separate and/or quota-enforced directory, in
+order to prevent filling up of important filesystems.
+
+The default TMPDIR is \fI/tmp/\fR.
+
+.TP
+4
+Activate network firewalls to limit stap client connections
+to relatively trustworthy networks.
+
+For automatic selection of servers by clients, \fIavahi\fR must be installed
+on both the server and client hosts and \fImDNS\fR messages must be allowed through the firewall.
+
+.PP
+The systemtap compile server and its related utilities use the Secure Socket Layer
+(SSL) as implemented by Network Security Services (NSS)
+for network security. NSS is also used
+for the generation and management of certificates. The related
+certificate databases must be protected in order to maintain the security of
+the system.
+Use of the utilities provided will help to ensure that the proper protection
+is maintained. The systemtap client will check for proper
+access permissions before making use of any certificate database.
+
+.SH FILES
+.TP
+Important files and their corresponding paths can be located in the 
+stappaths (7) manual page.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR staprun (8),
+.IR stapprobes (3stap),
+.IR stappaths (7),
+.IR stapex (3stap),
+.IR avahi ,
+.IR ulimit (1),
+.IR NSS
+
+.SH BUGS
+Use the Bugzilla link of the project web page or our mailing list.
+.nh
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .
+.hy
+

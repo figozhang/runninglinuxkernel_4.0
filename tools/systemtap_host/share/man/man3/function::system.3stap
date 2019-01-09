@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::system
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Shell command functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::SYSTEM" "3stap" "March 2016" "SystemTap Tapset Reference" "Shell command functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::system \- Issue a command to the system
+.SH "SYNOPSIS"
+.sp
+.nf
+    system(cmd:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIcmd\fR
+.RS 4
+the command to issue to the system
+.RE
+.SH "DESCRIPTION"
+.PP
+This function runs a command on the system\&. The command is started in the background some time after the current probe completes\&. The command is run with the same UID as the user running the stap or staprun command\&.
+.SH SEE ALSO\n 
+.IR tapset::system (3stap)

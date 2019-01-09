@@ -1,0 +1,132 @@
+.\" -*- nroff -*-
+.TH DTRACE 1
+.SH JMÉNO
+dtrace \- Nástroj pro generování statických sondážních bodů kompatibilní s Dtrace.
+
+.\" macros
+.\" do not nest SAMPLEs
+.de SAMPLE
+.br
+
+.nr oldin \\n(.i
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POUŽITÍ
+
+.br
+.B dtrace \-s \fIfile\fR [\fBOPTIONS\fR]
+
+.SH POPIS
+
+Příkaz dtrace převádí definici sondážních bodů předanou ve \fIfile.d\fR na
+odpovídající hlavičkový soubor, pokud je použit přepínač \fB\-h\fR, nebo na
+odpovídající objektový soubor, pokud je použit přepínač \fB\-G\fR.
+
+.SH VOLBY
+.PP
+.TP
+.B \-h
+generuje hlavičkový soubor pro systemtap.
+
+.TP
+.B \-G
+generuje objektový soubor pro systemtap.
+
+.TP
+.B \-o \fIfile\fR
+určuje výstupní soubor.  Při volbě \fB\-G\fR, je výchozí název výstupního
+souboru \fIfile.o\fR; při volbě \fB\-h\fR pak \fIfile.h\fR.
+
+.TP
+.B \-C
+spusť nad vsstupním souborem cpp preprocesor, pokud je dán přepínač \fB\-h\fR.
+
+.TP
+.B \-I \fIfile\fR
+použij danou "include" cestu, pokud je dán přepínač \fB\-C\fR .
+
+.TP
+.B \-k
+Zachovej dočasné soubory, například C zdrojový kód v případě, že je dán přepínač
+\fB\-G\fR.
+
+.SH PŘÍKLADY
+
+Systemptap je kompatibilní se specifikací statických dtrace sond na úrovni
+zdrojového kódu.  Mějme soubor \fItest.d\fR s následujícím obsahem:
+.SAMPLE
+provider sdt_probes
+{
+  probe test_0 (int type);
+  probe test_1 (struct astruct node);
+};
+struct astruct {int a; int b;};
+.ESAMPLE
+
+Pak příkaz \fI"dtrace\ \-s\ test.d\ \-G"\fR vygeneruje objektový soubor s
+definicí sondážních bodů \fItest.o\fR a příkaz \fI"dtrace\ \-s\ test.d\ \-h"\fR
+vytvoří hlavičkový soubor \fItest.h\fR.  Následně může aplikace využívat
+vygenerovaná makra takto:
+
+.SAMPLE
+#include "test.h"
+ \.\.\.
+struct astruct s;
+ \.\.\.
+SDT_PROBES_TEST_0(value);
+ \.\.\.
+if (SDT_PROBES_TEST_1_ENABLED())
+    SDT_PROBES_TEST_1(expensive_function(s));
+.ESAMPLE
+
+.SH SEMAFORY
+Semafory jsou logické proměnné, které systemtap využívá k přeskočení nákladné
+inicializace sondy (příprava argumentů) v případech, kdy je to možné.
+Systemtap hodnotu semaforů nastavuje automaticky, když příslušný skript běží.
+Semafory jsou definovány v rámci objektového souboru \fI"test.o"\fR, který
+tudíž musí být slinkován s aplikací.
+
+.PP
+V některých případech ovšem nejsou semafory nutné ani užitečné.  V tom případě
+lze vynecháním \fI"test.o"\fR zjednodušit sestavování aplikace.  K přeskočení
+závislostí na semaforech vložte include \fI"<sys/sdt.h>"\fR do aplikace před
+\fI"test.h"\fR takto:
+
+.SAMPLE
+#include <sys/sdt.h>
+#include "test.h"
+ \.\.\.
+struct astruct s;
+ \.\.\.
+SDT_PROBES_TEST_0(value);
+ \.\.\.
+if (SDT_PROBES_TEST_1_ENABLED())
+   SDT_PROBES_TEST_1(cheap_function(s));
+.ESAMPLE
+V tomto případě se nejdříve upraví ENABLED() test.
+
+.SH VIZ TAKÉ
+.nh
+.nf
+.IR stap (1),
+.IR stappaths (7)
+
+.SH CHYBY
+Použijte projektovou bugzillu, nebo mailing list.
+.nh
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .
+.hy
+.PP
+.IR error::reporting (7stap),
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs
+.hy

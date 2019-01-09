@@ -1,0 +1,501 @@
+// Process memory query and utility functions.
+// Copyright (C) 2009, 2010 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// <tapsetdescription>
+// Process memory query and utility functions provide information about
+// the memory usage of the current application. These functions provide
+// information about the full size, resident, shared, code and data used
+// by the current process. And provide utility functions to query the
+// page size of the current architecture and create human readable string
+// representations of bytes and pages used.
+// </tapsetdescription>
+
+%{
+/* PF_BORROWED_MM got renamed to PF_KTHREAD with same semantics somewhere. */
+#ifdef PF_BORROWED_MM
+#define _STP_PF_KTHREAD PF_BORROWED_MM
+#elif defined(PF_KTHREAD)
+#define _STP_PF_KTHREAD PF_KTHREAD
+#else
+/* 2.6.9 doesn't have either PF_BORROWED_MM or PF_KTHREAD */
+#define _STP_PF_KTHREAD 0
+#endif
+
+/* PF_STARTING was removed in later kernels */
+#ifdef PF_STARTING
+#define _STP_BAD_TASK_FLAGS (_STP_PF_KTHREAD | PF_EXITING | PF_STARTING)
+#else
+#define _STP_BAD_TASK_FLAGS (_STP_PF_KTHREAD | PF_EXITING)
+#endif
+
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,34)
+#include <linux/mm_types.h>
+#else
+/* Define our own mm types */
+enum {
+	MM_FILEPAGES,
+	MM_ANONPAGES
+};
+#endif
+%}
+
+/* Try to be slightly paranoid. Only returns 1 if the task isn't
+   starting, exiting or (coopted by) a kernel thread. */
+@__private30 function _stp_valid_task:long(tsk:long)
+%{
+  struct task_struct *tsk = (struct task_struct *)(long)STAP_ARG_tsk;
+
+  STAP_RETVALUE = 0;
+  if (tsk) {
+    unsigned int flags = kread(&(tsk->flags));
+
+    if (flags & ~_STP_BAD_TASK_FLAGS)
+      STAP_RETVALUE = 1;
+  }
+  CATCH_DEREF_FAULT();
+%}
+
+@__private30 function _MM_FILEPAGES:long()
+%{ /* pure */ /* stable */ /* unprivileged */
+  STAP_RETVALUE = MM_FILEPAGES;
+%}
+
+@__private30 function _MM_ANONPAGES:long()
+%{ /* pure */ /* stable */ /* unprivileged */
+  STAP_RETVALUE = MM_ANONPAGES;
+%}
+
+@__private30 function _stp_get_mm_counter:long(mm_ptr:long, member:long)
+{
+    mm = & @mm(mm_ptr)
+    /* kernels >= 2.6.34, 3.0 (2.6.40 fedora) and later always use atomics */
+    if (@defined(&@mm(0)->rss_stat)) {
+%( kernel_v >= "2.6.40" || CONFIG_NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS %?
+	val = atomic_long_read(&mm->rss_stat->count[member])
+%:
+	val = mm->rss_stat->count[member]
+%)
+	if (val < 0)
+	    return 0
+    }
+    /* kernels < 2.6.34 && kernels >= 2.6.12 */
+    else if (@defined(&@mm(0)->_file_rss)) {
+	if (member == _MM_FILEPAGES()) {
+%( CONFIG_NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS %?
+	    val = atomic_long_read(&mm->_file_rss)
+%:
+	    val = mm->_file_rss
+%)
+	}
+	else if (member == _MM_ANONPAGES()) {
+%( CONFIG_NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS %?
+	    val = atomic_long_read(&mm->_anon_rss)
+%:
+	    val = mm->_anon_rss
+%)
+	}
+    }
+    /* kernels < 2.6.12 */
+    else {
+	if (member == _MM_FILEPAGES())
+	    val = mm->rss
+	else if (member == _MM_ANONPAGES())
+	    val = mm->anon_rss
+    }
+    return val
+}
+
+/**
+ * sfunction proc_mem_size - Total program virtual memory size in pages
+ *
+ * Description: Returns the total virtual memory size in pages of the
+ * current process, or zero when there is no current process or the
+ * number of pages couldn't be retrieved.
+ */
+function proc_mem_size:long ()
+{
+   task = task_current()
+   if (_stp_valid_task(task)) {
+     mm = task->mm
+     if (mm != 0)
+       return mm->total_vm
+   }
+   return 0
+}
+
+/**
+ * sfunction proc_mem_size - Total program virtual memory size in pages
+ *
+ * @pid: The pid of process to examine
+ *
+ * Description: Returns the total virtual memory size in pages of the
+ * given process, or zero when that process doesn't exist or the
+ * number of pages couldn't be retrieved.
+ */
+function proc_mem_size:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0)
+      return mm->total_vm
+  }
+  return 0
+}
+%(systemtap_v <= "3.0" %?
+function proc_mem_size_pid:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0)
+      return mm->total_vm
+  }
+  return 0
+}
+%)
+
+/**
+ * sfunction proc_mem_rss - Program resident set size in pages
+ *
+ * Description: Returns the resident set size in pages of the current
+ * process, or zero when there is no current process or the number of
+ * pages couldn't be retrieved.
+ */
+function proc_mem_rss:long ()
+{
+  task = task_current()
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0)
+      return (_stp_get_mm_counter(mm, _MM_FILEPAGES())
+	      + _stp_get_mm_counter(mm, _MM_ANONPAGES()))
+  }
+  return 0
+}
+
+/**
+ * sfunction proc_mem_rss - Program resident set size in pages
+ *
+ * @pid: The pid of process to examine
+ *
+ * Description: Returns the resident set size in pages of the given
+ * process, or zero when the process doesn't exist or the number of
+ * pages couldn't be retrieved.
+ */
+function proc_mem_rss:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0)
+        return (_stp_get_mm_counter(mm, _MM_FILEPAGES())
+                + _stp_get_mm_counter(mm, _MM_ANONPAGES()))
+  }
+  return 0
+}
+%(systemtap_v <= "3.0" %?
+function proc_mem_rss_pid:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0)
+        return (_stp_get_mm_counter(mm, _MM_FILEPAGES())
+                + _stp_get_mm_counter(mm, _MM_ANONPAGES()))
+  }
+  return 0
+}
+%)
+
+/**
+ * sfunction proc_mem_shr - Program shared pages (from shared mappings)
+ *
+ * Description: Returns the shared pages (from shared mappings) of the
+ * current process, or zero when there is no current process or the
+ * number of pages couldn't be retrieved.
+ */
+function proc_mem_shr:long ()
+{
+  task = task_current()
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0)
+      return _stp_get_mm_counter(mm, _MM_FILEPAGES())
+  }
+  return 0
+}
+
+/**
+ * sfunction proc_mem_shr - Program shared pages (from shared mappings)
+ *
+ * @pid: The pid of process to examine
+ *
+ * Description: Returns the shared pages (from shared mappings) of the
+ * given process, or zero when the process doesn't exist or the
+ * number of pages couldn't be retrieved.
+ */
+function proc_mem_shr:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0)
+      return _stp_get_mm_counter(mm, _MM_FILEPAGES())
+  }
+  return 0
+}
+%(systemtap_v <= "3.0" %?
+function proc_mem_shr_pid:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0)
+      return _stp_get_mm_counter(mm, _MM_FILEPAGES())
+  }
+  return 0
+}
+%)
+
+@__private30 function _stp_mem_txt_adjust:long (start_code:long, end_code:long)
+%{ /* pure */
+  unsigned long start_code = (unsigned long) STAP_ARG_start_code;
+  unsigned long end_code = (unsigned long) STAP_ARG_end_code;
+  STAP_RETVALUE = (PAGE_ALIGN(end_code)
+                      - (start_code & PAGE_MASK)) >> PAGE_SHIFT;
+%}
+
+/**
+ * sfunction proc_mem_txt - Program text (code) size in pages
+ *
+ * Description: Returns the current process text (code) size in pages,
+ * or zero when there is no current process or the number of pages
+ * couldn't be retrieved.
+ */
+function proc_mem_txt:long ()
+{
+  task = task_current()
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0) {
+      s = mm->start_code
+      e = mm->end_code
+      return _stp_mem_txt_adjust(s, e)
+    }
+  }
+  return 0
+}
+
+/**
+ * sfunction proc_mem_txt - Program text (code) size in pages
+ *
+ * @pid: The pid of process to examine
+ *
+ * Description: Returns the given process text (code) size in pages,
+ * or zero when the process doesn't exist or the number of pages
+ * couldn't be retrieved.
+ */
+function proc_mem_txt:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0) {
+      s = mm->start_code
+      e = mm->end_code
+      return _stp_mem_txt_adjust (s, e)
+    }
+  }
+  return 0
+}
+%(systemtap_v <= "3.0" %?
+function proc_mem_txt_pid:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0) {
+      s = mm->start_code
+      e = mm->end_code
+      return _stp_mem_txt_adjust (s, e)
+    }
+  }
+  return 0
+}
+%)
+
+/**
+ * sfunction proc_mem_data - Program data size (data + stack) in pages
+ *
+ * Description: Returns the current process data size (data + stack)
+ * in pages, or zero when there is no current process or the number of
+ * pages couldn't be retrieved.
+ */
+function proc_mem_data:long ()
+{
+  task = task_current()
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0) {
+      return (@defined(&@mm(0)->data_vm) ? (mm->data_vm + mm->stack_vm)
+	      : (mm->total_vm - mm->shared_vm))
+    }
+  }
+  return 0
+}
+
+/**
+ * sfunction proc_mem_data - Program data size (data + stack) in pages
+ *
+ * @pid: The pid of process to examine
+ *
+ * Description: Returns the given process data size (data + stack)
+ * in pages, or zero when the process doesn't exist or the number of
+ * pages couldn't be retrieved.
+ */
+function proc_mem_data:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0) {
+      return (@defined(&@mm(0)->data_vm) ? (mm->data_vm + mm->stack_vm)
+	      : (mm->total_vm - mm->shared_vm))
+    }
+  }
+  return 0
+}
+%(systemtap_v <= "3.0" %?
+function proc_mem_data_pid:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0) {
+      return (@defined(&@mm(0)->data_vm) ? (mm->data_vm + mm->stack_vm)
+	      : (mm->total_vm - mm->shared_vm))
+    }
+  }
+  return 0
+}
+%)
+
+/**
+ * sfunction mem_page_size - Number of bytes in a page for this architecture
+ */
+function mem_page_size:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+   STAP_RETVALUE = PAGE_SIZE;
+%}
+
+// Return a 5 character wide string " x.yyp", " xx.yp", " xxxp", "xxxxp".
+@__private30 function _stp_number_to_string_postfix:string (x:long, y:long, p:string)
+{
+  if (x < 10)
+    return sprintf("%d.%.2d%s", x, y * 100 / 1024, p);
+  if (x < 100)
+    return sprintf("%2d.%d%s", x, y * 10 / 1024, p);
+  return sprintf("%4d%s", x, p);
+}
+
+/**
+ * sfunction bytes_to_string - Human readable string for given bytes
+ *
+ * @bytes: Number of bytes to translate.
+ *
+ * Description: Returns a string representing the number of bytes (up
+ * to 1024 bytes), the number of kilobytes (when less than 1024K)
+ * postfixed by 'K', the number of megabytes (when less than 1024M)
+ * postfixed by 'M' or the number of gigabytes postfixed by 'G'. If
+ * representing K, M or G, and the number is amount is less than 100,
+ * it includes a '.' plus the remainer. The returned string will be 5
+ * characters wide (padding with whitespace at the front) unless
+ * negative or representing more than 9999G bytes.
+ */
+function bytes_to_string:string (bytes:long)
+{
+  if (bytes < 1024)
+    return sprintf("%5d", bytes);
+
+  remain = bytes % 1024;
+  bytes = bytes / 1024;
+  if (bytes < 1024)
+    return _stp_number_to_string_postfix(bytes, remain, "K");
+
+  remain = bytes % 1024;
+  bytes = bytes / 1024;
+  if (bytes < 1024)
+    return _stp_number_to_string_postfix(bytes, remain, "M");
+
+  remain = bytes % 1024;
+  bytes = bytes / 1024;
+    return _stp_number_to_string_postfix(bytes, remain, "G");
+}
+
+/**
+ * sfunction pages_to_string - Turns pages into a human readable string
+ *
+ * @pages: Number of pages to translate.
+ *
+ * Description: Multiplies pages by page_size() to get the number of
+ * bytes and returns the result of bytes_to_string().
+ */
+function pages_to_string:string (pages:long)
+{
+  bytes = pages * mem_page_size();
+  return bytes_to_string (bytes);
+}
+
+/**
+ * sfunction proc_mem_string - Human readable string of process memory usage
+ *
+ * Description: Returns a human readable string showing the size, rss,
+ * shr, txt and data of the memory used by the current process.
+ * For example "size: 301m, rss: 11m, shr: 8m, txt: 52k, data: 2248k".
+ */
+function proc_mem_string:string ()
+{
+  return sprintf ("size: %s, rss: %s, shr: %s, txt: %s, data: %s",
+                  pages_to_string(proc_mem_size()),
+                  pages_to_string(proc_mem_rss()),
+                  pages_to_string(proc_mem_shr()),
+                  pages_to_string(proc_mem_txt()),
+                  pages_to_string(proc_mem_data()));
+}
+
+/**
+ * sfunction proc_mem_string - Human readable string of process memory usage
+ *
+ * @pid: The pid of process to examine
+ *
+ * Description: Returns a human readable string showing the size, rss,
+ * shr, txt and data of the memory used by the given process.
+ * For example "size: 301m, rss: 11m, shr: 8m, txt: 52k, data: 2248k".
+ */
+function proc_mem_string:string (pid:long)
+{
+  return sprintf ("size: %s, rss: %s, shr: %s, txt: %s, data: %s",
+                  pages_to_string(proc_mem_size(pid)),
+                  pages_to_string(proc_mem_rss(pid)),
+                  pages_to_string(proc_mem_shr(pid)),
+                  pages_to_string(proc_mem_txt(pid)),
+                  pages_to_string(proc_mem_data(pid)));
+}
+%(systemtap_v <= "3.0" %?
+function proc_mem_string_pid:string (pid:long)
+{
+  return sprintf ("size: %s, rss: %s, shr: %s, txt: %s, data: %s",
+                  pages_to_string(proc_mem_size(pid)),
+                  pages_to_string(proc_mem_rss(pid)),
+                  pages_to_string(proc_mem_shr(pid)),
+                  pages_to_string(proc_mem_txt(pid)),
+                  pages_to_string(proc_mem_data(pid)));
+}
+%)

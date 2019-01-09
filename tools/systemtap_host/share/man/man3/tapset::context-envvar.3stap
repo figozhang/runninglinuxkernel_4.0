@@ -1,0 +1,27 @@
+.\" -*- nroff -*-
+.TH TAPSET::CONTEXT-ENVVAR 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::context-envvar \- systemtap context-envvar tapset
+ 
+.SH DESCRIPTION
+
+ Context functions provide additional information about where an event occurred. These functions can
+provide information such as a backtrace to where the event occurred and the current register values for the
+processor.
+
+.TP
+.P
+.TP
+.B env_var 
+Fetch environment variable from current process
+.IP
+See 
+.IR function::env_var (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::env_var (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

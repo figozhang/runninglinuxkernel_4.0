@@ -1,0 +1,13 @@
+title: Trace Creation of Processes
+name: forktracker.stp
+version: 0.1
+author: Phil Muldoon at Red Hat
+keywords: process scheduler 
+subsystem: scheduler
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The forktracker.stp script prints out a time-stamped entry showing each fork and exec operation on the machine. This can be useful to determine what process is creating a flurry of short-lived processes.
+test_check: stap -p4 forktracker.stp
+test_installcheck: stap forktracker.stp -c "sleep 1"

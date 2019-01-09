@@ -1,0 +1,25 @@
+#! /usr/bin/env stap
+
+global nfsd_unlink_active, vsf_unlink_success
+
+probe nfsd.unlink
+{
+  nfsd_unlink_active[tid()] = 1;
+}
+
+probe nfsd.unlink.return
+{
+  if (vsf_unlink_success[tid()]) {
+    printf("address %s unlinks %s\n",
+           ip_ntop(addr_from_rqst($rqstp)),
+           kernel_string($fname))
+    delete vsf_unlink_success[tid()]
+  }
+  delete nfsd_unlink_active[tid()]
+}
+
+probe kernel.function("vfs_unlink").return
+{
+  if (nfsd_unlink_active[tid()] && $return == 0)
+    vsf_unlink_success[tid()] = 1
+}

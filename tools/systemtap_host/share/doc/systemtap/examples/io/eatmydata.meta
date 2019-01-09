@@ -1,0 +1,6 @@
+title: disable fsync
+name: eatmydata.stp
+keywords: io guru simple
+description: Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on some dummy or other file descriptor
+test_check: stap -gp4 eatmydata.stp -x $$
+test_installcheck: stap -g eatmydata.stp -c 'strace ls || true'

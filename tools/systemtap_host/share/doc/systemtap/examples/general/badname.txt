@@ -1,0 +1,3 @@
+# stap -g badname.stp -c "touch /tmp/myXXXbadnameXXXfile.$$
+
+cannot touch `/tmp/myXXXbadnameXXXfile.15686': Permission denied

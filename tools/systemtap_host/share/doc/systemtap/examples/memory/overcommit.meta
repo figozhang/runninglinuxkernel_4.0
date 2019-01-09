@@ -1,0 +1,13 @@
+title: Log Failed Process Memory Allocation Due to Overcommit Limits
+name: overcommit.stp
+version: 1.0
+author: anonymous
+keywords: memory limits
+subsystem: memory
+status: proposed
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The overcommit.stp script prints a line each time the kernel refuses a memory allocation request from a process because of /proc/sys/vm/overcommit* limits.
+test_check: stap -p4 overcommit.stp
+test_installcheck: stap overcommit.stp -c "sleep 1"

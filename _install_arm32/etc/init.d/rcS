@@ -1,0 +1,14 @@
+mkdir -p /sys
+mkdir -p /tmp
+mkdir -p /proc
+mkdir -p /mnt
+mkdir -p /lib/modules/4.0.0+
+/bin/mount -a
+mkdir -p /dev/pts
+mount -t devpts devpts /dev/pts
+echo /sbin/mdev > /proc/sys/kernel/hotplug
+mdev -s
+
+ln -s /home/figo/systemtap-3.0-3521/bin/staprun /bin/staprun
+
+mount -t 9p -o trans=virtio kmod_mount /mnt

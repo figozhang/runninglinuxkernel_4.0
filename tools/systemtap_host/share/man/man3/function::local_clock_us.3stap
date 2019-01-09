@@ -1,0 +1,44 @@
+'\" t
+.\"     Title: function::local_clock_us
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Timestamp Functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::LOCAL_CLOC" "3stap" "March 2016" "SystemTap Tapset Reference" "Timestamp Functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::local_clock_us \- Number of microseconds on the local cpu\*(Aqs clock
+.SH "SYNOPSIS"
+.sp
+.nf
+    local_clock_us:long()
+.fi
+.SH "ARGUMENTS"
+.PP
+None
+.SH "DESCRIPTION"
+.PP
+This function returns the number of microseconds on the local cpu\*(Aqs clock\&. This is always monotonic comparing on the same cpu, but may have some drift between cpus (within about a jiffy)\&.
+.SH SEE ALSO\n 
+.IR tapset::timestamp_monotonic (3stap)

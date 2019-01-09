@@ -1,0 +1,38 @@
+# stap vm.tracepoints.stp
+
+Process:swapper
+Slab_size:240   Count:2
+Slab_size:192   Count:433
+
+Process:pmcd
+Slab_size:384   Count:4
+Slab_size:192   Count:8
+
+Process:swapper
+Slab_size:128   Count:2
+
+Process:stapio
+Slab_size:144   Count:1
+
+Process:crond
+Slab_size:128   Count:8
+
+Process:pmcd
+Slab_size:56    Count:1
+
+Process:crond
+Slab_size:24    Count:8
+
+Process:pmcd
+Slab_size:448   Count:2
+
+Process:swapper
+Slab_size:1280  Count:2
+
+Process:pmcd
+Slab_size:128   Count:3
+Slab_size:24    Count:1
+Slab_size:644   Count:1
+
+Process:stapio
+Slab_size:4096  Count:3

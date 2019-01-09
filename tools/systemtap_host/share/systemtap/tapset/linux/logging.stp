@@ -1,0 +1,59 @@
+// logging tapset
+// Copyright (C) 2005-2011 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+
+/**
+ * sfunction ftrace - Send a message to the ftrace ring-buffer
+ *
+ * @msg: The formatted message string
+ *
+ * Description: If the ftrace ring-buffer is configured & available,
+ * see /debugfs/tracing/trace for the message.  Otherwise, the
+ * message may be quietly dropped.  An implicit end-of-line is added.
+ */
+function ftrace (msg:string) %{ /* unmodified-fnargs */
+#ifdef STAPCONF_TRACE_PRINTK
+       static char *fmt = "%s\n";
+       trace_printk (fmt, STAP_ARG_msg);
+
+       /* The "fmt" is designed to be non __builtin_constant_p(), so as
+       to defeat trace_printk -> __trace_bprintk optimization.  That's
+       because bprintk doesn't save the incoming strings, only their
+       addresses. */
+#endif
+%}
+
+
+
+/**
+ * sfunction printk - Send a message to the kernel trace buffer
+ *
+ * @level: an integer for the severity level (0=KERN_EMERG ... 7=KERN_DEBUG)
+ * @msg: The formatted message string
+ *
+ * Description: Print a line of text to the kernel dmesg/console with the
+ * given severity.  An implicit end-of-line is added.  This function may 
+ * not be safely called from all kernel probe contexts, so is restricted
+ * to guru mode only.
+ */
+function printk (level:long,msg:string) %{ /* guru */ /* unmodified-fnargs */
+         printk (STAP_ARG_level == 0 ? KERN_EMERG "%s\n":
+                 STAP_ARG_level == 1 ? KERN_ALERT "%s\n":
+                 STAP_ARG_level == 2 ? KERN_CRIT "%s\n":
+                 STAP_ARG_level == 3 ? KERN_ERR "%s\n":
+                 STAP_ARG_level == 4 ? KERN_WARNING "%s\n":
+                 STAP_ARG_level == 5 ? KERN_NOTICE "%s\n":
+                 STAP_ARG_level == 6 ? KERN_INFO "%s\n":
+                 STAP_ARG_level == 7 ? KERN_DEBUG "%s\n":
+#ifdef KERN_DEFAULT
+                 KERN_DEFAULT "%s\n"
+#else
+                 KERN_INFO "%s\n"
+#endif
+                 , STAP_ARG_msg);
+%}

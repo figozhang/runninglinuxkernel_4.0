@@ -1,0 +1,22 @@
+#! /usr/bin/env stap
+
+global packets
+
+probe begin {
+      print ("Collecting data... Type Ctrl-C to exit and display results.")
+}
+
+probe netfilter.ipv4.pre_routing {
+      // Using aggregates avoids contention from packets being sent in
+      // parallel from different processors:
+      packets[saddr, daddr] <<< length
+}
+
+probe end {
+      print ("\n")
+      foreach ([saddr, daddr] in packets-) {
+              printf ("%15s --> %15s : %d packets, %d total bytes\n",
+                      saddr, daddr,
+                      @count(packets[saddr,daddr]), @sum(packets[saddr,daddr]))
+      }
+}

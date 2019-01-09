@@ -1,0 +1,61 @@
+.TH accept2close-nd 8  "2015-01-30" "USER COMMANDS"
+.SH NAME
+accept2close-nd \- trace process signals. Uses Linux SystemTap (non-debuginfo).
+.SH SYNOPSIS
+.B accept2close-nd.stp
+[min_ms]
+.SH DESCRIPTION
+This traces socket duration from the accept() syscall to close(), and provides
+details on the lifespan of these passive connections.
+
+NOTE: This will miss sockets that are opened by one process, and then closed
+by another (eg, sshd).
+.SH REQUIREMENTS
+SystemTap.
+.SH OPTIONS
+.TP
+min_ms
+Minimum lifespan threshold, in milliseconds. This is an optional argument that
+can be used to focus on outliers.
+.SH EXAMPLES
+.TP
+Trace all passive socket connections, and show event details and a summary:
+#
+.B accept2close-nd.stp
+.TP
+Trace all passive socket connections equal to or slower than 5 milliseconds:
+#
+.B accept2close-nd.stp 5
+.SH FIELDS
+.TP
+TIME
+Time of socket close, human readable.
+.TP
+PID
+Server process ID
+.TP
+COMM
+Server process name.
+.TP
+FD
+File descriptor for socket.
+.TP
+DURATION
+Duration of socket connection (lifespan), in milliseconds.
+.SH OVERHEAD
+Should be low. Test first.
+.SH SOURCE
+This is from the SystemTap lwtools collection.
+.IP
+https://github.com/brendangregg/systemtap-lwtools
+.PP
+Also look under the examples directory for a text file containing example
+usage, output, and commentary for this tool.
+.SH OS
+Linux
+.SH STABILITY
+Unstable - in development.
+.SH AUTHOR
+Brendan Gregg
+.SH SEE ALSO
+strace(1)

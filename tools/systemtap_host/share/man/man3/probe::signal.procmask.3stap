@@ -1,0 +1,64 @@
+'\" t
+.\"     Title: probe::signal.procmask
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Signal Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SIGNAL\&.PROC" "3stap" "March 2016" "SystemTap Tapset Reference" "Signal Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::signal.procmask \- Examining or changing blocked signals
+.SH "SYNOPSIS"
+.sp
+.nf
+signal\&.procmask 
+.fi
+.SH "VALUES"
+.PP
+\fIsigset_addr\fR
+.RS 4
+The address of the signal set (sigset_t) to be implemented
+.RE
+.PP
+\fIsigset\fR
+.RS 4
+The actual value to be set for sigset_t (correct?)
+.RE
+.PP
+\fIoldsigset_addr\fR
+.RS 4
+The old address of the signal set (sigset_t)
+.RE
+.PP
+\fIname\fR
+.RS 4
+Name of the probe point
+.RE
+.PP
+\fIhow\fR
+.RS 4
+Indicates how to change the blocked signals; possible values are SIG_BLOCK=0 (for blocking signals), SIG_UNBLOCK=1 (for unblocking signals), and SIG_SETMASK=2 for setting the signal mask\&.
+.RE
+.SH SEE ALSO\n 
+.IR tapset::signal (3stap)

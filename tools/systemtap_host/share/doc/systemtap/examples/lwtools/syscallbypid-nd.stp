@@ -1,0 +1,41 @@
+#!/usr/bin/stap
+/*
+ * syscallbypid-nd.d	Count syscalls with process details.
+ *			For Linux, uses SystemTap (non-debuginfo).
+ *
+ * USAGE: ./syscallbypid-nd.d
+ *
+ * Copyright (C) 2015 Brendan Gregg.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * 23-Jun-2014	Brendan Gregg	Created this.
+ */
+
+global num;
+
+probe begin
+{
+	printf("Tracing syscall completions... Hit Ctrl-C to end.\n");
+}
+
+probe nd_syscall.*.return
+{
+	num[pid(), execname(), name] <<< 1;
+}
+
+probe end
+{
+	printf("\n%-8s %-16s %-24s %8s\n", "PID", "CMD", "SYSCALL", "COUNT");
+	foreach ([p, e, n] in num+) {
+		printf("%-8d %-16s %-24s %8d\n", p, e, n, @count(num[p, e, n]));
+	}
+}

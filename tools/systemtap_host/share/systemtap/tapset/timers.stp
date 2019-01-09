@@ -1,0 +1,24 @@
+// timers tapset
+// 
+// Copyright (C) 2009 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// Most of the timer probes are defined in tapset-timers.cxx;
+// however, timer.profile needs to fall back to perf in certain
+// circumstances.
+
+/**
+ * probe timer.profile - timer.profile.tick with a perf fallback on recent kernels
+ *
+ * This probe behaves identically to timer.profile.tick, except on
+ * some recent kernels which lack the underlying profile timer
+ * functionality. In those cases, timer.profile falls back to using
+ * perf.sw.cpu_clock. */
+probe timer.profile = timer.profile.tick ! , perf.sw.cpu_clock.sample(1000000) {}
+
+// This is used to pattern match for a .hz extension
+probe timer.profile.freq = perf.sw.cpu_clock {}

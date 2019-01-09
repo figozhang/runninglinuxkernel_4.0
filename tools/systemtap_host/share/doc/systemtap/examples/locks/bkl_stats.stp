@@ -1,0 +1,77 @@
+#! /usr/bin/env stap
+
+/*
+ * Copyright (C) 2009 Red Hat Inc.
+ * 
+ * This copyrighted material is made available to anyone wishing to use,
+ * modify, copy, or redistribute it subject to the terms and conditions
+ * of the GNU General Public License v.2.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Description: displays statistics for waiting and holding big kernel lock (BKL)
+ *
+ * Run: stap bkl_stats.stap
+ *
+ * Author: William Cohen <wcohen@redhat.com> 
+ */
+
+global holder_time
+global holder_stats, wait_stats
+global names
+
+probe begin { printf("biglock_stats running\n"); }
+
+probe end, timer.s(5) {
+  print_stats()
+}
+
+function print_stats() {
+  # print out time waiting and time lock held
+  printf("big kernel lock waiting statistics\n");
+  printf("%-16s %6s %6s %6s %6s %6s\n",
+         "name", "tid", "count", "min", "avg", "max");
+  foreach (p+ in names) {
+    if (@count(wait_stats[p]))
+      printf("%16s %6d %6d %6d %6d %6d\n", names[p], p,
+            @count(wait_stats[p]), @min(wait_stats[p]),
+            @avg(wait_stats[p]), @max(wait_stats[p]));
+  }
+
+  printf("\n\nbig kernel lock holder statistics\n");
+  printf("%-16s %6s %6s %6s %6s %6s\n",
+         "name", "tid", "count", "min", "avg", "max");
+  foreach (p+ in names) {
+    if (@count(holder_stats[p]))
+      printf("%16s %6d %6d %6d %6d %6d\n", names[p], p,
+            @count(holder_stats[p]), @min(holder_stats[p]),
+            @avg(holder_stats[p]), @max(holder_stats[p]));
+  }
+}
+
+probe kernel.function("_lock_kernel").return!,
+      kernel.function("lock_kernel").return
+{
+  t = gettimeofday_us()
+  s = @entry(gettimeofday_us())
+  holder_time[tid()] = t
+  # record the amount of time waiting for the lock
+  if (s) {
+     wait_stats[tid()] <<< t - s
+     names[tid()] = execname()
+  }
+}
+
+probe kernel.function("_unlock_kernel")!,
+      kernel.function("unlock_kernel")
+{
+  t = gettimeofday_us()
+  s = holder_time[tid()]
+  holder_time[tid()] = t
+  # record the amount of time the process held the lock
+  if (s) {
+     holder_stats[tid()] <<< t - s
+     names[tid()] = execname()
+  }
+}

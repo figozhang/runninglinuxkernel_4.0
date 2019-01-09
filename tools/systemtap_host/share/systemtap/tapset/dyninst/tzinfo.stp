@@ -1,0 +1,19 @@
+// timezone tapset
+// Copyright (C) 2013 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// NB: functionally equivalent to linux/tzinfo.stp
+
+function tz_gmtoff()
+%{ /* pure */ /* unprivileged */
+	STAP_RETVALUE = stp_session_attributes()->tz_gmtoff;
+%}
+
+function tz_name()
+%{ /* pure */ /* unprivileged */
+	strlcpy(STAP_RETVALUE, stp_session_attributes()->tz_name, MAXSTRINGLEN);
+%}

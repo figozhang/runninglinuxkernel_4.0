@@ -1,0 +1,10 @@
+title: Trace kill() signals showing process and signal details (non-debuginfo)
+name: killsnoop-nd.stp
+author: Brendan Gregg
+keywords: io
+description: This traces signals system-wide, including those sent by the kill(1) command, and shows various details.
+scope: system-wide
+usage: ./killsnoop-nd.stp
+test_support: stap -p4 killsnoop-nd.stp
+test_check: stap -p4 killsnoop-nd.stp
+test_installcheck: stap killsnoop-nd.stp -c "sleep 1"

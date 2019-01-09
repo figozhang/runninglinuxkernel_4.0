@@ -1,0 +1,105 @@
+.\" -*- nroff -*-
+.TH STAP\-MERGE 1
+.SH JMÉNO
+stap\-merge \- agregátor logů "bulk" režimu
+
+.\" macros
+.\" do not nest SAMPLEs
+.de SAMPLE
+.br
+
+.nr oldin \\n(.i
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POUŽITÍ
+
+.br
+.B stap\-merge
+[
+.I OPTIONS
+]
+[
+.I INPUT FILENAMES
+]
+
+.SH DESCRIPTION
+
+Progaram stap\-merge je užitečný byl-li
+.IR stap
+spuštěn s přepínačem \-b.  V tom případě došlo k vygenerování obecně většího
+množství logů (pro každou CPU jeden) a program stap\-merge je umí agregovat do
+jednoho společného logu.
+
+.SH VOLBY
+
+Progaram stap\-merge podporuje následující volby:
+
+.TP
+.B \-v
+Upovídaný režim.  Zobrazuje tři sloupce doplňujících informací:
+.SAMPLE
+.BR [číslo cpu, pořadové číslo dat, délku dat]
+.ESAMPLE
+.TP
+.BI \-o " VÝSTUPNÍ SOUBOR"
+
+Určuje výstupní soubor.  Pokud není nastaven, bude stap\-merge posílat data
+na standardní výstup.
+
+.SH PŘÍKLADY
+.SAMPLE
+$ stap \-v \-b \-e 'probe syscall.open { printf("%s(%d) open\\n",
+execname(), pid()) }'
+
+.ESAMPLE
+
+Výsledkem by mělo být několik souborů
+.I stpd_cpu
+očíslovaných podle CPU ze které data pocházejí.
+
+.SAMPLE
+$ stap\-merge \-v stpd_cpu0 stpd_cpu1
+
+.ESAMPLE
+
+Spuštění programu stap\-merge ve stejném adresáři, ve kterém byl spuštěn
+výše uvedený stap skript způsobí, že na standardní výstup bude předána
+setříděná posloupnost záznamů agregovaná z logů pro jednotlivé CPU.  Výstupní
+soubor lze nastavit pomocí \-o.
+
+.SH SOUBORY
+
+.TP
+Důležité soubory a jim příslušné umístění shrnuje manuálová stránka
+stappaths (7).
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stapprobes (3stap),
+.IR stappaths (7),
+.IR staprun (8),
+.IR stapvars (3stap),
+.IR stapex (3stap),
+.IR stap\-server (8),
+.IR gdb (1)
+
+.SH CHYBY                                                                       
+Použijte projektovou bugzillu, nebo mailing list.                               
+.nh                                                                             
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .          
+.hy                                                                             
+.PP                                                                             
+.IR error::reporting (7stap),                                                   
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs                       
+.hy

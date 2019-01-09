@@ -1,0 +1,28 @@
+// Copyright (C) 2012 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+//
+
+// NB: functionally equivalent to linux/guru-delay.stp
+
+%{
+#include <time.h>
+%}
+
+function mdelay(ms:long)
+{
+	udelay(ms * 1000);
+}
+
+function udelay(us:long)
+%{ /* guru */
+	struct timespec ts = {
+		STAP_ARG_us / 1000000,
+		STAP_ARG_us % 1000000,
+	};
+	nanosleep(&ts, NULL);
+	// XXX spin on EINTR?
+%}

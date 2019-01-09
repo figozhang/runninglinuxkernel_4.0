@@ -1,0 +1,12 @@
+title: Measure the distribution of file system synchronous read and write latency (non-debuginfo)
+name: fslatency-nd.stp
+author: Brendan Gregg
+keywords: io filesystem
+description: This dynamically traces two common file system functions: do_sync_read() and do_sync_write(), and reports a histogram distribution of latency. Many, but not all, file systems and workloads use these functions. Tracing their time provides one view of suffered file system latency.
+scope: system-wide
+usage: ./fslatency-nd.stp [interval [count]]
+arg_1: Output interval (seconds)
+arg_2: Output count
+test_support: stap -p4 fslatency-nd.stp
+test_check: stap -p4 fslatency-nd.stp
+test_installcheck: stap fslatency-nd.stp 1 1

@@ -1,0 +1,14 @@
+title: Watch a Kernel Address Using Breakpoint Hardware
+name: hw_watch_addr.stp
+version: 1.0
+author: William Cohen
+keywords: memory watchpoint
+subsystem: memory
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The script will watch accesses to a single kernel address and prints a traceback each time the address is accessed. This script needs to be run as root to allow access to the breakpoint hardware.
+test_support: perf stat -a --event=mem:0x`grep "vm_dirty_ratio" /proc/kallsyms | awk '{print $1}'` /bin/true
+test_check: stap --all-modules -p4 hw_watch_addr.stp 0x`grep "vm_dirty_ratio" /proc/kallsyms | awk '{print $1}'`
+test_installcheck: stap --all-modules hw_watch_addr.stp 0x`grep "vm_dirty_ratio" /proc/kallsyms | awk '{print $1}'` -c "sleep 5"

@@ -1,0 +1,20 @@
+From: http://sourceware.org/systemtap/wiki/WSNetTop
+
+# stap nettop.stp
+  PID   UID DEV     XMIT_PK RECV_PK XMIT_KB RECV_KB COMMAND
+    0     0 eth0         66     344      18      19 swapper
+ 2469     0 eth0        214      39     167       1 Xvnc
+23470     0 eth0         24      35       5       1 firefox-bin
+ 2281     0 eth0          1       1       0       0 wcstatusd
+22446     0 eth0          1       0       1       0 sshd
+ 2538     0 eth0          0       1       0       0 metacity
+23557     0 eth0          0       1       0       0 sh
+23559     0 eth0          0       1       0       0 lspci
+23566     0 eth0          0       1       0       0 sh
+
+  PID   UID DEV     XMIT_PK RECV_PK XMIT_KB RECV_KB COMMAND
+    0     0 eth0         14      80       0       3 swapper
+ 2469     0 eth0         32       2      20       0 Xvnc
+22446     0 eth0          1       0       0       0 sshd
+ 2052    38 eth0          1       0       0       0 ntpd
+

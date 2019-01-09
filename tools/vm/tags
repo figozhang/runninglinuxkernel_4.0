@@ -1,0 +1,281 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+ARRAY_SIZE	page-types.c	212;"	d	language:C	file:
+BIT	page-types.c	107;"	d	language:C	file:
+BITS_COMPOUND	page-types.c	108;"	d	language:C	file:
+BUF_SIZE	page_owner_sort.c	82;"	d	language:C	file:
+CC	Makefile	/^CC = $(CROSS_COMPILE)gcc$/;"	m	language:Make
+CFLAGS	Makefile	/^CFLAGS = -Wall -Wextra -I..\/lib\/$/;"	m	language:Make
+HASH_KEY	page-types.c	201;"	d	language:C	file:
+HASH_MASK	page-types.c	200;"	d	language:C	file:
+HASH_SHIFT	page-types.c	198;"	d	language:C	file:
+HASH_SIZE	page-types.c	199;"	d	language:C	file:
+KPAGEFLAGS_BATCH	page-types.c	589;"	d	language:C	file:
+KPF_ALL_BITS	page-types.c	104;"	d	language:C	file:
+KPF_ARCH	page-types.c	92;"	d	language:C	file:
+KPF_BYTES	page-types.c	82;"	d	language:C	file:
+KPF_HACKERS_BITS	page-types.c	105;"	d	language:C	file:
+KPF_MAPPEDTODISK	page-types.c	88;"	d	language:C	file:
+KPF_MLOCKED	page-types.c	87;"	d	language:C	file:
+KPF_OVERLOADED_BITS	page-types.c	106;"	d	language:C	file:
+KPF_OWNER_PRIVATE	page-types.c	91;"	d	language:C	file:
+KPF_PRIVATE	page-types.c	89;"	d	language:C	file:
+KPF_PRIVATE_2	page-types.c	90;"	d	language:C	file:
+KPF_READAHEAD	page-types.c	99;"	d	language:C	file:
+KPF_RESERVED	page-types.c	86;"	d	language:C	file:
+KPF_SLOB_FREE	page-types.c	100;"	d	language:C	file:
+KPF_SLUB_DEBUG	page-types.c	102;"	d	language:C	file:
+KPF_SLUB_FROZEN	page-types.c	101;"	d	language:C	file:
+KPF_SOFTDIRTY	page-types.c	94;"	d	language:C	file:
+KPF_UNCACHED	page-types.c	93;"	d	language:C	file:
+LDFLAGS	Makefile	/^LDFLAGS = $(LIBS)$/;"	m	language:Make
+LIBS	Makefile	/^LIBS = $(LIB_DIR)\/libapikfs.a$/;"	m	language:Make
+LIB_DIR	Makefile	/^LIB_DIR = ..\/lib\/api$/;"	m	language:Make
+MAX_ADDR_RANGES	page-types.c	171;"	d	language:C	file:
+MAX_ALIASES	slabinfo.c	24;"	d	language:C	file:
+MAX_BIT_FILTERS	page-types.c	181;"	d	language:C	file:
+MAX_NODES	slabinfo.c	25;"	d	language:C	file:
+MAX_PATH	page-types.c	48;"	d	language:C	file:
+MAX_SLABS	slabinfo.c	23;"	d	language:C	file:
+MAX_VMAS	page-types.c	176;"	d	language:C	file:
+PAGEMAP_BATCH	page-types.c	614;"	d	language:C	file:
+PM_ENTRY_BYTES	page-types.c	60;"	d	language:C	file:
+PM_PFRAME	page-types.c	70;"	d	language:C	file:
+PM_PFRAME_MASK	page-types.c	69;"	d	language:C	file:
+PM_PRESENT	page-types.c	73;"	d	language:C	file:
+PM_PSHIFT_BITS	page-types.c	65;"	d	language:C	file:
+PM_PSHIFT_MASK	page-types.c	67;"	d	language:C	file:
+PM_PSHIFT_OFFSET	page-types.c	66;"	d	language:C	file:
+PM_SOFT_DIRTY	page-types.c	75;"	d	language:C	file:
+PM_STATUS	page-types.c	64;"	d	language:C	file:
+PM_STATUS_BITS	page-types.c	61;"	d	language:C	file:
+PM_STATUS_MASK	page-types.c	63;"	d	language:C	file:
+PM_STATUS_OFFSET	page-types.c	62;"	d	language:C	file:
+PM_SWAP	page-types.c	74;"	d	language:C	file:
+PROC_KPAGEFLAGS	page-types.c	83;"	d	language:C	file:
+STR	page-types.c	53;"	d	language:C	file:
+TARGETS	Makefile	/^TARGETS=page-types slabinfo page_owner_sort$/;"	m	language:Make
+_FILE_OFFSET_BITS	page-types.c	22;"	d	language:C	file:
+_GNU_SOURCE	page-types.c	23;"	d	language:C	file:
+_STR	page-types.c	52;"	d	language:C	file:
+__PM_PSHIFT	page-types.c	68;"	d	language:C	file:
+__PM_SOFT_DIRTY	page-types.c	72;"	d	language:C	file:
+actual_slabs	slabinfo.c	/^int actual_slabs = 0;$/;"	v	language:C
+add_addr_range	page-types.c	/^static void add_addr_range(unsigned long offset, unsigned long size)$/;"	f	language:C	file:	signature:(unsigned long offset, unsigned long size)
+add_bits_filter	page-types.c	/^static void add_bits_filter(uint64_t mask, uint64_t bits)$/;"	f	language:C	file:	signature:(uint64_t mask, uint64_t bits)
+add_list	page_owner_sort.c	/^static void add_list(char *buf, int len)$/;"	f	language:C	file:	signature:(char *buf, int len)
+add_page	page-types.c	/^static void add_page(unsigned long voffset,$/;"	f	language:C	file:	signature:(unsigned long voffset, unsigned long offset, uint64_t flags, uint64_t pme)
+alias	slabinfo.c	/^	int alias;$/;"	m	language:C	struct:slabinfo	file:
+alias	slabinfo.c	/^static void alias(void)$/;"	f	language:C	file:	signature:(void)
+alias_targets	slabinfo.c	/^int alias_targets = 0;$/;"	v	language:C
+aliases	slabinfo.c	/^	int aliases, align, cache_dma, cpu_slabs, destroy_by_rcu;$/;"	m	language:C	struct:slabinfo	file:
+aliases	slabinfo.c	/^int aliases = 0;$/;"	v	language:C
+aliasinfo	slabinfo.c	/^struct aliasinfo {$/;"	s	language:C	file:
+aliasinfo	slabinfo.c	/^} aliasinfo[MAX_ALIASES];$/;"	v	language:C	typeref:struct:aliasinfo
+align	slabinfo.c	/^	int aliases, align, cache_dma, cpu_slabs, destroy_by_rcu;$/;"	m	language:C	struct:slabinfo	file:
+alloc_fastpath	slabinfo.c	/^	unsigned long alloc_fastpath, alloc_slowpath;$/;"	m	language:C	struct:slabinfo	file:
+alloc_from_partial	slabinfo.c	/^	unsigned long alloc_from_partial, alloc_slab, free_slab, alloc_refill;$/;"	m	language:C	struct:slabinfo	file:
+alloc_node_mismatch	slabinfo.c	/^	unsigned long alloc_node_mismatch, deactivate_bypass;$/;"	m	language:C	struct:slabinfo	file:
+alloc_refill	slabinfo.c	/^	unsigned long alloc_from_partial, alloc_slab, free_slab, alloc_refill;$/;"	m	language:C	struct:slabinfo	file:
+alloc_slab	slabinfo.c	/^	unsigned long alloc_from_partial, alloc_slab, free_slab, alloc_refill;$/;"	m	language:C	struct:slabinfo	file:
+alloc_slowpath	slabinfo.c	/^	unsigned long alloc_fastpath, alloc_slowpath;$/;"	m	language:C	struct:slabinfo	file:
+bit_mask_ok	page-types.c	/^static int bit_mask_ok(uint64_t flags)$/;"	f	language:C	file:	signature:(uint64_t flags)
+block_head	page_owner_sort.c	/^struct block_list *block_head;$/;"	v	language:C	typeref:struct:block_list
+block_list	page_owner_sort.c	/^struct block_list {$/;"	s	language:C	file:
+buffer	slabinfo.c	/^char buffer[4096];$/;"	v	language:C
+cache_dma	slabinfo.c	/^	int aliases, align, cache_dma, cpu_slabs, destroy_by_rcu;$/;"	m	language:C	struct:slabinfo	file:
+checked_open	page-types.c	/^static int checked_open(const char *pathname, int flags)$/;"	f	language:C	file:	signature:(const char *pathname, int flags)
+cmpxchg_double_cpu_fail	slabinfo.c	/^	unsigned long cmpxchg_double_cpu_fail, cmpxchg_double_fail;$/;"	m	language:C	struct:slabinfo	file:
+cmpxchg_double_fail	slabinfo.c	/^	unsigned long cmpxchg_double_cpu_fail, cmpxchg_double_fail;$/;"	m	language:C	struct:slabinfo	file:
+compare_num	page_owner_sort.c	/^static int compare_num(const void *p1, const void *p2)$/;"	f	language:C	file:	signature:(const void *p1, const void *p2)
+compare_txt	page_owner_sort.c	/^static int compare_txt(const void *p1, const void *p2)$/;"	f	language:C	file:	signature:(const void *p1, const void *p2)
+cpu_partial_alloc	slabinfo.c	/^	unsigned long cpu_partial_alloc, cpu_partial_free;$/;"	m	language:C	struct:slabinfo	file:
+cpu_partial_free	slabinfo.c	/^	unsigned long cpu_partial_alloc, cpu_partial_free;$/;"	m	language:C	struct:slabinfo	file:
+cpu_slabs	slabinfo.c	/^	int aliases, align, cache_dma, cpu_slabs, destroy_by_rcu;$/;"	m	language:C	struct:slabinfo	file:
+cpuslab_flush	slabinfo.c	/^	unsigned long cpuslab_flush, deactivate_full, deactivate_empty;$/;"	m	language:C	struct:slabinfo	file:
+deactivate_bypass	slabinfo.c	/^	unsigned long alloc_node_mismatch, deactivate_bypass;$/;"	m	language:C	struct:slabinfo	file:
+deactivate_empty	slabinfo.c	/^	unsigned long cpuslab_flush, deactivate_full, deactivate_empty;$/;"	m	language:C	struct:slabinfo	file:
+deactivate_full	slabinfo.c	/^	unsigned long cpuslab_flush, deactivate_full, deactivate_empty;$/;"	m	language:C	struct:slabinfo	file:
+deactivate_remote_frees	slabinfo.c	/^	unsigned long deactivate_remote_frees, order_fallback;$/;"	m	language:C	struct:slabinfo	file:
+deactivate_to_head	slabinfo.c	/^	unsigned long deactivate_to_head, deactivate_to_tail;$/;"	m	language:C	struct:slabinfo	file:
+deactivate_to_tail	slabinfo.c	/^	unsigned long deactivate_to_head, deactivate_to_tail;$/;"	m	language:C	struct:slabinfo	file:
+debug_opt_scan	slabinfo.c	/^static int debug_opt_scan(char *opt)$/;"	f	language:C	file:	signature:(char *opt)
+debugfs_known_mountpoints	page-types.c	/^static const char * const debugfs_known_mountpoints[] = {$/;"	v	language:C	file:
+decode_numa_list	slabinfo.c	/^static void decode_numa_list(int *numa, char *t)$/;"	f	language:C	file:	signature:(int *numa, char *t)
+describe_flags	page-types.c	/^static void describe_flags(const char *optarg)$/;"	f	language:C	file:	signature:(const char *optarg)
+destroy_by_rcu	slabinfo.c	/^	int aliases, align, cache_dma, cpu_slabs, destroy_by_rcu;$/;"	m	language:C	struct:slabinfo	file:
+do_u64_read	page-types.c	/^static unsigned long do_u64_read(int fd, char *name,$/;"	f	language:C	file:	signature:(int fd, char *name, uint64_t *buf, unsigned long index, unsigned long count)
+expand_overloaded_flags	page-types.c	/^static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)$/;"	f	language:C	file:	signature:(uint64_t flags, uint64_t pme)
+fatal	page-types.c	/^static void fatal(const char *x, ...)$/;"	f	language:C	file:	signature:(const char *x, ...)
+fatal	slabinfo.c	/^static void fatal(const char *x, ...)$/;"	f	language:C	file:	signature:(const char *x, ...)
+find_one_alias	slabinfo.c	/^static struct aliasinfo *find_one_alias(struct slabinfo *find)$/;"	f	language:C	file:	signature:(struct slabinfo *find)
+first_line	slabinfo.c	/^static void first_line(void)$/;"	f	language:C	file:	signature:(void)
+flush_page_range	page-types.c	/^static void flush_page_range(void)$/;"	f	language:C	file:	signature:(void)
+free_add_partial	slabinfo.c	/^	unsigned long free_frozen, free_add_partial, free_remove_partial;$/;"	m	language:C	struct:slabinfo	file:
+free_fastpath	slabinfo.c	/^	unsigned long free_fastpath, free_slowpath;$/;"	m	language:C	struct:slabinfo	file:
+free_frozen	slabinfo.c	/^	unsigned long free_frozen, free_add_partial, free_remove_partial;$/;"	m	language:C	struct:slabinfo	file:
+free_remove_partial	slabinfo.c	/^	unsigned long free_frozen, free_add_partial, free_remove_partial;$/;"	m	language:C	struct:slabinfo	file:
+free_slab	slabinfo.c	/^	unsigned long alloc_from_partial, alloc_slab, free_slab, alloc_refill;$/;"	m	language:C	struct:slabinfo	file:
+free_slowpath	slabinfo.c	/^	unsigned long free_fastpath, free_slowpath;$/;"	m	language:C	struct:slabinfo	file:
+get_obj	slabinfo.c	/^static unsigned long get_obj(const char *name)$/;"	f	language:C	file:	signature:(const char *name)
+get_obj_and_str	slabinfo.c	/^static unsigned long get_obj_and_str(const char *name, char **x)$/;"	f	language:C	file:	signature:(const char *name, char **x)
+hash_slot	page-types.c	/^static size_t hash_slot(uint64_t flags)$/;"	f	language:C	file:	signature:(uint64_t flags)
+highest_node	slabinfo.c	/^int highest_node = 0;$/;"	v	language:C
+hwcache_align	slabinfo.c	/^	int hwcache_align, object_size, objs_per_slab;$/;"	m	language:C	struct:slabinfo	file:
+hwpoison_debug_fs	page-types.c	/^static char		*hwpoison_debug_fs;$/;"	v	language:C	file:
+hwpoison_forget_fd	page-types.c	/^static int		hwpoison_forget_fd;$/;"	v	language:C	file:
+hwpoison_inject_fd	page-types.c	/^static int		hwpoison_inject_fd;$/;"	v	language:C	file:
+hwpoison_page	page-types.c	/^static int hwpoison_page(unsigned long offset)$/;"	f	language:C	file:	signature:(unsigned long offset)
+kpageflags_fd	page-types.c	/^static int		kpageflags_fd;$/;"	v	language:C	file:
+kpageflags_flags	page-types.c	/^static uint64_t kpageflags_flags(uint64_t flags, uint64_t pme)$/;"	f	language:C	file:	signature:(uint64_t flags, uint64_t pme)
+kpageflags_read	page-types.c	/^static unsigned long kpageflags_read(uint64_t *buf,$/;"	f	language:C	file:	signature:(uint64_t *buf, unsigned long index, unsigned long pages)
+len	page_owner_sort.c	/^	int len;$/;"	m	language:C	struct:block_list	file:
+line	slabinfo.c	/^int line = 0;$/;"	v	language:C
+link_slabs	slabinfo.c	/^static void link_slabs(void)$/;"	f	language:C	file:	signature:(void)
+list	page_owner_sort.c	/^static struct block_list *list;$/;"	v	language:C	typeref:struct:block_list	file:
+list_size	page_owner_sort.c	/^static int list_size;$/;"	v	language:C	file:
+main	page-types.c	/^int main(int argc, char *argv[])$/;"	f	language:C	signature:(int argc, char *argv[])
+main	page_owner_sort.c	/^int main(int argc, char **argv)$/;"	f	language:C	signature:(int argc, char **argv)
+main	slabinfo.c	/^int main(int argc, char *argv[])$/;"	f	language:C	signature:(int argc, char *argv[])
+max_size	page_owner_sort.c	/^static int max_size;$/;"	v	language:C	file:
+max_t	page-types.c	219;"	d	language:C	file:
+min_t	page-types.c	214;"	d	language:C	file:
+name	slabinfo.c	/^	char *name;$/;"	m	language:C	struct:aliasinfo	file:
+name	slabinfo.c	/^	char *name;$/;"	m	language:C	struct:slabinfo	file:
+nr_addr_ranges	page-types.c	/^static int		nr_addr_ranges;$/;"	v	language:C	file:
+nr_bit_filters	page-types.c	/^static int		nr_bit_filters;$/;"	v	language:C	file:
+nr_pages	page-types.c	/^static unsigned long	nr_pages[HASH_SIZE];$/;"	v	language:C	file:
+nr_vmas	page-types.c	/^static int		nr_vmas;$/;"	v	language:C	file:
+num	page_owner_sort.c	/^	int num;$/;"	m	language:C	struct:block_list	file:
+numa	slabinfo.c	/^	int numa[MAX_NODES];$/;"	m	language:C	struct:slabinfo	file:
+numa_partial	slabinfo.c	/^	int numa_partial[MAX_NODES];$/;"	m	language:C	struct:slabinfo	file:
+object_size	slabinfo.c	/^	int hwcache_align, object_size, objs_per_slab;$/;"	m	language:C	struct:slabinfo	file:
+objects	slabinfo.c	/^	unsigned long partial, objects, slabs, objects_partial, objects_total;$/;"	m	language:C	struct:slabinfo	file:
+objects_partial	slabinfo.c	/^	unsigned long partial, objects, slabs, objects_partial, objects_total;$/;"	m	language:C	struct:slabinfo	file:
+objects_total	slabinfo.c	/^	unsigned long partial, objects, slabs, objects_partial, objects_total;$/;"	m	language:C	struct:slabinfo	file:
+objs_per_slab	slabinfo.c	/^	int hwcache_align, object_size, objs_per_slab;$/;"	m	language:C	struct:slabinfo	file:
+onoff	slabinfo.c	/^static const char *onoff(int x)$/;"	f	language:C	file:	signature:(int x)
+ops	slabinfo.c	/^static void ops(struct slabinfo *s)$/;"	f	language:C	file:	signature:(struct slabinfo *s)
+opt_bits	page-types.c	/^static uint64_t		opt_bits[MAX_BIT_FILTERS];$/;"	v	language:C	file:
+opt_file	page-types.c	/^const char *		opt_file;$/;"	v	language:C
+opt_hwpoison	page-types.c	/^static int		opt_hwpoison;$/;"	v	language:C	file:
+opt_list	page-types.c	/^static int		opt_list;	\/* list pages (in ranges) *\/$/;"	v	language:C	file:
+opt_mask	page-types.c	/^static uint64_t		opt_mask[MAX_BIT_FILTERS];$/;"	v	language:C	file:
+opt_no_summary	page-types.c	/^static int		opt_no_summary;	\/* don't show summary *\/$/;"	v	language:C	file:
+opt_offset	page-types.c	/^static unsigned long	opt_offset[MAX_ADDR_RANGES];$/;"	v	language:C	file:
+opt_pid	page-types.c	/^static pid_t		opt_pid;	\/* process to walk *\/$/;"	v	language:C	file:
+opt_raw	page-types.c	/^static int		opt_raw;	\/* for kernel developers *\/$/;"	v	language:C	file:
+opt_size	page-types.c	/^static unsigned long	opt_size[MAX_ADDR_RANGES];$/;"	v	language:C	file:
+opt_unpoison	page-types.c	/^static int		opt_unpoison;$/;"	v	language:C	file:
+opts	page-types.c	/^static const struct option opts[] = {$/;"	v	language:C	typeref:struct:option	file:
+opts	slabinfo.c	/^struct option opts[] = {$/;"	v	language:C	typeref:struct:option
+order	slabinfo.c	/^	int order, poison, reclaim_account, red_zone;$/;"	m	language:C	struct:slabinfo	file:
+order_fallback	slabinfo.c	/^	unsigned long deactivate_remote_frees, order_fallback;$/;"	m	language:C	struct:slabinfo	file:
+output_slabs	slabinfo.c	/^static void output_slabs(void)$/;"	f	language:C	file:	signature:(void)
+page_flag_longname	page-types.c	/^static char *page_flag_longname(uint64_t flags)$/;"	f	language:C	file:	signature:(uint64_t flags)
+page_flag_name	page-types.c	/^static char *page_flag_name(uint64_t flags)$/;"	f	language:C	file:	signature:(uint64_t flags)
+page_flag_names	page-types.c	/^static const char * const page_flag_names[] = {$/;"	v	language:C	file:
+page_flag_type	page-types.c	/^static const char *page_flag_type(uint64_t flag)$/;"	f	language:C	file:	signature:(uint64_t flag)
+page_flags	page-types.c	/^static uint64_t		page_flags[HASH_SIZE];$/;"	v	language:C	file:
+page_size	page-types.c	/^static int		page_size;$/;"	v	language:C	file:
+page_size	slabinfo.c	/^int page_size;$/;"	v	language:C
+pagemap_fd	page-types.c	/^static int		pagemap_fd;$/;"	v	language:C	file:
+pagemap_pfn	page-types.c	/^static unsigned long pagemap_pfn(uint64_t val)$/;"	f	language:C	file:	signature:(uint64_t val)
+pagemap_read	page-types.c	/^static unsigned long pagemap_read(uint64_t *buf,$/;"	f	language:C	file:	signature:(uint64_t *buf, unsigned long index, unsigned long pages)
+pages2mb	page-types.c	/^static unsigned long pages2mb(unsigned long pages)$/;"	f	language:C	file:	signature:(unsigned long pages)
+parse_addr_range	page-types.c	/^static void parse_addr_range(const char *optarg)$/;"	f	language:C	file:	signature:(const char *optarg)
+parse_bits_mask	page-types.c	/^static void parse_bits_mask(const char *optarg)$/;"	f	language:C	file:	signature:(const char *optarg)
+parse_file	page-types.c	/^static void parse_file(const char *name)$/;"	f	language:C	file:	signature:(const char *name)
+parse_flag_name	page-types.c	/^static uint64_t parse_flag_name(const char *str, int len)$/;"	f	language:C	file:	signature:(const char *str, int len)
+parse_flag_names	page-types.c	/^static uint64_t parse_flag_names(const char *str, int all)$/;"	f	language:C	file:	signature:(const char *str, int all)
+parse_number	page-types.c	/^static unsigned long long parse_number(const char *str)$/;"	f	language:C	file:	signature:(const char *str)
+parse_pid	page-types.c	/^static void parse_pid(const char *str)$/;"	f	language:C	file:	signature:(const char *str)
+partial	slabinfo.c	/^	unsigned long partial, objects, slabs, objects_partial, objects_total;$/;"	m	language:C	struct:slabinfo	file:
+pattern	slabinfo.c	/^regex_t pattern;$/;"	v	language:C
+pg_end	page-types.c	/^static unsigned long	pg_end[MAX_VMAS];$/;"	v	language:C	file:
+pg_start	page-types.c	/^static unsigned long	pg_start[MAX_VMAS];$/;"	v	language:C	file:
+poison	slabinfo.c	/^	int order, poison, reclaim_account, red_zone;$/;"	m	language:C	struct:slabinfo	file:
+poison	slabinfo.c	/^int poison = 0;$/;"	v	language:C
+prepare_hwpoison_fd	page-types.c	/^static void prepare_hwpoison_fd(void)$/;"	f	language:C	file:	signature:(void)
+read_block	page_owner_sort.c	/^int read_block(char *buf, int buf_size, FILE *fin)$/;"	f	language:C	signature:(char *buf, int buf_size, FILE *fin)
+read_obj	slabinfo.c	/^static unsigned long read_obj(const char *name)$/;"	f	language:C	file:	signature:(const char *name)
+read_slab_dir	slabinfo.c	/^static void read_slab_dir(void)$/;"	f	language:C	file:	signature:(void)
+read_slab_obj	slabinfo.c	/^static unsigned long read_slab_obj(struct slabinfo *s, const char *name)$/;"	f	language:C	file:	signature:(struct slabinfo *s, const char *name)
+reclaim_account	slabinfo.c	/^	int order, poison, reclaim_account, red_zone;$/;"	m	language:C	struct:slabinfo	file:
+red_zone	slabinfo.c	/^	int order, poison, reclaim_account, red_zone;$/;"	m	language:C	struct:slabinfo	file:
+redzone	slabinfo.c	/^int redzone = 0;$/;"	v	language:C
+ref	slabinfo.c	/^	char *ref;$/;"	m	language:C	struct:aliasinfo	file:
+refs	slabinfo.c	/^	int refs;$/;"	m	language:C	struct:slabinfo	file:
+rename_slabs	slabinfo.c	/^static void rename_slabs(void)$/;"	f	language:C	file:	signature:(void)
+report	slabinfo.c	/^static void report(struct slabinfo *s)$/;"	f	language:C	file:	signature:(struct slabinfo *s)
+sanity	slabinfo.c	/^int sanity = 0;$/;"	v	language:C
+sanity_checks	slabinfo.c	/^	int sanity_checks, slab_size, store_user, trace;$/;"	m	language:C	struct:slabinfo	file:
+set_debug	slabinfo.c	/^int set_debug = 0;$/;"	v	language:C
+set_obj	slabinfo.c	/^static void set_obj(struct slabinfo *s, const char *name, int n)$/;"	f	language:C	file:	signature:(struct slabinfo *s, const char *name, int n)
+show_activity	slabinfo.c	/^int show_activity = 0;$/;"	v	language:C
+show_alias	slabinfo.c	/^int show_alias = 0;$/;"	v	language:C
+show_empty	slabinfo.c	/^int show_empty = 0;$/;"	v	language:C
+show_file	page-types.c	/^static void show_file(const char *name, const struct stat *st)$/;"	f	language:C	file:	signature:(const char *name, const struct stat *st)
+show_first_alias	slabinfo.c	/^int show_first_alias = 0;$/;"	v	language:C
+show_inverted	slabinfo.c	/^int show_inverted = 0;$/;"	v	language:C
+show_numa	slabinfo.c	/^int show_numa = 0;$/;"	v	language:C
+show_ops	slabinfo.c	/^int show_ops = 0;$/;"	v	language:C
+show_page	page-types.c	/^static void show_page(unsigned long voffset,$/;"	f	language:C	file:	signature:(unsigned long voffset, unsigned long offset, uint64_t flags)
+show_page_range	page-types.c	/^static void show_page_range(unsigned long voffset, unsigned long offset,$/;"	f	language:C	file:	signature:(unsigned long voffset, unsigned long offset, unsigned long size, uint64_t flags)
+show_report	slabinfo.c	/^int show_report = 0;$/;"	v	language:C
+show_single_ref	slabinfo.c	/^int show_single_ref = 0;$/;"	v	language:C
+show_slab	slabinfo.c	/^int show_slab = 0;$/;"	v	language:C
+show_summary	page-types.c	/^static void show_summary(void)$/;"	f	language:C	file:	signature:(void)
+show_totals	slabinfo.c	/^int show_totals = 0;$/;"	v	language:C
+show_track	slabinfo.c	/^int show_track = 0;$/;"	v	language:C
+show_tracking	slabinfo.c	/^static void show_tracking(struct slabinfo *s)$/;"	f	language:C	file:	signature:(struct slabinfo *s)
+shrink	slabinfo.c	/^int shrink = 0;$/;"	v	language:C
+sigbus_action	page-types.c	/^static struct sigaction sigbus_action = {$/;"	v	language:C	typeref:struct:sigaction	file:
+sigbus_addr	page-types.c	/^static void * volatile sigbus_addr;$/;"	v	language:C	file:
+sigbus_handler	page-types.c	/^static void sigbus_handler(int sig, siginfo_t *info, void *ucontex)$/;"	f	language:C	file:	signature:(int sig, siginfo_t *info, void *ucontex)
+sigbus_jmp	page-types.c	/^static sigjmp_buf sigbus_jmp;$/;"	v	language:C	file:
+skip_zero	slabinfo.c	/^int skip_zero = 1;$/;"	v	language:C
+slab	slabinfo.c	/^	struct slabinfo *slab;$/;"	m	language:C	struct:aliasinfo	typeref:struct:aliasinfo::slabinfo	file:
+slab_activity	slabinfo.c	/^static unsigned long slab_activity(struct slabinfo *s)$/;"	f	language:C	file:	signature:(struct slabinfo *s)
+slab_debug	slabinfo.c	/^static void slab_debug(struct slabinfo *s)$/;"	f	language:C	file:	signature:(struct slabinfo *s)
+slab_empty	slabinfo.c	/^static int slab_empty(struct slabinfo *s)$/;"	f	language:C	file:	signature:(struct slabinfo *s)
+slab_mismatch	slabinfo.c	/^static int slab_mismatch(char *slab)$/;"	f	language:C	file:	signature:(char *slab)
+slab_numa	slabinfo.c	/^static void slab_numa(struct slabinfo *s, int mode)$/;"	f	language:C	file:	signature:(struct slabinfo *s, int mode)
+slab_shrink	slabinfo.c	/^static void slab_shrink(struct slabinfo *s)$/;"	f	language:C	file:	signature:(struct slabinfo *s)
+slab_size	slabinfo.c	/^	int sanity_checks, slab_size, store_user, trace;$/;"	m	language:C	struct:slabinfo	file:
+slab_size	slabinfo.c	/^static unsigned long slab_size(struct slabinfo *s)$/;"	f	language:C	file:	signature:(struct slabinfo *s)
+slab_stats	slabinfo.c	/^static void slab_stats(struct slabinfo *s)$/;"	f	language:C	file:	signature:(struct slabinfo *s)
+slab_validate	slabinfo.c	/^static void slab_validate(struct slabinfo *s)$/;"	f	language:C	file:	signature:(struct slabinfo *s)
+slabcache	slabinfo.c	/^static void slabcache(struct slabinfo *s)$/;"	f	language:C	file:	signature:(struct slabinfo *s)
+slabinfo	slabinfo.c	/^struct slabinfo {$/;"	s	language:C	file:
+slabinfo	slabinfo.c	/^} slabinfo[MAX_SLABS];$/;"	v	language:C	typeref:struct:slabinfo
+slabs	slabinfo.c	/^	unsigned long partial, objects, slabs, objects_partial, objects_total;$/;"	m	language:C	struct:slabinfo	file:
+slabs	slabinfo.c	/^int slabs = 0;$/;"	v	language:C
+sort_active	slabinfo.c	/^int sort_active = 0;$/;"	v	language:C
+sort_aliases	slabinfo.c	/^static void sort_aliases(void)$/;"	f	language:C	file:	signature:(void)
+sort_size	slabinfo.c	/^int sort_size = 0;$/;"	v	language:C
+sort_slabs	slabinfo.c	/^static void sort_slabs(void)$/;"	f	language:C	file:	signature:(void)
+store_size	slabinfo.c	/^static int store_size(char *buffer, unsigned long value)$/;"	f	language:C	file:	signature:(char *buffer, unsigned long value)
+store_user	slabinfo.c	/^	int sanity_checks, slab_size, store_user, trace;$/;"	m	language:C	struct:slabinfo	file:
+total_pages	page-types.c	/^static unsigned long	total_pages;$/;"	v	language:C	file:
+totals	slabinfo.c	/^static void totals(void)$/;"	f	language:C	file:	signature:(void)
+trace	slabinfo.c	/^	int sanity_checks, slab_size, store_user, trace;$/;"	m	language:C	struct:slabinfo	file:
+tracing	slabinfo.c	/^int tracing = 0;$/;"	v	language:C
+tracking	slabinfo.c	/^int tracking = 0;$/;"	v	language:C
+txt	page_owner_sort.c	/^	char *txt;$/;"	m	language:C	struct:block_list	file:
+unpoison_page	page-types.c	/^static int unpoison_page(unsigned long offset)$/;"	f	language:C	file:	signature:(unsigned long offset)
+usage	page-types.c	/^static void usage(void)$/;"	f	language:C	file:	signature:(void)
+usage	slabinfo.c	/^static void usage(void)$/;"	f	language:C	file:	signature:(void)
+validate	slabinfo.c	/^int validate = 0;$/;"	v	language:C
+walk_addr_ranges	page-types.c	/^static void walk_addr_ranges(void)$/;"	f	language:C	file:	signature:(void)
+walk_file	page-types.c	/^static void walk_file(const char *name, const struct stat *st)$/;"	f	language:C	file:	signature:(const char *name, const struct stat *st)
+walk_page_cache	page-types.c	/^static void walk_page_cache(void)$/;"	f	language:C	file:	signature:(void)
+walk_pfn	page-types.c	/^static void walk_pfn(unsigned long voffset,$/;"	f	language:C	file:	signature:(unsigned long voffset, unsigned long index, unsigned long count, uint64_t pme)
+walk_task	page-types.c	/^static void walk_task(unsigned long index, unsigned long count)$/;"	f	language:C	file:	signature:(unsigned long index, unsigned long count)
+walk_tree	page-types.c	/^int walk_tree(const char *name, const struct stat *st, int type, struct FTW *f)$/;"	f	language:C	signature:(const char *name, const struct stat *st, int type, struct FTW *f)
+walk_vma	page-types.c	/^static void walk_vma(unsigned long index, unsigned long count)$/;"	f	language:C	file:	signature:(unsigned long index, unsigned long count)
+well_known_flags	page-types.c	/^static uint64_t well_known_flags(uint64_t flags)$/;"	f	language:C	file:	signature:(uint64_t flags)

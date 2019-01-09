@@ -1,0 +1,45 @@
+'\" t
+.\"     Title: function::task_time_string
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Task Time Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::TASK_TIME_" "3stap" "March 2016" "SystemTap Tapset Reference" "Task Time Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::task_time_string \- Human readable string of task time usage
+.SH "SYNOPSIS"
+.sp
+.nf
+    task_time_string:string()
+.fi
+.SH "ARGUMENTS"
+.PP
+None
+.SH "DESCRIPTION"
+.PP
+Returns a human readable string showing the user and system time the current task has used up to now\&. For example
+\(lqusr: 0m12\&.908s, sys: 1m6\&.851s\(rq\&.
+.SH SEE ALSO\n 
+.IR tapset::task_time (3stap)

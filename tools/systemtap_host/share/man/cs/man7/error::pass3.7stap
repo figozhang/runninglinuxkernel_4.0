@@ -1,0 +1,26 @@
+.\" t
+.TH ERROR::PASS3 7stap 
+.SH JMÉNO
+error::pass3 \- chyby procesní fáze 3
+
+.SH POPIS
+K chybám procesní fáze 3 (trsanslation) dochází zřídka.
+
+.TP
+nepodporovaný kód
+Některé konstrukty skriptovacího jazyka nejsou dostupné ve všech sondážních
+bodech.  Například funkce pro čtení perf počitadel
+.IR @perf()
+může být použitelná jen v sondách
+.IR process.*" ."
+
+.SH VÍCE INFORMACÍ
+Zvýšení upovídanosti procesní fáze 3 lze dosáhnout volbou
+.IR "--vp 002 ." 
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR stapprobes (3stap)
+.IR error::reporting (7stap)

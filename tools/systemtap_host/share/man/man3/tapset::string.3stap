@@ -1,0 +1,104 @@
+.\" -*- nroff -*-
+.TH TAPSET::STRING 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::string \- systemtap string tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B strlen 
+Returns the length of a string
+.IP
+See 
+.IR function::strlen (3stap)
+ for details.
+.P
+.TP
+.B substr 
+Returns a substring
+.IP
+See 
+.IR function::substr (3stap)
+ for details.
+.P
+.TP
+.B stringat 
+Returns the char at a given position in the string
+.IP
+See 
+.IR function::stringat (3stap)
+ for details.
+.P
+.TP
+.B isinstr 
+Returns whether a string is a substring of another string
+.IP
+See 
+.IR function::isinstr (3stap)
+ for details.
+.P
+.TP
+.B text_str 
+Escape any non-printable chars in a string
+.IP
+See 
+.IR function::text_str (3stap)
+ for details.
+.P
+.TP
+.B text_strn 
+Escape any non-printable chars in a string
+.IP
+See 
+.IR function::text_strn (3stap)
+ for details.
+.P
+.TP
+.B - strtol 
+Convert a string to a long
+.IP
+See 
+.IR function::- strtol (3stap)
+ for details.
+.P
+.TP
+.B isdigit 
+Checks for a digit
+.IP
+See 
+.IR function::isdigit (3stap)
+ for details.
+.P
+.TP
+.B string_quoted 
+Quotes a given string
+.IP
+See 
+.IR function::string_quoted (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::strlen (3stap),
+.BR
+.IR \%function::substr (3stap),
+.BR
+.IR \%function::stringat (3stap),
+.BR
+.IR \%function::isinstr (3stap),
+.BR
+.IR \%function::text_str (3stap),
+.BR
+.IR \%function::text_strn (3stap),
+.BR
+.IR \%function::- (3stap),
+.BR
+.IR \%function::strtol (3stap),
+.BR
+.IR \%function::isdigit (3stap),
+.BR
+.IR \%function::string_quoted (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

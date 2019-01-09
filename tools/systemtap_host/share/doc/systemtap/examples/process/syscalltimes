@@ -1,0 +1,253 @@
+#!/bin/bash
+
+# Syscalltimes systemtap script
+# Copyright (C) 2007 IBM Corp.
+# Copyright (C) 2011 Red Hat, Inc.
+#
+# This file is part of systemtap, and is free software.  You can
+# redistribute it and/or modify it under the terms of the GNU General
+# Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+###
+### syscalltime - Combination shell/systemtap script to measure system call
+###               counts and times.  Can be filtered by process IDs, process
+###               names and users.
+###
+
+# Filter options
+F_PIDSTR="";  F_PID=0   # Filter by process ID
+F_EXECSTR=""; F_EXEC=0  # Filter by process name
+F_UIDSTR="";  F_UID=0   # Filter by user
+FILTER=0                # Any filters specified?
+
+# Print options
+P_TOTALS=0              # Print totals
+P_VERBOSE_STR=""        # Print verbose build output
+P_PROCESS_STR=""        # Run process during stap script invocation
+
+DELIM=","
+
+function usage {
+	echo "USAGE: syscalltimes [-n pname]... [-p pid]... [-u username]... [-c 'process']"
+	echo "                    [-v]... [-t] [-h]"
+	echo "    -n pname     # filter by this process name"
+	echo "    -p pid       # filter by this process ID"
+	echo "    -u username  # filter by this user"
+	echo "    -c 'process' # run 'process' then exit to show totals"
+	echo "    -t           # print totals (default with filters: OFF"
+	echo "                                 default without filters: ON)"
+	echo "    -v           # print verbose output during SystemTap module creation"
+	echo "    -h           # print this help text"
+	echo ""
+	echo "NOTE: This script can take long time to build. Use -v[vv] to monitor"
+	echo "      the module creation and build process."
+}
+
+# Process options
+while getopts n:p:u:c:vth option; do
+	case $option in
+	n)	let "F_EXEC++"
+		F_EXECSTR=$OPTARG$DELIM$F_EXECSTR ;;
+
+	p)	let "F_PID++"
+		F_PIDSTR=$OPTARG$DELIM$F_PIDSTR ;;
+
+	u)	uid=`awk -F: '$1 == name {print $3}' name=$OPTARG /etc/passwd`
+		if [[ $uid != "" ]]; then
+			let "F_UID++"
+			F_UIDSTR=$uid$DELIM$F_UIDSTR
+		else
+			echo "ERROR: Unknown user:" $OPTARG
+			let "ERROR++"
+		fi ;;
+
+	v)	P_VERBOSE_STR="-v "$P_VERBOSE_STR ;;
+
+	t)	P_TOTALS=1 ;;
+
+	c)	P_PROCESS_STR="-c $OPTARG" ;;
+
+	h|?|*)  usage
+		exit 1 ;;
+	esac
+done
+
+if [[ $ERROR > 0 ]]; then
+	exit 1
+fi
+
+if [[ $F_EXEC > 0 || $F_PID > 0 || $F_UID > 0 ]]; then
+	FILTER=1
+fi
+
+echo "Creating and building SystemTap module..."
+
+#
+# SystemTap script
+#
+stap $P_VERBOSE_STR -w "$P_PROCESS_STR" -e '
+global starttime, timebycall, timebypid, timebyuid, timebyexec
+global f_exec_str, f_pid_str, f_uid_str
+global f_exec, f_pid, f_uid
+global prt_totals, filter_str
+
+probe begin {
+	printf("Collecting data - type Ctrl-C to print output and exit...\n")
+	
+	# If no filters specified, skip filter processing
+	if ('$FILTER' == 0) {
+		filter_str = " (unfiltered)"
+		prt_totals = 1  // On by default if no filtering
+		next
+	} else
+		filter_str = " (filtered)"
+
+	prt_totals   = '$P_TOTALS'
+	if ('$F_EXEC') f_exec_str   = "'$F_EXECSTR'"
+	if ('$F_PID') f_pid_str    = "'$F_PIDSTR'"
+	if ('$F_UID') f_uid_str    = "'$F_UIDSTR'"
+
+	delim = "'$DELIM'"
+
+	# Process names
+	if ('$F_EXEC') {
+		pname = tokenize(f_exec_str, delim)
+		while (pname != "") {
+			f_exec[pname] = 1
+			pname = tokenize("", delim)
+		}
+	}
+
+	# Process IDs
+	if ('$F_PID') {
+		pid = tokenize(f_pid_str, delim)
+		while (pid != "") {
+			f_pid[strtol(pid, 10)] = 1
+			pid = tokenize("", delim)
+		}
+	}
+
+	# User IDs
+	if ('$F_UID') {
+		uid = tokenize(f_uid_str, delim)
+		while (uid != "") {
+			f_uid[strtol(uid, 10)] = 1
+			uid = tokenize("", delim)
+		}
+	}
+}
+
+probe syscall.* {
+	starttime[name, tid()] = gettimeofday_ns()
+}
+
+probe syscall.*.return {
+	# Skip if we have not seen this before
+	if (!([name, tid()] in starttime)) next
+
+	delta = gettimeofday_ns() - starttime[name, tid()]
+
+	# Check filters
+	if ('$FILTER') {
+		target = 0
+		if (('$F_PID') && (pid() in f_pid)) {
+			timebypid[name, pid()] <<< delta
+			target = 1
+		}
+		if (('$F_UID') && (uid() in f_uid)) {
+			timebyuid[name, uid()] <<< delta
+			target = 1
+		}
+		if (('$F_EXEC') && (execname() in f_exec)) {
+			timebyexec[name, execname()] <<< delta
+			target = 1
+		}
+	} else
+		target = 1
+
+	# Totals
+	if (target && prt_totals)
+		timebycall[name] <<< delta
+
+	delete starttime[name, tid()]
+}
+
+function print_header() {
+	printf("%22s %10s %12s %12s %12s %12s\n",
+	       "System Call", "Count", "Total ns",
+	       "Avg ns", "Min ns", "Max ns")
+}
+
+probe end {
+	if (prt_totals) {
+		printf("\nTimes for all processes%s:\n\n", filter_str)
+		print_header()
+		foreach (call in timebycall)
+			printf("%22s %10d %12d %12d %12d %12d\n", call,
+			       @count(timebycall[call]),
+			       @sum(timebycall[call]),
+			       @avg(timebycall[call]),
+		               @min(timebycall[call]),
+			       @max(timebycall[call]))
+	}
+
+	if ('$F_PID') {
+		curpid = -1
+		foreach ([call, pid-] in timebypid) {
+			if (curpid != pid) {
+				curpid = pid
+				printf("\nTimes for process ID %d:\n\n", curpid)
+				print_header()
+			}
+			printf("%22s %10d %12d %12d %12d %12d\n", call,
+			       @count(timebypid[call, pid]),
+			       @sum(timebypid[call, pid]),
+			       @avg(timebypid[call, pid]),
+			       @min(timebypid[call, pid]),
+			       @max(timebypid[call, pid]))
+		}
+		printf("\n")
+	}
+
+	if ('$F_EXEC') {
+		curexec = ""
+		foreach ([call, exec-] in timebyexec) {
+			if (curexec != exec) {
+				curexec = exec
+				printf("\nTimes for process name %s:\n\n", curexec)
+				print_header()
+			}
+			printf("%22s %10d %12d %12d %12d %12d\n", call,
+			       @count(timebyexec[call, exec]),
+			       @sum(timebyexec[call, exec]),
+			       @avg(timebyexec[call, exec]),
+			       @min(timebyexec[call, exec]),
+			       @max(timebyexec[call, exec]))
+		}
+		printf("\n")
+	}
+
+	if ('$F_UID') {
+		curuid = -1
+		foreach ([call, uid-] in timebyuid) {
+			if (curuid != uid) {
+				curuid = uid
+				printf("\nTimes for user ID %d:\n\n", curuid)
+				print_header()
+			}
+			printf("%22s %10d %12d %12d %12d %12d\n", call,
+			       @count(timebyuid[call, uid]),
+			       @sum(timebyuid[call, uid]),
+			       @avg(timebyuid[call, uid]),
+			       @min(timebyuid[call, uid]),
+			       @max(timebyuid[call, uid]))
+		}
+		printf("\n")
+	}
+
+	delete timebycall
+	if ('$F_PID') delete timebypid
+	if ('$F_UID') delete timebyuid
+	if ('$F_EXEC') delete timebyexec
+}'

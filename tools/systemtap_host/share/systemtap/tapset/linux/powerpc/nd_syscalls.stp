@@ -1,0 +1,990 @@
+# PPC64-specific system calls
+
+# sys64_time ________________________________________
+#
+# time_t sys64_time(time_t __user * tloc)
+#
+probe nd_syscall.sys64_time = kprobe.function("sys64_time") ?
+{
+	name = "sys64_time"
+	// argstr = sprintf("%p", $tloc)
+	asmlinkage()
+	argstr = sprintf("%p", pointer_arg(1))
+}
+probe nd_syscall.sys64_time.return = kprobe.function("sys64_time").return ?
+{
+	name = "sys64_time"
+	retstr = returnstr(1)
+}
+
+# ppc64_personality ________________________________________
+#
+# long ppc64_personality(unsigned long personality)
+#
+probe nd_syscall.ppc64_personality = kprobe.function("ppc64_personality")
+{
+	name = "ppc64_personality"
+	// persona = $personality
+	// argstr = sprint($personality)
+	asmlinkage()
+	persona = ulong_arg(1)
+	argstr = sprint(persona)
+}
+probe nd_syscall.ppc64_personality.return = kprobe.function("ppc64_personality").return
+{
+	name = "ppc64_personality"
+	retstr = returnstr(1)
+}
+
+# ppc_rtas ________________________________________
+#
+# int ppc_rtas(struct rtas_args __user *uargs)
+#
+probe nd_syscall.ppc_rtas = kprobe.function("ppc_rtas") ?
+{
+	name = "ppc_rtas"
+	// uargs_uaddr = $uargs
+	// argstr = sprintf("%p", $uargs)
+	asmlinkage()
+	uargs_uaddr = pointer_arg(1)
+	argstr = sprintf("%p", uargs_uaddr)
+}
+probe nd_syscall.ppc_rtas.return = kprobe.function("ppc_rtas").return ?
+{
+	name = "ppc_rtas"
+	retstr = returnstr(1)
+}
+
+# ppc64_sys32_stime ________________________________________
+#
+# long ppc64_sys32_stime(int __user * tptr)
+#
+probe nd_syscall.ppc64_sys32_stime = kprobe.function("ppc64_sys32_stime") ?
+{
+	name = "ppc64_sys32_stime"
+	// t_uaddr = $tptr
+	// argstr = sprintf("%p", $tptr)
+	asmlinkage()
+	t_uaddr = pointer_arg(1)
+	argstr = sprintf("%p", t_uaddr)
+}
+probe nd_syscall.ppc64_sys32_stime.return = kprobe.function("ppc64_sys32_stime").return ?
+{
+	name = "ppc64_sys32_stime"
+	retstr = returnstr(1)
+}
+
+# sys32_ptrace ________________________________________
+# (obsolete)
+# int sys32_ptrace(long request, long pid, unsigned long addr,
+#		unsigned long data)
+#
+probe nd_syscall.sys32_ptrace = kprobe.function("sys32_ptrace") ?
+{
+	name = "sys32_ptrace"
+	// request = $request
+	// pid = $pid
+	// addr = $addr
+	// data = $data
+	// argstr = sprintf("%p, %p, %p, %p", $request, $pid, $addr, $data)
+	asmlinkage()
+	request = long_arg(1)
+	pid = long_arg(2)
+	addr = ulong_arg(3)
+	data = ulong_arg(4)
+	argstr = sprintf("%p, %p, %p, %p", request, pid, addr, data)
+}
+probe nd_syscall.sys32_ptrace.return = kprobe.function("sys32_ptrace").return ?
+{
+	name = "sys32_ptrace"
+	retstr = returnstr(1)
+}
+
+# sys32_sysinfo ________________________________________
+#
+# (obsolete) long sys32_sysinfo(struct sysinfo32 __user *info)
+#
+probe nd_syscall.sys32_sysinfo = kprobe.function("sys32_sysinfo") ?
+{
+	name = "sys32_sysinfo"
+	// info_uaddr = $info
+	asmlinkage()
+	info_uaddr = pointer_arg(1)
+	argstr = sprintf("%p", info_uaddr)
+}
+probe nd_syscall.sys32_sysinfo.return = kprobe.function("sys32_sysinfo").return ?
+{
+	name = "sys32_sysinfo"
+	retstr = returnstr(1)
+}
+
+%( systemtap_v <= "2.7" %?
+# sys32_ipc() is just a syscall multiplexer (similar to
+# sys_socketcall()). So, we don't really need to probe it, since we'll
+# be probing what sys32_ipc() will call (semget, msgsnd, msgrcv,
+# shmat, etc.).
+
+# ipc ________________________________________
+#
+# long sys32_ipc(u32 call, u32 first, u32 second, u32 third,
+#			compat_uptr_t ptr, u32 fifth)
+#
+probe nd_syscall.ipc = kprobe.function("sys32_ipc") ?
+{
+	name = "ipc"
+	// argstr = sprintf("%d, %d, %d, %d, %p, %d", $call, $first, $second,
+	// 		$third, $ptr, $fifth)
+	asmlinkage()
+	argstr = sprintf("%d, %d, %d, %d, %p, %d", uint_arg(1), uint_arg(2), uint_arg(3),
+			uint_arg(4), uint_arg(5), uint_arg(6))
+}
+probe nd_syscall.ipc.return = kprobe.function("sys32_ipc").return ?
+{
+	name = "sys_ipc"
+	retstr = returnstr(1)
+}
+%)
+
+# sys32_sigreturn ________________________________________
+#
+# long sys32_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
+#			struct pt_regs *regs)
+#
+probe nd_syscall.sys32_sigreturn = kprobe.function("sys32_sigreturn") ?
+{
+	name = "sys32_sigreturn"
+	// r3 = $r3
+	// r4 = $r4
+	// // r5 = $r5
+	// r6 = $r6
+	// r7 = $r7
+	// r8 = $r8
+	// argstr = sprintf("%p, %p, %p, %p, %p, %p",
+	// 		$r3, $r4, $r5, $r6, $r7, $r8)
+	asmlinkage()
+	r3 = int_arg(1)
+	r4 = int_arg(2)
+	r5 = int_arg(3)
+	r6 = int_arg(4)
+	r7 = int_arg(5)
+	r8 = int_arg(6)
+	argstr = sprintf("%p, %p, %p, %p, %p, %p",
+			r3, r4, r5, r6, r7, r8)
+}
+probe nd_syscall.sys32_sigreturn.return = kprobe.function("sys32_sigreturn").return ?
+{
+	name = "sys32_sigreturn"
+	retstr = returnstr(1)
+}
+
+# sys32_adjtimex ________________________________________
+#
+# long sys32_adjtimex(struct timex32 __user *utp)
+#
+probe nd_syscall.sys32_adjtimex = kprobe.function("sys32_adjtimex") ?
+{
+	name = "sys32_adjtimex"
+	// argstr = sprintf("%p", $utp)
+	asmlinkage()
+	argstr = sprintf("%p", pointer_arg(1))
+}
+probe nd_syscall.sys32_adjtimex.return = kprobe.function("sys32_adjtimex").return ?
+{
+	name = "sys32_adjtimex"
+	retstr = returnstr(1)
+}
+
+# sys32_getdents ________________________________________
+#
+# asmlinkage long sys32_getdents(unsigned int fd,
+#			struct linux_dirent32 __user *dirent,
+#			unsigned int count)
+#
+probe nd_syscall.sys32_getdents = kprobe.function("sys32_getdents") ?
+{
+	name = "sys32_getdents"
+	// fd = $fd
+	// dirp_uaddr = $dirent
+	// count = $count
+	asmlinkage()
+	fd = uint_arg(1)
+	dirp_uaddr = pointer_arg(2)
+	count = uint_arg(3)
+	argstr = sprintf("%d, %p, %d", fd, dirp_uaddr, count)
+}
+probe nd_syscall.sys32_getdents.return = kprobe.function("sys32_getdents").return ?
+{
+	name = "sys32_getdents"
+	retstr = returnstr(1)
+}
+
+# compat_sys_sysctl ________________________________________
+#
+# long compat_sys_sysctl(struct __sysctl_args32 __user *args)
+#
+# To match the ia64/s390/x86_64 versions (and to match the syscall variant of
+# this probe), the 'syscall.compat_sysctl' probe name is deprecated and
+# 'syscall.sysctl32' should be used instead.  To use the old name without
+# changing your script, use the '--compatible 2.8' stap option.
+#
+probe
+%( systemtap_v <= "2.8"
+	%? nd_syscall.compat_sysctl %: nd_syscall.sysctl32
+%) =
+	kprobe.function("compat_sys_sysctl") ?
+{
+	name = "sysctl"
+	// argstr = sprintf("%p", $args)
+	asmlinkage()
+	argstr = sprintf("%p", pointer_arg(1))
+}
+probe %( systemtap_v <= "2.8"
+	%? nd_syscall.compat_sysctl.return %: nd_syscall.sysctl32.return
+%) = kprobe.function("compat_sys_sysctl").return ?
+{
+	name = "sysctl"
+	retstr = returnstr(1)
+}
+
+# sys32_sched_setparam ________________________________________
+#
+# asmlinkage long sys32_sched_setparam(u32 pid,
+#		struct sched_param __user *param)
+#
+probe nd_syscall.sys32_sched_setparam = kprobe.function("sys32_sched_setparam") ?
+{
+	name = "sys32_sched_setparam"
+	// pid = $pid
+	// param_uaddr = $param
+	asmlinkage()
+	pid = uint_arg(1)
+	param_uaddr = pointer_arg(2)
+	argstr = sprintf("%d, %p", pid, param_uaddr)
+}
+probe nd_syscall.sys32_sched_setparam.return = kprobe.function("sys32_sched_setparam").return ?
+{
+	name = "sys32_sched_setparam"
+	retstr = returnstr(1)
+}
+
+# sys32_sched_rr_get_interval ________________________________________
+#
+# asmlinkage long sys32_sched_rr_get_interval(u32 pid,
+#		struct compat_timespec __user *interval)
+#
+probe nd_syscall.sys32_sched_rr_get_interval = kprobe.function("sys32_sched_rr_get_interval") ?
+{
+	name = "sys32_sched_rr_get_interval"
+	// pid = $pid
+	// interval_uaddr = $interval
+	asmlinkage()
+	pid = uint_arg(1)
+	interval_uaddr = pointer_arg(2)
+	argstr = sprintf("%d, %p", pid, interval_uaddr)
+}
+probe nd_syscall.sys32_sched_rr_get_interval.return = kprobe.function("sys32_sched_rr_get_interval").return ?
+{
+	name = "sys32_sched_rr_get_interval"
+	retstr = returnstr(1)
+}
+
+# sys32_rt_sigpending ________________________________________
+#
+# long sys32_rt_sigpending(compat_sigset_t __user *set,
+#			compat_size_t sigsetsize)
+#
+probe nd_syscall.sys32_rt_sigpending = kprobe.function("sys32_rt_sigpending") ?
+{
+	name = "sys32_rt_sigpending"
+	// set_uaddr = $set
+	// sigsetsize = $sigsetsize
+	// argstr = sprintf("%p, %d", set_uaddr, $sigsetsize)
+	asmlinkage()
+	set_uaddr = pointer_arg(1)
+	sigsetsize = uint_arg(2)
+	argstr = sprintf("%p, %d", set_uaddr, sigsetsize)
+}
+probe nd_syscall.sys32_rt_sigpending.return = kprobe.function("sys32_rt_sigpending").return ?
+{
+	name = "sys32_rt_sigpending"
+	retstr = returnstr(1)
+}
+
+# sys32_rt_sigtimedwait ________________________________________
+#
+# long sys32_rt_sigtimedwait(compat_sigset_t __user *uthese,
+#			compat_siginfo_t __user *uinfo,
+#			struct compat_timespec __user *uts,
+#			compat_size_t sigsetsize)
+#
+probe nd_syscall.sys32_rt_sigtimedwait = kprobe.function("sys32_rt_sigtimedwait") ?
+{
+	name = "sys32_rt_sigtimedwait"
+	// uthese_uaddr = $uthese
+	// uinfo_uaddr = $uinfo
+	// uts_uaddr = $uts
+	// sigsetsize = $sigsetsize
+	asmlinkage()
+	uthese_uaddr = pointer_arg(1)
+	uinfo_uaddr = pointer_arg(2)
+	uts_uaddr = pointer_arg(3)
+	sigsetsize = uint_arg(4)
+	argstr = sprintf("%p, %p, %p, %p", uthese_uaddr,
+			uinfo_uaddr, uts_uaddr, sigsetsize)
+}
+probe nd_syscall.sys32_rt_sigtimedwait.return = kprobe.function("sys32_rt_sigtimedwait").return ?
+{
+	name = "sys32_rt_sigtimedwait"
+	retstr = returnstr(1)
+}
+
+# sys32_rt_sigqueueinfo ________________________________________
+#
+# long sys32_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo)
+#
+probe nd_syscall.sys32_rt_sigqueueinfo = kprobe.function("sys32_rt_sigqueueinfo") ?
+{
+	name = "sys32_rt_sigqueueinfo"
+	// pid = $pid
+	// sig = $sig
+	// uinfo_uaddr = $uinfo
+	// argstr = sprintf("%p, %s, %p", pid, _signal_name($sig),
+	// 			uinfo_uaddr)
+	asmlinkage()
+	pid = uint_arg(1)
+	sig = uint_arg(2)
+	uinfo_uaddr = pointer_arg(3)
+	argstr = sprintf("%p, %s, %p", pid, _signal_name(sig),
+			uinfo_uaddr)
+}
+probe nd_syscall.sys32_rt_sigqueueinfo.return = kprobe.function("sys32_rt_sigqueueinfo").return ?
+{
+	name = "sys32_rt_sigqueueinfo"
+	retstr = returnstr(1)
+}
+
+%( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
+# sigaltstack ________________________________________________
+# long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
+#		       unsigned long r5, unsigned long r6,
+#		       unsigned long r7, unsigned long r8, 
+#		       struct pt_regs *regs)
+#
+# NOTE: args vary between archs.
+#
+probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
+{
+	name = "sigaltstack"
+	asmlinkage()
+	uss_uaddr = pointer_arg(1)
+	uoss_uaddr = pointer_arg(2)
+%(systemtap_v < "2.3" %?
+	regs = pointer_arg(7)
+%)
+	argstr = sprintf("%s, %p", _stp_sigaltstack_u(uss_uaddr), uoss_uaddr)
+}
+probe nd_syscall.sigaltstack.return =
+	kprobe.function("sys_sigaltstack").return
+{
+	name = "sigaltstack"
+	retstr = returnstr(1)
+}
+
+# sys32_sigaltstack ________________________________________
+#
+# int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
+#		             int r6, int r7, int r8, struct pt_regs *regs)
+# int sys32_sigaltstack(u32 __new, u32 __old, int r5,
+#			int r6, int r7, int r8, struct pt_regs *regs)
+#
+probe nd_syscall.sys32_sigaltstack =
+	kprobe.function("compat_sys_sigaltstack") !,
+	kprobe.function("sys32_sigaltstack") ?
+{
+	name = "sigaltstack"
+	uss_uaddr = pointer_arg(1)
+	uoss_uaddr = pointer_arg(2)
+	argstr = sprintf("%s, %p", _stp_compat_sigaltstack_u(uss_uaddr),
+			 uoss_uaddr)
+}
+probe nd_syscall.sys32_sigaltstack.return =
+	kprobe.function("compat_sys_sigaltstack").return !,
+	kprobe.function("sys32_sigaltstack").return ?
+{
+	name = "sigaltstack"
+	retstr = returnstr(1)
+}
+%)
+
+# sys32_sendfile64 ________________________________________
+#
+# asmlinkage int sys32_sendfile64(int out_fd, int in_fd,
+#		compat_loff_t __user *offset, s32 count)
+#
+probe nd_syscall.sys32_sendfile64 = kprobe.function("sys32_sendfile64") ?
+{
+	name = "sys32_sendfile64"
+	// out_fd = $out_fd
+	// in_fd = $in_fd
+	// offset_uaddr = $offset
+	// count = $count
+	// argstr = sprintf("%d, %d, %p, %d", $out_fd, $in_fd, offset_uaddr,
+	// 		$count)
+	asmlinkage()
+	out_fd = int_arg(1)
+	in_fd = int_arg(2)
+	offset_uaddr = long_arg(3)
+	count = int_arg(4)
+	argstr = sprintf("%d, %d, %p, %d", out_fd, in_fd, offset_uaddr,
+			count)
+}
+probe nd_syscall.sys32_sendfile64.return = kprobe.function("sys32_sendfile64").return ?
+{
+	name = "sys32_sendfile64"
+	retstr = returnstr(1)
+}
+
+# ppc32_timer_create ________________________________________
+#
+# long ppc32_timer_create(clockid_t clock,
+#			struct compat_sigevent __user *ev32,
+#			timer_t __user *timer_id)
+#
+probe nd_syscall.ppc32_timer_create = kprobe.function("ppc32_timer_create") ?
+{
+	name = "ppc32_timer_create"
+	// which_clock = $clock
+	// timer_event_spec = $ev32
+	// created_timer_id = $timer_id
+	asmlinkage()
+	which_clock = int_arg(1)
+	timer_event_spec = pointer_arg(2)
+	created_timer_id = pointer_arg(3)
+	argstr = sprintf("%d, %p, %p", which_clock, timer_event_spec,
+			created_timer_id)
+}
+probe nd_syscall.ppc32_timer_create.return = kprobe.function("ppc32_timer_create").return ?
+{
+	name = "ppc32_timer_create"
+	retstr = returnstr(1)
+}
+
+# compat_timer_settime ________________________________________
+#
+# long compat_timer_settime(timer_t timer_id, int flags,
+#			struct compat_itimerspec __user *new,
+#			struct compat_itimerspec __user *old)
+#
+probe nd_syscall.compat_timer_settime = kprobe.function("compat_timer_settime") ?
+{
+	name = "compat_timer_settime"
+	// timer_id = $timer_id
+	// flags = $flags
+	// new_setting_uaddr = $new
+	// old_setting_uaddr = $old
+	asmlinkage()
+	timer_id = int_arg(1)
+	flags = int_arg(2)
+	new_setting_uaddr = pointer_arg(3)
+	old_setting_uaddr = pointer_arg(4)
+	argstr = sprintf("%d, %d, %p, %p", timer_id, flags,
+			new_setting_uaddr, old_setting_uaddr)
+}
+probe nd_syscall.compat_timer_settime.return = kprobe.function("compat_timer_settime").return ?
+{
+	name = "compat_timer_settime"
+	retstr = returnstr(1)
+}
+
+# compat_timer_gettime ________________________________________
+#
+# long compat_timer_gettime(timer_t timer_id,
+#		struct compat_itimerspec __user *setting)
+#
+probe nd_syscall.compat_timer_gettime = kprobe.function("compat_timer_gettime") ?
+{
+	name = "compat_timer_gettime"
+	// timer_id = $timer_id
+	// setting_uaddr = $setting
+	asmlinkage()
+	timer_id = int_arg(1)
+	setting_uaddr = pointer_arg(2)
+	argstr = sprintf("%d, %p", timer_id, setting_uaddr)
+}
+probe nd_syscall.compat_timer_gettime.return = kprobe.function("compat_timer_gettime").return ?
+{
+	name = "compat_timer_gettime"
+	retstr = returnstr(1)
+}
+
+# compat_clock_settime ________________________________________
+#
+# long compat_clock_settime(clockid_t which_clock,
+#			struct compat_timespec __user *tp)
+#
+probe nd_syscall.compat_clock_settime = kprobe.function("compat_clock_settime") ?
+{
+	name = "compat_clock_settime"
+	// which_clock = $which_clock
+	// tp_uaddr = $tp
+	asmlinkage()
+	which_clock = int_arg(1)
+	tp_uaddr = pointer_arg(2)
+	argstr = sprintf("%d, %p", which_clock, tp_uaddr)
+}
+probe nd_syscall.compat_clock_settime.return = kprobe.function("compat_clock_settime").return ?
+{
+	name = "compat_clock_settime"
+	retstr = returnstr(1)
+}
+
+# sys32_swapcontext ________________________________________
+#
+# long sys32_swapcontext(struct ucontext32 __user *old_ctx,
+#			struct ucontext32 __user *new_ctx,
+#			int ctx_size, int r6, int r7, int r8,
+#			struct pt_regs *regs)
+#
+probe nd_syscall.sys32_swapcontext = kprobe.function("sys32_swapcontext") ?
+{
+	name = "sys32_swapcontext"
+	// old_ctx_uaddr = $old_ctx
+	// new_ctx_uaddr = $new_ctx
+	// r5 = $ctx_size
+	// r6 = $r6
+	// r7 = $r7
+	// r8 = $r8
+	// regs = $regs
+	asmlinkage()
+	old_ctx_uaddr = pointer_arg(1)
+	new_ctx_uaddr = pointer_arg(2)
+	r5 = int_arg(3)
+	r6 = int_arg(4)
+	r7 = int_arg(5)
+	r8 = int_arg(6)
+	regs = pointer_arg(7)
+	argstr = sprintf("%p, %p, %d, %d, %d, %d, %p",
+			old_ctx_uaddr, new_ctx_uaddr, r5, r6, r7, r8, regs)
+}
+probe nd_syscall.sys32_swapcontext.return = kprobe.function("sys32_swapcontext").return ?
+{
+	name = "sys32_swapcontext"
+	retstr = returnstr(1)
+}
+
+# sys32_utimes ________________________________________
+#
+# asmlinkage long sys32_utimes(char __user *filename,
+#			struct compat_timeval __user *tvs)
+#
+probe nd_syscall.sys32_utimes = kprobe.function("sys32_utimes") ?
+{
+	name = "sys32_utimes"
+	// filename_uaddr = $filename
+	// path = user_string($filename)
+	// tvp_uaddr = $tvs
+	// argstr = sprintf("%s, %p", user_string_quoted($filename), tvp_uaddr)
+	asmlinkage()
+	filename_uaddr = pointer_arg(1)
+	path = user_string_quoted(filename_uaddr)
+	tvp_uaddr = pointer_arg(2)
+	argstr = sprintf("%s, %p", user_string_quoted(filename_uaddr), tvp_uaddr)
+}
+probe nd_syscall.sys32_utimes.return = kprobe.function("sys32_utimes").return ?
+{
+	name = "sys32_utimes"
+	retstr = returnstr(1)
+}
+
+# compat_mbind ________________________________________
+#
+# asmlinkage long compat_mbind(compat_ulong_t start, compat_ulong_t len,
+#			compat_ulong_t mode, compat_ulong_t __user *nmask,
+#			compat_ulong_t maxnode, compat_ulong_t flags)
+#
+probe nd_syscall.compat_mbind = kprobe.function("compat_mbind") ?
+{
+	name = "compat_mbind"
+	// start_uaddr = $start
+	// len = $len
+	// policy = $mode
+	// nodemask_uaddr = $nmask
+	// maxnode = $maxnode
+	// flags = $flags
+	asmlinkage()
+	start_uaddr = uint_arg(1)
+	len = uint_arg(2)
+	policy = uint_arg(3)
+	nodemask_uaddr = uint_arg(4)
+	maxnode = uint_arg(5)
+	flags = uint_arg(6)
+	argstr = sprintf("%p, %d, %d, %p, %d, %d", start_uaddr, len,
+			policy, nodemask_uaddr, maxnode, flags)
+}
+probe nd_syscall.compat_mbind.return = kprobe.function("compat_mbind").return ?
+{
+	name = "compat_mbind"
+	retstr = returnstr(1)
+}
+
+# compat_get_mempolicy ________________________________________
+#
+# asmlinkage long compat_get_mempolicy(int __user *policy,
+#				compat_ulong_t __user *nmask,
+#				compat_ulong_t maxnode,
+#				compat_ulong_t addr, compat_ulong_t flags)
+#
+probe nd_syscall.compat_get_mempolicy = kprobe.function("compat_get_mempolicy") ?
+{
+	name = "compat_get_mempolicy"
+	// policy_uaddr = $policy
+	// nmask_uaddr = $nmask
+	// maxnode = $maxnode
+	// addr = $addr
+	// flags = $flags
+	asmlinkage()
+	policy_uaddr = int_arg(1)
+	nmask_uaddr = uint_arg(2)
+	maxnode = uint_arg(3)
+	addr = uint_arg(4)
+	flags = uint_arg(5)
+	argstr = sprintf("%p, %p, %d, %d", policy_uaddr, nmask_uaddr,
+			maxnode, addr)
+}
+probe nd_syscall.compat_get_mempolicy.return = kprobe.function("compat_get_mempolicy").return ?
+{
+	name = "compat_get_mempolicy"
+	retstr = returnstr(1)
+}
+
+# compat_set_mempolicy ________________________________________
+#
+# asmlinkage long compat_set_mempolicy(int mode, compat_ulong_t __user *nmask,
+#				compat_ulong_t maxnode)
+#
+probe nd_syscall.compat_set_mempolicy = kprobe.function("compat_set_mempolicy") ?
+{
+	name = "compat_set_mempolicy"
+	// policy = $mode
+	// nodemask_uaddr = $nmask
+	// maxnode = $maxnode
+	asmlinkage()
+	policy = int_arg(1)
+	nodemask_uaddr = uint_arg(2)
+	maxnode = uint_arg(3)
+	argstr = sprintf("%d, %p, %d", policy, nodemask_uaddr, maxnode)
+}
+probe nd_syscall.compat_set_mempolicy.return = kprobe.function("compat_set_mempolicy").return ?
+{
+	name = "compat_set_mempolicy"
+	retstr = returnstr(1)
+}
+
+# In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
+# code.  In kernels >= 2.6.33, the arch-specific code just calls
+# generic sys_mmap_pgoff().
+%( kernel_v < "2.6.33" %?
+# mmap
+# long sys_mmap(unsigned long addr, size_t len,
+#		       unsigned long prot, unsigned long flags,
+#		       unsigned long fd, off_t offset)
+#
+probe nd_syscall.mmap = kprobe.function("sys_mmap") ?
+{
+	name = "mmap"
+	asmlinkage()
+	start = ulong_arg(1)
+	len = ulong_arg(2)
+	prot = ulong_arg(3)
+	flags = ulong_arg(4)
+	# Although the kernel gets an unsigned long fd, on the
+	# user-side it is a signed int.  Fix this.
+	fd = int_arg(5)
+	offset = ulong_arg(6)
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, len,
+			_mprotect_prot_str(prot), _mmap_flags(flags),
+			fd, offset)
+}
+probe nd_syscall.mmap.return = kprobe.function("sys_mmap").return ?
+{
+	name = "mmap"
+	retstr = returnstr(2)
+}
+
+# mmap2
+# long sys_mmap2(unsigned long addr, size_t len,
+#			unsigned long prot, unsigned long flags,
+#			unsigned long fd, unsigned long pgoff)
+# long compat_sys_mmap2(unsigned long addr, size_t len,
+#			  unsigned long prot, unsigned long flags,
+#			  unsigned long fd, unsigned long pgoff)
+#
+probe nd_syscall.mmap2 = kprobe.function("sys_mmap2") ?,
+                         kprobe.function("compat_sys_mmap2") ?
+{
+	name = "mmap2"
+	asmlinkage()
+	start = ulong_arg(1)
+	length = ulong_arg(2)
+	prot = ulong_arg(3)
+	flags = ulong_arg(4)
+	# Although the kernel gets an unsigned long fd, on the
+	# user-side it is a signed int.  Fix this.
+	fd = int_arg(5)
+	pgoffset = ulong_arg(6)
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start,
+			length, _mprotect_prot_str(prot), _mmap_flags(flags),
+			fd, pgoffset)
+}
+probe nd_syscall.mmap2.return = kprobe.function("sys_mmap2").return ?,
+                                kprobe.function("compat_sys_mmap2").return ?
+{
+	name = "mmap2"
+	retstr = returnstr(2)
+}
+%)
+
+# ppc64_sys_stime ________________________________________
+#
+# long ppc64_sys_stime(long __user * tptr)
+#
+probe nd_syscall.ppc64_sys_stime = kprobe.function("ppc64_sys_stime") ?
+{
+	name = "ppc64_sys_stime"
+	/* FIXME */
+	// t_uaddr = $tptr
+	asmlinkage()
+	t_uaddr = pointer_arg(1)
+	argstr = sprintf("%p", t_uaddr)
+}
+probe nd_syscall.ppc64_sys_stime.return = kprobe.function("ppc64_sys_stime").return ?
+{
+	name = "ppc64_sys_stime"
+	retstr = returnstr(1)
+}
+
+# ppc[64]_newuname ________________________________________
+#
+# asmlinkage int ppc64_newuname(struct new_utsname __user * name)
+# long ppc_newuname(struct new_utsname __user * name)
+#
+probe nd_syscall.ppc64_newuname = __nd_syscall.ppc64_newuname ?,
+	kprobe.function("ppc_newuname") ?
+{
+	name = "uname"
+	name_uaddr = pointer_arg(1)
+	argstr = sprintf("%p", name_uaddr)
+}
+probe __nd_syscall.ppc64_newuname = kprobe.function("ppc64_newuname") ?
+{
+	asmlinkage()
+}
+probe nd_syscall.ppc64_newuname.return =
+	kprobe.function("ppc64_newuname").return ?,
+	kprobe.function("ppc_newuname").return ?
+{
+	name = "uname"
+	retstr = returnstr(1)
+}
+
+# compat_ftruncate64 ________________________________________
+#
+# asmlinkage int compat_sys_ftruncate64(unsigned int fd, u32 reg4,
+#					unsigned long high, unsigned long low)
+#
+probe nd_syscall.compat_ftruncate64 =
+	kprobe.function("compat_sys_ftruncate64") ?
+{
+	asmlinkage()
+	name = "ftruncate"
+	fd = int_arg(1)
+	length = (ulong_arg(3) << 32 | ulong_arg(4))
+	argstr = sprintf("%d, %d", fd, length)
+}
+probe nd_syscall.compat_ftruncate64.return =
+	kprobe.function("compat_sys_ftruncate64").return ?
+{
+	name = "ftruncate"
+	retstr = returnstr(1)
+}
+
+# compat_truncate64 ________________________________________
+#
+# asmlinkage int compat_sys_truncate64(const char __user * path, u32 reg4,
+#				       unsigned long high, unsigned long low)
+#
+probe nd_syscall.compat_truncate64 = kprobe.function("compat_sys_truncate64") ?
+{
+	name = "truncate"
+	path_uaddr = pointer_arg(1)
+	path = user_string_quoted(path_uaddr)
+	length = (ulong_arg(3) << 32 | ulong_arg(4))
+	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
+}
+probe nd_syscall.compat_truncate64.return =
+	kprobe.function("compat_sys_truncate64").return ?
+{
+	name = "truncate"
+	retstr = returnstr(1)
+}
+
+# readahead __________________________________________________
+#
+# compat_ssize_t compat_sys_readahead(int fd, u32 r4, u32 offhi, u32 offlo,
+#                                     u32 count)
+#
+probe nd_syscall.compat_readahead = kprobe.function("compat_sys_readahead") ?
+{
+	name = "readahead"
+	asmlinkage()
+	fd = int_arg(1)
+	/* the 2nd parameter (r4) is ignored */
+	offset = ((uint_arg(3) << 32) | uint_arg(4))
+	count = ulong_arg(5)
+	argstr = sprintf("%d, %d, %u", fd, offset, count)
+}
+probe nd_syscall.compat_readahead.return =
+	kprobe.function("compat_sys_readahead").return ?
+{
+	name = "readahead"
+	retstr = returnstr(1)
+}
+
+# fadvise64 _______________________________________________________
+#
+# long ppc32_fadvise64(int fd, u32 unused, u32 offset_high, u32 offset_low,
+# 		     size_t len, int advice)
+probe nd_syscall.compat_fadvise64 = kprobe.function("ppc32_fadvise64") ?
+{
+	asmlinkage()
+	name = "fadvise64"
+	fd = int_arg(1)
+	# The 2nd parameter is ignored.
+	offset = ((uint_arg(3) << 32) | uint_arg(4))
+	len = int_arg(5)
+	advice = int_arg(6)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe nd_syscall.compat_fadvise64.return =
+	kprobe.function("ppc32_fadvise64").return ?
+{
+	name = "fadvise64"
+	retstr = returnstr(1)
+}
+
+# fadvise64 _______________________________________________________
+#
+# long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
+#		      u32 len_high, u32 len_low)
+probe nd_syscall.compat_fadvise64_64 = kprobe.function("ppc_fadvise64_64") ?
+{
+	asmlinkage()
+	name = "fadvise64"
+	fd = int_arg(1)
+	advice = int_arg(2)
+	offset = ((uint_arg(3) << 32) | uint_arg(4))
+	len = ((uint_arg(5) << 32) | uint_arg(6))
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe nd_syscall.compat_fadvise64_64.return =
+	kprobe.function("ppc_fadvise64_64").return ?
+{
+	name = "fadvise64"
+	retstr = returnstr(1)
+}
+
+# fallocate __________________________________________________
+#
+# asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
+#				     u32 lenhi, u32 lenlo)
+probe nd_syscall.compat_fallocate = kprobe.function("compat_sys_fallocate") ?
+{
+	asmlinkage()
+	name = "fallocate"
+	fd = int_arg(1)
+	mode = int_arg(2)
+	offset = ((uint_arg(3) << 32) | uint_arg(4))
+	len = ((uint_arg(5) << 32) | uint_arg(6))
+	argstr = sprintf("%d, %s, %#x, %u", fd, _stp_fallocate_mode_str(mode),
+			 offset, len)
+}
+probe nd_syscall.compat_fallocate.return =
+	kprobe.function("compat_sys_fallocate").return ?
+{
+	name = "fallocate"
+	retstr = returnstr(1)
+}
+
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). It was just a wrapper around generic
+# do_execve(), but the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+#  int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
+#	       unsigned long a3, unsigned long a4, unsigned long a5,
+#	       struct pt_regs *regs)
+probe nd_syscall.execve = kprobe.function("sys_execve")
+{
+	name = "execve"
+	filename = user_string_quoted(pointer_arg(1))
+	args = __get_argv(pointer_arg(2), 0)
+	env_str = __count_envp(pointer_arg(3))
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe nd_syscall.execve.return = kprobe.function("sys_execve").return
+{
+	name = "execve"
+	retstr = returnstr(1)
+}
+
+# execve _____________________________________________________
+#
+#  long compat_sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
+#		  unsigned long a3, unsigned long a4, unsigned long a5,
+#		  struct pt_regs *regs)
+probe nd_syscall.compat_execve = kprobe.function("compat_sys_execve") ?
+{
+	name = "execve"
+	filename = user_string_quoted(pointer_arg(1))
+	args = __get_compat_argv(pointer_arg(2), 0)
+	env_str = __count_compat_envp(pointer_arg(3))
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe nd_syscall.compat_execve.return =
+	kprobe.function("compat_sys_execve").return ?
+{
+	name = "execve"
+	retstr = returnstr(1)
+}
+%)
+
+# lookup_dcookie _____________________________________________
+# COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *, buf,
+#                        compat_size_t, len)
+# long ppc32_lookup_dcookie(u32 cookie_high, u32 cookie_low, char __user *buf,
+#                           size_t len)
+#
+probe nd_syscall.compat_lookup_dcookie =
+		kprobe.function("compat_sys_lookup_dcookie") ?,
+		kprobe.function("ppc32_lookup_dcookie") ?
+{
+        name = "lookup_dcookie"
+        asmlinkage()
+        cookie = ((uint_arg(1) << 32) | uint_arg(2))
+        buffer_uaddr = pointer_arg(3)
+        len = ulong_arg(4)
+        argstr = sprintf("%#lx, %p, %#x", cookie, buffer_uaddr, len)
+}
+probe nd_syscall.compat_lookup_dcookie.return =
+		kprobe.function("compat_sys_lookup_dcookie").return ?,
+		kprobe.function("ppc32_lookup_dcookie").return ?
+{
+        name = "lookup_dcookie"
+        retstr = returnstr(1)
+}

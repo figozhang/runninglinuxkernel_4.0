@@ -1,0 +1,271 @@
+# 32-bit x86-specific system calls
+# These are typically defined in arch/i386
+#
+
+# get_thread_area ____________________________________________
+/*
+ * asmlinkage int
+ * sys_get_thread_area(struct user_desc __user *u_info)
+ */
+probe nd_syscall.get_thread_area = kprobe.function("sys_get_thread_area")
+{
+	name = "get_thread_area"
+	// u_info_uaddr = $u_info
+	asmlinkage()
+	u_info_uaddr = pointer_arg(1)
+	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
+}
+probe nd_syscall.get_thread_area.return = kprobe.function("sys_get_thread_area").return
+{
+	name = "get_thread_area"
+	retstr = returnstr(1)
+}
+
+# iopl _______________________________________________________
+# NOTE. This function is only in i386 and x86_64 and its args vary
+# between those two archs:
+# el5: asmlinkage long sys_iopl(unsigned long unused)
+# el6: long sys_iopl(struct pt_regs *regs)
+#      [ ... ] unsigned int level = regs->bx;
+# f20: SYSCALL_DEFINE1(iopl, unsigned int, level)
+#
+probe nd_syscall.iopl = kprobe.function("sys_iopl")
+{
+	name = "iopl"
+	asmlinkage()
+	level = uint_arg(1)
+	argstr = sprint(level)
+}
+probe nd_syscall.iopl.return = kprobe.function("sys_iopl").return
+{
+	name = "iopl"
+	retstr = returnstr(1)
+}
+
+%( systemtap_v <= "2.7" %?
+# sys32_ipc() is just a syscall multiplexer (similar to
+# sys_socketcall()). So, we don't really need to probe it, since we'll
+# be probing what sys32_ipc() will call (semget, msgsnd, msgrcv,
+# shmat, etc.).
+
+# ipc ________________________________________________________
+#  int sys_ipc (uint call, int first, int second, int third, void __user *ptr, long fifth)
+#
+probe nd_syscall.ipc = kprobe.function("sys_ipc") ?
+{
+	name = "ipc"
+	// call = $call
+	// first = $first
+	// second = $second
+	// third = $third
+	// ptr_uaddr = $ptr
+	// fifth = $fifth
+	// argstr = sprintf("%d, %d, %d, %d, %p, %d", $call, $first,
+	// 		$second, $third, $ptr, $fifth)
+	asmlinkage()
+	call = uint_arg(1)
+	first = int_arg(2)
+	second = int_arg(3)
+	third = int_arg(4)
+	ptr_uaddr = pointer_arg(5)
+	fifth = long_arg(6)
+	argstr = sprintf("%d, %d, %d, %d, %p, %d", call, first,
+			second, third, ptr_uaddr, fifth)
+}
+probe nd_syscall.ipc.return = kprobe.function("sys_ipc").return ?
+{
+	name = "ipc"
+	retstr = returnstr(1)
+}
+%)
+
+# In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
+# code.  In kernels >= 2.6.33, the arch-specific code just calls
+# generic sys_mmap_pgoff().
+%( kernel_v < "2.6.33" %?
+# mmap2 ____________________________________________
+# sys_mmap2(unsigned long addr, unsigned long len,
+#	  unsigned long prot, unsigned long flags,
+#	  unsigned long fd, unsigned long pgoff)
+#
+probe nd_syscall.mmap2 = __nd_syscall.mmap2 ?, __nd_syscall.mmap_pgoff ?
+{
+	name = "mmap2"
+	asmlinkage()
+	start = ulong_arg(1)
+	length = ulong_arg(2)
+	prot = ulong_arg(3)
+	flags = ulong_arg(4)
+	# Although the kernel gets an unsigned long fd, on the
+	# user-side it is a signed int.  Fix this.
+	fd = int_arg(5)
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start,
+			length, _mprotect_prot_str(prot), _mmap_flags(flags),
+			fd, pgoffset)
+}
+probe __nd_syscall.mmap2 = kprobe.function("sys_mmap2")
+{
+	asmlinkage()
+	pgoffset = ulong_arg(6)
+}
+probe __nd_syscall.mmap_pgoff = kprobe.function("sys_mmap_pgoff")
+{
+	asmlinkage()
+	pgoffset = ulong_arg(6) * %{ /* pure */ PAGE_SIZE %}
+}
+probe nd_syscall.mmap2.return = kprobe.function("sys_mmap2").return ?,
+	kprobe.function("sys_mmap_pgoff").return ?
+{
+	name = "mmap2"
+	retstr = returnstr(2)
+}
+%)
+
+# set_thread_area ____________________________________________
+/*
+ * asmlinkage int
+ * sys_set_thread_area(struct user_desc __user *u_info)
+ */
+probe nd_syscall.set_thread_area = kprobe.function("sys_set_thread_area")
+{
+	name = "set_thread_area"
+	// u_info_uaddr = $u_info
+	asmlinkage()
+	u_info_uaddr = pointer_arg(1)
+	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
+}
+probe nd_syscall.set_thread_area.return = kprobe.function("sys_set_thread_area").return
+{
+	name = "set_thread_area"
+	retstr = returnstr(1)
+}
+
+# set_zone_reclaim ___________________________________________
+/*
+ * asmlinkage long
+ * sys_set_zone_reclaim(unsigned int node,
+ *                      unsigned int zone,
+ *                      unsigned int state)
+ */
+probe nd_syscall.set_zone_reclaim = kprobe.function("sys_set_zone_reclaim") ?
+{
+	name = "set_zone_reclaim"
+	// node = $node
+	// zone = $zone
+	// state = $state
+	// argstr = sprintf("%d, %d, %d", $node, $zone, $state)
+	asmlinkage()
+	node = uint_arg(1)
+	zone = uint_arg(2)
+	state = uint_arg(3)
+	argstr = sprintf("%d, %d, %d", node, zone, state)
+}
+probe nd_syscall.set_zone_reclaim.return = kprobe.function("sys_set_zone_reclaim").return ?
+{
+	name = "set_zone_reclaim"
+	retstr = returnstr(1)
+}
+
+%( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
+# sigaltstack ________________________________________________
+# int sys_sigaltstack(unsigned long ebx)
+#
+# NOTE: args vary between archs.
+#
+probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
+{
+	name = "sigaltstack"
+	asmlinkage()
+	// Sigh, it doesn't seem possible to get the address of regs
+	// here without dipping down into deep mojo.
+	__regs = __ulong(register("esp")) + 4
+	uss_uaddr = __ulong(@choose_defined(@cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->bx,
+					    @cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->ebx))
+%(systemtap_v <= "1.4" %?
+	ussp = uss_uaddr
+%)
+	uoss_uaddr = __ulong(@choose_defined(@cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->cx,
+					     @cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->ecx))
+	argstr = sprintf("%s, %p", _stp_sigaltstack_u(uss_uaddr), uoss_uaddr)
+}
+probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return
+{
+	name = "sigaltstack"
+	retstr = returnstr(1)
+}
+%)
+
+# vm86 _______________________________________________________
+#
+# int sys_vm86(struct pt_regs regs)
+#
+probe nd_syscall.vm86 = kprobe.function("sys_vm86") ?
+{
+	name = "vm86"
+	/*
+	 * unsupported type identifier '$regs'
+	 * regs = $regs
+	 */
+	argstr = ""
+}
+probe nd_syscall.vm86.return = kprobe.function("sys_vm86").return ?
+{
+	name = "vm86"
+	retstr = returnstr(1)
+}
+
+# vm86old ____________________________________________________
+#
+# int sys_vm86old(struct pt_regs regs)
+#
+probe nd_syscall.vm86old = kprobe.function("sys_vm86old") ?
+{
+	name = "vm86old"
+	/*
+	 * unsupported type identifier '$regs'
+	 * regs = $regs
+	 */
+	argstr = ""
+}
+probe nd_syscall.vm86old.return = kprobe.function("sys_vm86old").return ?
+{
+	name = "vm86old"
+	retstr = returnstr(1)
+}
+
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). It was just a wrapper around generic
+# do_execve(), but the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+#   asmlinkage int sys_execve(struct pt_regs regs)
+#   int sys_execve(struct pt_regs *regs)
+
+probe nd_syscall.execve = kprobe.function("sys_execve")
+{
+	name = "execve"
+%( kernel_v < "2.6.30" %?
+	asmlinkage()
+	# Notice here that a pointer to a pt_regs struct isn't passed,
+	# a pt_regs struct itself is passed.
+	filename = user_string_quoted(pointer_arg(1))
+	args = __get_argv(pointer_arg(2), 0)
+	env_str = __count_envp(pointer_arg(3))
+%:
+	__regs = &@cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")
+	filename = user_string_quoted(__regs->bx)
+	args = __get_argv(__regs->cx, 0)
+	env_str = __count_envp(__regs->dx)
+%)
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe nd_syscall.execve.return = kprobe.function("sys_execve").return
+{
+	name = "execve"
+	retstr = returnstr(1)
+}
+%)

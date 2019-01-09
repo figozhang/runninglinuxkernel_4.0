@@ -1,0 +1,79 @@
+'\" t
+.\"     Title: probe::nfsd.proc.lookup
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Network File Storage Tapsets
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NFSD\&.PROC\&" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::nfsd.proc.lookup \- NFS server opening or searching for a file for client
+.SH "SYNOPSIS"
+.sp
+.nf
+nfsd\&.proc\&.lookup 
+.fi
+.SH "VALUES"
+.PP
+\fIfilename\fR
+.RS 4
+file name
+.RE
+.PP
+\fIuid\fR
+.RS 4
+requester\*(Aqs user id
+.RE
+.PP
+\fIproto\fR
+.RS 4
+transfer protocol
+.RE
+.PP
+\fIfilelen\fR
+.RS 4
+the length of file name
+.RE
+.PP
+\fIversion\fR
+.RS 4
+nfs version
+.RE
+.PP
+\fIclient_ip\fR
+.RS 4
+the ip address of client
+.RE
+.PP
+\fIfh\fR
+.RS 4
+file handle of parent dir (the first part is the length of the file handle)
+.RE
+.PP
+\fIgid\fR
+.RS 4
+requester\*(Aqs group id
+.RE
+.SH SEE ALSO\n 
+.IR tapset::nfsd (3stap)

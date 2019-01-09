@@ -1,0 +1,66 @@
+#./socktop -d
+
+======================= Mon Jan 29 12:27:24 2007 ========================
+------------------------------- PROCESSES -------------------------------
+PID   UID     #SEND   #RECV SEND_KB RECV_KB PROT FAMILY   COMMAND        
+3051  0           0    3159       0    4702 TCP  INET     firefox-bin    
+2578  0         121     101     164     181 IP   LOCAL    Xvnc           
+3051  0          74     180     176     164 IP   LOCAL    firefox-bin    
+2578  0           8      79      39       0 TCP  INET     Xvnc           
+2583  0           2       1       5       0 IP   LOCAL    xterm          
+-------------------------------- DEVICES --------------------------------
+DEV             #XMIT         #RECV         XMIT_KB         RECV_KB
+eth0             2236          3448             182            4875
+=========================================================================
+
+======================= Mon Jan 29 12:27:29 2007 ========================
+------------------------------- PROCESSES -------------------------------
+PID   UID     #SEND   #RECV SEND_KB RECV_KB PROT FAMILY   COMMAND        
+2578  0         580     582    1300    1315 IP   LOCAL    Xvnc           
+3051  0         296     600     970     965 IP   LOCAL    firefox-bin    
+3051  0           0     664       0     987 TCP  INET     firefox-bin    
+2695  0          62     145     298     297 IP   LOCAL    wnck-applet    
+2578  0          23     131      88       0 TCP  INET     Xvnc           
+2685  0          85     211      42      34 IP   LOCAL    metacity       
+2583  0           2       3       4       0 IP   LOCAL    xterm          
+2620  0          40      78       0       2 IP   LOCAL    gnome-settings-
+2688  0           3       7       0       0 IP   LOCAL    gnome-panel    
+2690  0           1       7       0       0 IP   LOCAL    nautilus       
+-------------------------------- DEVICES --------------------------------
+DEV             #XMIT         #RECV         XMIT_KB         RECV_KB
+eth0              580           881             124            1030
+=========================================================================
+
+
+# ./socktop -d -P TCP -P UDP
+
+======================= Mon Jan 29 12:29:15 2007 ========================
+------------------------------- PROCESSES -------------------------------
+PID   UID     #SEND   #RECV SEND_KB RECV_KB PROT FAMILY   COMMAND        
+2578  0          16     183      27       1 TCP  INET     Xvnc           
+-------------------------------- DEVICES --------------------------------
+DEV             #XMIT         #RECV         XMIT_KB         RECV_KB
+eth0              135           204              35               9
+=========================================================================
+
+======================= Mon Jan 29 12:29:20 2007 ========================
+------------------------------- PROCESSES -------------------------------
+PID   UID     #SEND   #RECV SEND_KB RECV_KB PROT FAMILY   COMMAND        
+3051  0           1    1814       0    3236 TCP  INET     firefox-bin    
+2578  0          52     155     198       1 TCP  INET     Xvnc           
+3051  0           4       4       0       0 UDP  INET     firefox-bin    
+-------------------------------- DEVICES --------------------------------
+DEV             #XMIT         #RECV         XMIT_KB         RECV_KB
+eth0             1574          2589             297            3366
+=========================================================================
+
+======================= Mon Jan 29 12:29:25 2007 ========================
+------------------------------- PROCESSES -------------------------------
+PID   UID     #SEND   #RECV SEND_KB RECV_KB PROT FAMILY   COMMAND        
+3051  0           0    2508       0    3721 TCP  INET     firefox-bin    
+2578  0           2      39      10       0 TCP  INET     Xvnc           
+-------------------------------- DEVICES --------------------------------
+DEV             #XMIT         #RECV         XMIT_KB         RECV_KB
+eth0             1767          2698             123            3858
+=========================================================================
+

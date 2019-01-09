@@ -1,0 +1,662 @@
+// memory/vm related tapset
+// Copyright (C) 2005, 2006 IBM Corp.
+// Copyright (C) 2006 Intel Corporation.
+// Copyright (C) 2014 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// This family of probe points is used to probe memory-related events. 
+// </tapsetdescription>
+%{
+#include <linux/mm.h>
+%}
+
+global VM_FAULT_OOM=0, VM_FAULT_SIGBUS=1, VM_FAULT_MINOR=2, VM_FAULT_MAJOR=3
+global VM_FAULT_NOPAGE=4, VM_FAULT_LOCKED=5, VM_FAULT_ERROR=6
+global FAULT_FLAG_WRITE=1
+
+/**
+ * sfunction vm_fault_contains - Test return value for page fault reason
+ *
+ * @value: the fault_type returned by vm.page_fault.return
+ * @test: the type of fault to test for (VM_FAULT_OOM or similar)
+ */
+function vm_fault_contains:long (value:long, test:long)
+%{
+	int res;
+	switch (STAP_ARG_test){
+	case 0: res = STAP_ARG_value & VM_FAULT_OOM; break;
+	case 1: res = STAP_ARG_value & VM_FAULT_SIGBUS; break;
+#if defined(VM_FAULT_MINOR) && VM_FAULT_MINOR == 0
+	case 2: /* VM_FAULT_MINOR infered by that flags off */
+		res = !((VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_MAJOR) & 
+				 STAP_ARG_value);
+		break;
+#else
+	case 2: res = STAP_ARG_value == VM_FAULT_MINOR; break;
+#endif
+	case 3: res = STAP_ARG_value & VM_FAULT_MAJOR; break;
+#ifdef VM_FAULT_NOPAGE
+	case 4: res = STAP_ARG_value & VM_FAULT_NOPAGE; break;
+#endif
+#ifdef VM_FAULT_LOCKED
+	case 5: res = STAP_ARG_value & VM_FAULT_LOCKED; break;
+#endif
+#ifdef VM_FAULT_ERROR
+	case 6: res = STAP_ARG_value & VM_FAULT_ERROR; break;
+#endif
+	default: res = 0; break;
+	}
+	STAP_RETVALUE = (res != 0);
+	return;
+%}
+
+/**
+ * probe vm.pagefault - Records that a page fault occurred
+ *
+ * @name: name of the probe point
+ * @address: the address of the faulting memory access; i.e. the address that caused the page fault
+ * @write_access: indicates whether this was a write or read access; 1 indicates a write, 
+ * while 0 indicates a read
+ *
+ * Context: The process which triggered the fault
+ */
+probe vm.pagefault = kernel.function("handle_mm_fault@mm/memory.c").call !,
+		     kernel.function("__handle_mm_fault@mm/memory.c").call
+{
+	name = "pagefault"
+	write_access = (@defined($flags)
+			? $flags & FAULT_FLAG_WRITE : $write_access)
+	address =  $address
+}
+
+/**
+ * probe vm.pagefault.return - Indicates what type of fault occurred
+ *
+ * @name: name of the probe point
+ * @fault_type: returns either 
+ * 0 (VM_FAULT_OOM) for out of memory faults, 
+ * 2 (VM_FAULT_MINOR) for minor faults, 3 (VM_FAULT_MAJOR) for 
+ * major faults, or 1 (VM_FAULT_SIGBUS) if the fault was neither OOM, minor fault, 
+ * nor major fault.
+ */
+probe vm.pagefault.return =
+		kernel.function("handle_mm_fault@mm/memory.c").return !,
+		kernel.function("__handle_mm_fault@mm/memory.c").return
+{
+	name = "pagefault"
+	fault_type = $return
+}
+
+/**
+ * sfunction addr_to_node - Returns which node a given address belongs to within a NUMA system
+ *
+ * @addr: the address of the faulting memory access
+ *
+ * Description: This function accepts an address, and returns the 
+ * node that the given address belongs to in a NUMA system.
+ */
+function addr_to_node:long(addr:long) %{ /* pure */ 
+	int nid;
+	int pfn;
+        if (! virt_addr_valid((void*) (uintptr_t) STAP_ARG_addr)) {
+            snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+                      "invalid kernel virtual address 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+            CONTEXT->last_error = CONTEXT->error_buffer;
+            goto out;
+        }
+        pfn = __pa(STAP_ARG_addr) >> PAGE_SHIFT;
+#ifdef for_each_online_node
+	for_each_online_node(nid)
+#else
+	for (nid=0; nid<MAX_NUMNODES; nid++)
+		if (NODE_DATA(nid)) /* approximately: if (node_online(nid)) */
+#endif
+		if ( NODE_DATA(nid)->node_start_pfn <= pfn &&
+			pfn < (NODE_DATA(nid)->node_start_pfn +
+			NODE_DATA(nid)->node_spanned_pages) )
+		{
+			STAP_RETVALUE = nid;
+			break;
+		}
+%}
+
+// Return whether a page to be copied is a zero page.
+@__private30 function _IS_ZERO_PAGE:long(from:long, vaddr:long) %{ /* pure */
+    STAP_RETVALUE = (STAP_ARG_from == (long) ZERO_PAGE(STAP_ARG_vaddr));
+%}
+
+
+/**
+ * probe vm.write_shared - Attempts at writing to a shared page
+ *
+ * @name: name of the probe point
+ * @address: the address of the shared write
+ *
+ * Context:
+ *  The context is the process attempting the write.
+ *
+ *  Fires when a process attempts to write to a shared page. 
+ *  If a copy is necessary, this will be followed by a 
+ *  vm.write_shared_copy.
+ */
+probe vm.write_shared = kernel.function("do_wp_page") {
+    name = "write_shared"
+    address = $address
+}
+
+/**
+ * probe vm.write_shared_copy - Page copy for shared page write
+ *
+ * @name: Name of the probe point
+ * @address: The address of the shared write
+ * @zero: boolean indicating whether it is a zero page
+ *         (can do a clear instead of a copy)
+ *
+ * Context:
+ *  The process attempting the write.
+ *
+ *  Fires when a write to a shared page requires a page copy.  This is
+ *  always preceded by a vm.write_shared.
+ */
+probe vm.write_shared_copy =  kernel.function("cow_user_page") ?,
+      kernel.function("copy_cow_page") ?
+{
+    name = "write_shared_copy"
+    if (@defined($va)) {
+      address = $va
+      zero = _IS_ZERO_PAGE($src, $va);
+    } else {
+      address = $address
+      zero = _IS_ZERO_PAGE($from, $address);
+    }
+}
+
+
+/**
+ * probe vm.mmap - Fires when an mmap is requested
+ *
+ * @name: name of the probe point
+ * @address: the requested address
+ * @length: the length of the memory segment 
+ *
+ * Context:
+ *  The process calling mmap.
+ */
+probe vm.mmap = kernel.function("vm_mmap") !,
+		kernel.function("do_mmap_pgoff") !,
+		kernel.function("do_mmap") ?, kernel.function("do_mmap2") ?
+{
+    name = "mmap"
+    address = $addr
+    length = $len
+}
+
+
+/**
+ * probe vm.munmap - Fires when an munmap is requested
+ *
+ * @name: name of the probe point
+ * @address: the requested address
+ * @length: the length of the memory segment 
+ *
+ * Context:
+ *  The process calling munmap.
+ */
+probe vm.munmap = kernel.function("do_munmap") {
+    name = "munmap"
+    address = $start
+    length = $len
+}
+
+/**
+ * probe vm.brk - Fires when a brk is requested (i.e. the heap will be resized)
+ *
+ * @name: name of the probe point
+ * @address: the requested address
+ * @length: the length of the memory segment 
+ *
+ * Context:
+ *  The process calling brk.
+ */
+probe vm.brk = kernel.function("do_brk") {
+    name = "brk"
+    address = $addr
+    length = $len
+}
+
+/**
+ * probe vm.oom_kill - Fires when a thread is selected for termination by the OOM killer
+ *
+ * @name: name of the probe point
+ * @task: the task being killed
+ *
+ * Context:
+ *  The process that tried to consume excessive memory, and thus
+ *  triggered the OOM.
+ */
+probe vm.oom_kill = kernel.function("oom_kill_process") !,
+		    kernel.function("__oom_kill_task")
+{
+    name = "oom_kill"
+    task = $p
+}
+
+@__private30 function GFP_KERNEL:long()
+%{ /* pure */ /* stable */ /* unprivileged */
+	STAP_RETVALUE = GFP_KERNEL;
+%}
+
+@__private30 function __gfp_flag_str:string(gfp_flag:long)
+%{
+	long gfp_flag = STAP_ARG_gfp_flag;
+	STAP_RETVALUE[0] = '\0';
+
+/* Older kernels < 2.6.32 didn't have some of these GFP defines yet. */
+#ifndef __GFP_DMA32
+#define __GFP_DMA32	((__force gfp_t)0x04u)
+#endif
+#ifndef GFP_DMA32
+#define GFP_DMA32	__GFP_DMA32
+#endif
+
+#ifndef __GFP_MOVABLE
+#define __GFP_MOVABLE  ((__force gfp_t)0x08u)  /* Page is movable */
+#endif
+
+#ifndef GFP_ZONEMASK
+#define GFP_ZONEMASK   (__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
+#endif
+
+#ifndef __GFP_NOTRACK
+#ifdef CONFIG_KMEMCHECK
+#define __GFP_NOTRACK  ((__force gfp_t)0x200000u)  /* Don't track with kmemcheck */
+#else
+#define __GFP_NOTRACK  ((__force gfp_t)0)
+#endif
+#endif
+
+#ifndef __GFP_THISNODE
+#define __GFP_THISNODE  ((__force gfp_t)0x40000u)
+#endif
+
+#ifndef __GFP_RECLAIMABLE
+#define __GFP_RECLAIMABLE ((__force gfp_t)0x80000u)
+#endif
+
+#ifndef __GFP_ZERO
+#define __GFP_ZERO	((__force gfp_t)0x8000u)
+#endif
+
+#ifndef __GFP_NOMEMALLOC
+#define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u)
+#endif
+
+#ifndef __GFP_HARDWALL
+#define __GFP_HARDWALL   ((__force gfp_t)0x20000u)
+#endif
+
+#ifndef GFP_TEMPORARY
+#define GFP_TEMPORARY  (__GFP_WAIT | __GFP_IO | __GFP_FS | \
+                        __GFP_RECLAIMABLE)
+#endif
+
+#ifndef GFP_HIGHUSER_MOVABLE
+#define GFP_HIGHUSER_MOVABLE   (__GFP_WAIT | __GFP_IO | __GFP_FS | \
+                                __GFP_HARDWALL | __GFP_HIGHMEM | \
+                                __GFP_MOVABLE)
+#endif
+
+#ifndef GFP_THISNODE
+#ifdef CONFIG_NUMA
+#define GFP_THISNODE    (__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
+#else
+#define GFP_THISNODE    ((__force gfp_t)0)
+#endif
+#endif
+
+/* Macro for GFP Bitmasks. */
+/* The resulted GFP_FLAGS may be either single or concatenation of the multiple bitmasks. */
+
+
+#define __GFP_BITMASKS(FLAG)  if(gfp_flag & FLAG) { if(STAP_RETVALUE[0] != '\0') \
+                strlcat(STAP_RETVALUE, " | "#FLAG, MAXSTRINGLEN); \
+                else strlcat(STAP_RETVALUE, #FLAG, MAXSTRINGLEN); }
+
+
+/* Macro for Composite Flags. */
+/* Each Composite GFP_FLAG is the combination of multiple bitmasks. */
+
+
+#define __GFP_COMPOSITE_FLAG(FLAG)  if(gfp_flag == FLAG) { \
+                strlcat(STAP_RETVALUE, #FLAG, MAXSTRINGLEN); return; }
+
+
+/* Composite GFP FLAGS of the BitMasks. */
+
+	__GFP_COMPOSITE_FLAG(GFP_ZONEMASK)
+	__GFP_COMPOSITE_FLAG(GFP_ATOMIC)
+	__GFP_COMPOSITE_FLAG(GFP_NOIO)
+	__GFP_COMPOSITE_FLAG(GFP_NOFS)
+	__GFP_COMPOSITE_FLAG(GFP_KERNEL)
+	__GFP_COMPOSITE_FLAG(GFP_TEMPORARY)
+	__GFP_COMPOSITE_FLAG(GFP_USER)
+	__GFP_COMPOSITE_FLAG(GFP_HIGHUSER)
+	__GFP_COMPOSITE_FLAG(GFP_HIGHUSER_MOVABLE)
+	__GFP_COMPOSITE_FLAG(GFP_THISNODE)
+	__GFP_COMPOSITE_FLAG(GFP_DMA)
+	__GFP_COMPOSITE_FLAG(GFP_DMA32)
+
+/* GFP BitMasks */
+
+	__GFP_BITMASKS(__GFP_DMA)
+	__GFP_BITMASKS(__GFP_HIGHMEM)
+	__GFP_BITMASKS(__GFP_MOVABLE)
+	__GFP_BITMASKS(__GFP_WAIT)
+	__GFP_BITMASKS(__GFP_HIGH)
+	__GFP_BITMASKS(__GFP_IO)
+	__GFP_BITMASKS(__GFP_FS)
+	__GFP_BITMASKS(__GFP_COLD)
+	__GFP_BITMASKS(__GFP_NOWARN)
+	__GFP_BITMASKS(__GFP_REPEAT)
+	__GFP_BITMASKS(__GFP_NOFAIL)
+	__GFP_BITMASKS(__GFP_COMP)
+	__GFP_BITMASKS(__GFP_ZERO)
+	__GFP_BITMASKS(__GFP_NOMEMALLOC)
+	__GFP_BITMASKS(__GFP_HARDWALL)
+	__GFP_BITMASKS(__GFP_THISNODE)
+	__GFP_BITMASKS(__GFP_RECLAIMABLE)
+	__GFP_BITMASKS(__GFP_NOTRACK)
+
+
+#undef __GFP_BITMASKS
+#undef __GFP_COMPOSITE_FLAG
+%}
+
+/* The Formal Parameters will be displayed if available, otherwise \
+		 "0" or "unknown" will be displayed */
+
+probe __vm.kmalloc.tp = kernel.trace("kmalloc")
+{
+	call_site = $call_site
+	caller_function = symname(call_site)
+	bytes_req = $bytes_req
+	bytes_alloc = $bytes_alloc
+	gfp_flags = $gfp_flags
+	gfp_flag_name = __gfp_flag_str($gfp_flags)
+	ptr = $ptr
+}
+
+/*
+ * It is unsafe to invoke __builtin_return_address() presently (to get
+ * call_site for kprobe based probes) and that it can be improved
+ * later when fix for bugs bz#6961 and bz#6580 is available.
+ */ 
+
+probe __vm.kmalloc.kp = kernel.function("kmem_cache_alloc_notrace").return !,
+			kernel.function("kmem_cache_alloc").return
+{
+	call_site = 0
+	caller_function = "unknown"
+	// Note that 'bytes_req' could be wrong.  By the time
+	// kmem_cache_alloc* gets called the requested size could have
+	// rounded up to the nearest cache alloc size.
+	if (@defined($s)) {
+		bytes_req = $s->size
+		bytes_alloc = $s->size
+	}
+	else if (@defined($cachep->buffer_size)) {
+		bytes_req = $cachep->buffer_size
+		bytes_alloc = $cachep->buffer_size
+	}
+	else {
+		bytes_req = $cachep->objsize
+		bytes_alloc = $cachep->objsize
+	}
+	if (@defined($gfpflags)) {
+		gfp_flags = $gfpflags
+		gfp_flag_name = __gfp_flag_str($gfpflags)
+	}
+	else {
+		gfp_flags = $flags
+		gfp_flag_name = __gfp_flag_str($flags)
+	}
+	ptr = $return
+}
+
+/**
+ * probe vm.kmalloc - Fires when kmalloc is requested
+ *
+ * @name: name of the probe point
+ * @call_site: address of the kmemory function
+ * @caller_function: name of the caller function
+ * @bytes_req: requested Bytes
+ * @bytes_alloc: allocated Bytes
+ * @gfp_flags: type of kmemory to allocate
+ * @gfp_flag_name: type of kmemory to allocate (in String format)
+ * @ptr: pointer to the kmemory allocated
+ */
+probe vm.kmalloc = __vm.kmalloc.tp !, __vm.kmalloc.kp
+{
+	name = "kmalloc"
+}
+
+
+probe __vm.kmem_cache_alloc.tp = kernel.trace("kmem_cache_alloc")
+{
+	call_site = $call_site
+	caller_function = symname(call_site)
+	bytes_req = $bytes_req
+	bytes_alloc = $bytes_alloc
+	gfp_flags = $gfp_flags
+	gfp_flag_name = __gfp_flag_str($gfp_flags)
+	ptr = $ptr
+}
+
+probe __vm.kmem_cache_alloc.kp = kernel.function("kmem_cache_alloc").return
+{
+	call_site = 0
+	caller_function = "unknown"
+	// Note that 'bytes_req' could be wrong.  By the time
+	// kmem_cache_alloc* gets called the requested size could have
+	// rounded up to the nearest cache alloc size.
+	if (@defined($s)) {
+		bytes_req = $s->size
+		bytes_alloc = $s->size
+	}
+	else if (@defined($cachep->buffer_size)) {
+		bytes_req = $cachep->buffer_size
+		bytes_alloc = $cachep->buffer_size
+	}
+	else {
+		bytes_req = $cachep->objsize
+		bytes_alloc = $cachep->objsize
+	}
+	if (@defined($gfpflags)) {
+		gfp_flags = $gfpflags
+		gfp_flag_name = __gfp_flag_str($gfpflags)
+	}
+	else {
+		gfp_flags = $flags
+		gfp_flag_name = __gfp_flag_str($flags)
+	}
+	ptr = $return
+}
+
+/**
+ * probe vm.kmem_cache_alloc - Fires when kmem_cache_alloc is requested
+ *
+ * @name: name of the probe point
+ * @call_site: address of the function calling this kmemory function.
+ * @caller_function: name of the caller function.
+ * @bytes_req: requested Bytes
+ * @bytes_alloc: allocated Bytes
+ * @gfp_flags: type of kmemory to allocate
+ * @gfp_flag_name: type of kmemory to allocate(in string format)
+ * @ptr: pointer to the kmemory allocated
+ */
+
+probe vm.kmem_cache_alloc = __vm.kmem_cache_alloc.tp !,
+			    __vm.kmem_cache_alloc.kp
+{
+	name = "kmem_cache_alloc"
+}
+
+probe __vm.kmalloc_node.tp = kernel.trace("kmalloc_node") ?
+{
+	call_site = $call_site
+	caller_function = symname(call_site)
+	bytes_req = $bytes_req
+	bytes_alloc = $bytes_alloc
+	gfp_flags = $gfp_flags
+	gfp_flag_name = __gfp_flag_str($gfp_flags)
+	ptr = $ptr
+}
+
+probe __vm.kmalloc_node.kp = kernel.function("kmalloc_node").return ?
+{
+	call_site = 0
+	caller_function = "unknown"
+	bytes_req = $size
+	bytes_alloc = bytes_req // pretend they are always the same
+
+	# Unfortunately, on i686 f11 (2.6.29.4-167.fc11.i686.PAE), we
+	# can't see the '$flags' argument (even though we can see the
+	# '$size' argument above).  Note that we can see the '$flags'
+	# argument on x86_64 f11 (2.6.29.4-167.fc11.x86_64).  So, the
+	# best we can do here is just use 0 when $flags isn't defined.
+	gfp_flags = @choose_defined($flags, 0)
+	gfp_flag_name = __gfp_flag_str(@choose_defined($flags, 0))
+
+	ptr = $return
+}
+
+/**
+ * probe vm.kmalloc_node - Fires when kmalloc_node is requested
+ *
+ * @name: name of the probe point
+ * @call_site: address of the function caling this  kmemory function
+ * @caller_function: name of the caller function
+ * @bytes_req: requested Bytes
+ * @bytes_alloc: allocated Bytes
+ * @gfp_flags: type of kmemory to allocate
+ * @gfp_flag_name: type of kmemory to allocate(in string format)
+ * @ptr: pointer to the kmemory allocated
+ */
+probe vm.kmalloc_node = __vm.kmalloc_node.tp !, __vm.kmalloc_node.kp ?
+{
+	name = "kmalloc_node"
+}
+
+probe __vm.kmem_cache_alloc_node.tp = kernel.trace("kmem_cache_alloc_node") ?
+{
+	call_site = $call_site
+	caller_function = symname(call_site)
+	bytes_req = $bytes_req
+	bytes_alloc = $bytes_alloc
+	gfp_flags = $gfp_flags
+	gfp_flag_name = __gfp_flag_str($gfp_flags)
+	ptr = $ptr
+}
+
+probe __vm.kmem_cache_alloc_node.kp =
+		kernel.function("kmem_cache_alloc_node").return ?
+{
+	call_site = 0
+	caller_function = "unknown"
+	// Note that 'bytes_req' could be wrong.  By the time
+	// kmem_cache_alloc* gets called the requested size could have
+	// rounded up to the nearest cache alloc size.
+	if (@defined($s)) {
+		bytes_req = $s->size
+		bytes_alloc = $s->size
+	}
+	else if (@defined($cachep->buffer_size)) {
+		bytes_req = $cachep->buffer_size
+		bytes_alloc = $cachep->buffer_size
+	}
+	else {
+		bytes_req = $cachep->objsize
+		bytes_alloc = $cachep->objsize
+	}
+
+	// kmem_cache_alloc_node() doesn't get a flags argument.  But,
+	// internally it uses GFP_KERNEL().
+	gfp_flags = GFP_KERNEL()
+	gfp_flag_name = __gfp_flag_str(gfp_flags)
+	ptr = $return
+}
+
+/**
+ * probe vm.kmem_cache_alloc_node - Fires when kmem_cache_alloc_node is requested
+ *
+ * @name: name of the probe point
+ * @call_site: address of the function calling this kmemory function
+ * @caller_function: name of the caller function
+ * @bytes_req: requested Bytes
+ * @bytes_alloc: allocated Bytes
+ * @gfp_flags: type of kmemory to allocate
+ * @gfp_flag_name: type of kmemory to allocate(in string format)
+ * @ptr: pointer to the kmemory allocated
+ */
+probe vm.kmem_cache_alloc_node = __vm.kmem_cache_alloc_node.tp !,
+				 __vm.kmem_cache_alloc_node.kp ?
+{
+	name = "kmem_cache_alloc_node"
+}
+
+probe __vm.kfree.tp = kernel.trace("kfree")
+{
+	call_site = $call_site
+	caller_function = symname(call_site)
+	ptr = $ptr
+}
+
+probe __vm.kfree.kp = kernel.function("kfree").return
+{
+	call_site = 0
+	caller_function = "unknown"
+	ptr = @choose_defined($x, $objp)
+}
+
+/**
+ * probe vm.kfree - Fires when kfree is requested
+ *
+ * @name: name of the probe point
+ * @call_site: address of the function calling this kmemory function
+ * @caller_function: name of the caller function.
+ * @ptr: pointer to the kmemory allocated which is returned by kmalloc
+ */
+probe vm.kfree = __vm.kfree.tp !, __vm.kfree.kp
+{
+	name = "kfree"
+}
+
+probe __vm.kmem_cache_free.tp = kernel.trace("kmem_cache_free")
+{
+	call_site = $call_site
+	caller_function = symname(call_site)
+	ptr = $ptr
+}
+probe __vm.kmem_cache_free.kp = kernel.function("kmem_cache_free").return
+{
+	call_site = 0
+	caller_function = "unknown"
+	ptr = @choose_defined($x, $objp)
+}
+
+/**
+ * probe vm.kmem_cache_free - Fires when kmem_cache_free is requested
+ *
+ * @name: Name of the probe point
+ * @call_site: Address of the function calling this kmemory function
+ * @caller_function: Name of the caller function.
+ * @ptr: Pointer to the kmemory allocated which is returned by kmem_cache
+ */
+probe vm.kmem_cache_free = __vm.kmem_cache_free.tp !, __vm.kmem_cache_free.kp
+{
+	name = "kmem_cache_free"
+}

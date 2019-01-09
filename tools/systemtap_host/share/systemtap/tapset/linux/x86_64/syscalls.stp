@@ -1,0 +1,495 @@
+# x86_64-specific system calls
+
+# arch_prctl _________________________________________________
+# long sys_arch_prctl(int code, unsigned long addr)
+#
+# NOTE: x86_64 only.
+#
+probe syscall.arch_prctl = kernel.function("sys_arch_prctl")
+{
+	name = "arch_prctl"
+	code = __int32($code)
+	code_str = _stp_arch_prctl_func_str(code)
+	addr = __ulong($addr)
+	argstr = sprintf("%s, %u", code_str, addr)
+}
+probe syscall.arch_prctl.return = kernel.function("sys_arch_prctl").return
+{
+	name = "arch_prctl"
+	retstr = return_str(1, $return)
+}
+
+# get_thread_area ____________________________________________
+/*
+ * asmlinkage int
+ * sys_get_thread_area(struct user_desc __user *u_info)
+ * asmlinkage long sys32_get_thread_area(struct user_desc __user *u_info)
+ */
+probe syscall.get_thread_area = kernel.function("sys_get_thread_area") ?,
+	kernel.function("sys32_get_thread_area") ?
+{
+	name = "get_thread_area"
+	u_info_uaddr = $u_info
+	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
+}
+probe syscall.get_thread_area.return =
+	kernel.function("sys_get_thread_area").return ?,
+	kernel.function("sys32_get_thread_area").return ?
+{
+	name = "get_thread_area"
+	retstr = return_str(1, $return)
+}
+
+# iopl _______________________________________________________
+# long sys_iopl(unsigned int level, struct pt_regs *regs);
+# NOTE. This function is only in i386 and x86_64 and its args vary
+# between those two archs.
+#
+probe syscall.iopl = kernel.function("sys_iopl")
+{
+	name = "iopl"
+	level = __uint32(@choose_defined($level, $new_iopl))
+	argstr = sprint(level)
+}
+probe syscall.iopl.return = kernel.function("sys_iopl").return
+{
+	name = "iopl"
+	retstr = return_str(1, $return)
+}
+
+# set_thread_area ____________________________________________
+/*
+ * asmlinkage int
+ * sys_set_thread_area(struct user_desc __user *u_info)
+ * asmlinkage long sys32_set_thread_area(struct user_desc __user *u_info)
+ */
+probe syscall.set_thread_area = kernel.function("sys_set_thread_area") ?,
+	kernel.function("sys32_set_thread_area") ?
+{
+	name = "set_thread_area"
+	u_info_uaddr = $u_info
+	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
+}
+probe syscall.set_thread_area.return =
+	kernel.function("sys_set_thread_area").return ?,
+	kernel.function("sys32_set_thread_area").return ?
+{
+	name = "set_thread_area"
+	retstr = return_str(1, $return)
+}
+
+%( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
+# sigaltstack ________________________________________________
+# long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
+#		struct pt_regs *regs)
+# asmlinkage long
+# sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,
+#		  stack_ia32_t __user *uoss_ptr, 
+#		  struct pt_regs *regs)
+#
+# NOTE: args vary between archs.
+#
+probe syscall.sigaltstack = kernel.function("sys_sigaltstack").call,
+	kernel.function("sys32_sigaltstack").call ?
+{
+	name = "sigaltstack"
+	uss_uaddr = @choose_defined($uss, $uss_ptr)
+	uoss_uaddr = @choose_defined($uoss, $uoss_ptr)
+# 'regs_uaddr' should have been 'regs'.  Deprecate the old name.
+%(systemtap_v <= "1.4" %?
+	regs_uaddr = $regs
+%)
+%(systemtap_v < "2.3" %?
+	regs = $regs
+%)
+	argstr = sprintf("%s, %p",
+			 (@__compat_task
+			  ? _stp_compat_sigaltstack_u(uss_uaddr)
+			  : _stp_sigaltstack_u(uss_uaddr)), uoss_uaddr)
+}
+probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return,
+	kernel.function("sys32_sigaltstack").return ?
+{
+	name = "sigaltstack"
+	retstr = return_str(1, $return)
+}
+%)
+
+# sysctl _____________________________________________________
+#
+# long sys32_sysctl(struct sysctl_ia32 __user *args32)
+#
+probe syscall.sysctl32 = kernel.function("sys32_sysctl") ?
+{
+	name = "sysctl"
+	argstr = sprintf("%p", $args32)
+}
+probe syscall.sysctl32.return = kernel.function("sys32_sysctl").return ?
+{
+	name = "sysctl"
+	retstr = return_str(1, $return)
+}
+
+# In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
+# code.  In kernels >= 2.6.33, the arch-specific code just calls
+# generic sys_mmap_pgoff().
+%( kernel_v < "2.6.33" %?
+# mmap
+# long sys_mmap(unsigned long addr, unsigned long len,
+#          unsigned long prot, unsigned long flags,
+#          unsigned long fd, unsigned long off)
+probe syscall.mmap = kernel.function("sys_mmap") ?
+{
+	name = "mmap"
+	start = $addr
+	len = $len
+	prot = $prot
+	flags = $flags
+	# Although the kernel gets an unsigned long fd, on the
+	# user-side it is a signed int.  Fix this.
+	fd = __int32($fd)
+	offset = $off
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, $len,
+		_mprotect_prot_str($prot), _mmap_flags($flags),
+		__int32($fd), $off)
+}
+
+probe syscall.mmap.return = kernel.function("sys_mmap").return ?
+{
+	name = "mmap"
+	retstr = return_str(2, $return)
+}
+#
+# sys32_mmap(struct mmap_arg_struct32 __user *arg)
+# sys32_mmap(struct mmap_arg_struct __user *arg)
+#
+probe syscall.mmap32 = kernel.function("sys32_mmap")
+{
+	name = "mmap"
+	if (@defined(@cast($arg, "mmap_arg_struct32")->addr)) {
+		start = user_long(&@cast($arg, "mmap_arg_struct32")->addr)
+		len = user_long(&@cast($arg, "mmap_arg_struct32")->len)
+		prot = user_long(&@cast($arg, "mmap_arg_struct32")->prot)
+		flags = user_long(&@cast($arg, "mmap_arg_struct32")->flags)
+		fd = user_long(&@cast($arg, "mmap_arg_struct32")->fd)
+		offset = user_long(&@cast($arg, "mmap_arg_struct32")->offset)
+	}
+	else {
+		start = user_long(&@cast($arg, "mmap_arg_struct")->addr)
+		len = user_long(&@cast($arg, "mmap_arg_struct")->len)
+		prot = user_long(&@cast($arg, "mmap_arg_struct")->prot)
+		flags = user_long(&@cast($arg, "mmap_arg_struct")->flags)
+		fd = user_long(&@cast($arg, "mmap_arg_struct")->fd)
+		offset = user_long(&@cast($arg, "mmap_arg_struct")->offset)
+	}
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, len,
+			 _mprotect_prot_str(prot), _mmap_flags(flags),
+			 fd, offset)
+}
+
+probe syscall.mmap32.return = kernel.function("sys32_mmap").return
+{
+        name = "mmap"
+        retstr = return_str(2, $return)
+}
+
+# sys32_mmap2(unsigned long addr, unsigned long len,
+#	unsigned long prot, unsigned long flags,
+#	unsigned long fd, unsigned long pgoff)
+# The function is removed since 2.6.33
+probe syscall.mmap2 = __syscall.mmap2 ?, __syscall.mmap_pgoff ?
+{
+	@__syscall_compat_gate(%{ __NR_mmap2 %}, %{ __NR_ia32_mmap2 %})
+	name = "mmap2"
+	start = $addr
+	length = $len
+	prot = $prot
+	prot_str = _mprotect_prot_str(prot)
+	flags = $flags
+	flags_str = _mmap_flags(flags)
+	fd = __int32($fd)
+	# Although the kernel gets an unsigned long fd, on the
+	# user-side it is a signed int.  Fix this.
+	fd = __int32($fd)
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, length,
+	                 prot_str, flags_str, fd, pgoffset)
+}
+probe __syscall.mmap2 = kernel.function("sys32_mmap2")
+{
+        pgoffset = $pgoff
+}
+probe __syscall.mmap_pgoff = kernel.function("sys_mmap_pgoff")
+{
+        pgoffset = $pgoff * %{ /* pure */ PAGE_SIZE %}
+}
+
+probe syscall.mmap2.return = kernel.function("sys_mmap2").return ?,
+	kernel.function("sys_mmap_pgoff").return ?
+{
+	@__syscall_compat_gate(%{ __NR_mmap2 %}, %{ __NR_ia32_mmap2 %})
+	name = "mmap2"
+	retstr = return_str(2, $return)
+}
+%)
+
+# vm86_warning _____________________________________________________
+#
+# long sys32_vm86_warning(void)
+#
+probe syscall.vm86_warning = kernel.function("sys32_vm86_warning") ?
+{
+	name = "vm86_warning"
+	argstr = ""
+}
+probe syscall.vm86_warning.return =
+	kernel.function("sys32_vm86_warning").return ?
+{
+	name = "wm86_warning"
+	retstr = return_str(1, $return)
+}
+
+# pipe _______________________________________________________
+#
+# long sys32_pipe(int __user *fd)
+# Not available in newer kernels.
+probe syscall.pipe32 = kernel.function("sys32_pipe")?
+{
+	name = "pipe"
+	flags = 0;
+	flag_str = ""
+	if (@defined($fd)) {
+		fildes_uaddr = $fd
+		if (fildes_uaddr == 0) {
+			pipe0 = 0;
+			pipe1 = 0;
+			argstr = "NULL"
+		} else {
+			pipe0 = user_int(&$fd[0]);
+			pipe1 = user_int(&$fd[1]);
+			argstr = sprintf("[%d, %d]", pipe0, pipe1);
+		}
+	} else {
+		fildes_uaddr = 0;
+		pipe0 = 0;
+		pipe1 = 0;
+		argstr = "[0, 0]";
+	}
+}
+probe syscall.pipe32.return = kernel.function("sys32_pipe").return?
+{
+	name = "pipe"
+	flags = 0;
+	if (@defined($fd)) {
+		fildes_uaddr = $fd
+		if (fildes_uaddr == 0) {
+			pipe0 = 0;
+			pipe1 = 0;
+		} else {
+			pipe0 = user_int(&$fd[0]);
+			pipe1 = user_int(&$fd[1]);
+		}
+	} else {
+		fildes_uaddr = 0;
+		pipe0 = 0;
+		pipe1 = 0;
+	}
+	retstr = return_str(1, $return)
+}
+
+# ftruncate _______________________________________________________
+#
+# asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long offset_low,
+#				    unsigned long offset_high)
+#
+probe syscall.compat_ftruncate64 = kernel.function("sys32_ftruncate64").call ?
+{
+        name = "ftruncate"
+        fd = __int32($fd)
+        length = (($offset_high << 32) | $offset_low)
+        argstr = sprintf("%d, %d", fd, length)
+}
+probe syscall.compat_ftruncate64.return =
+	kernel.function("sys32_ftruncate64").return ?
+{
+	name = "ftruncate"
+	retstr = return_str(1, $return)
+}
+
+# truncate _______________________________________________________
+#
+# asmlinkage long sys32_truncate64(const char __user *filename,
+#				   unsigned long offset_low,
+#				   unsigned long offset_high)
+#
+probe syscall.compat_truncate64 = kernel.function("sys32_truncate64").call ?
+{
+        name = "truncate"
+	path_uaddr = $filename
+	path = user_string_quoted(path_uaddr)
+        length = (($offset_high << 32) | $offset_low)
+	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
+}
+probe syscall.compat_truncate64.return =
+	kernel.function("sys32_truncate64").return ?
+{
+	name = "truncate"
+	retstr = return_str(1, $return)
+}
+
+# fadvise64 _______________________________________________________
+#
+# asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo,
+#				  unsigned offset_hi,
+#				  size_t len, int advice)
+#
+probe syscall.compat_fadvise64 = kernel.function("sys32_fadvise64").call ?
+{
+	name = "fadvise64"
+	fd = __int32($fd)
+
+	offset = (($offset_hi << 32) | $offset_lo)
+	len = __int32($len)
+	advice = __int32($advice)
+	argstr = sprintf("%d, %d, %d, %s", __int32($fd), offset, len,
+			 _fadvice_advice_str(__int32($advice)))
+}
+probe syscall.compat_fadvise64.return =
+	kernel.function("sys32_fadvise64").return ?
+{
+	name = "fadvise64"
+	retstr = return_str(1, $return)
+}
+
+# fadvise64_64 __________________________________________________
+#
+# long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high,
+#			__u32 len_low, __u32 len_high, int advice)
+probe syscall.compat_fadvise64_64 = kernel.function("sys32_fadvise64_64").call ?
+{
+	name = "fadvise64"
+	fd = __int32($fd)
+	offset = (($offset_high << 32) | $offset_low)
+	len = (($len_high << 32) | $len_low)
+	advice = __int32($advice)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe syscall.compat_fadvise64_64.return =
+	kernel.function("sys32_fadvise64_64").return ?
+{
+	name = "fadvise64"
+	retstr = return_str(1, $return)
+}
+
+# readahead __________________________________________________
+#
+# asmlinkage ssize_t
+# ssize_t sys32_readahead(int fd, unsigned off_lo, unsigned off_hi, size_t count)
+#
+probe syscall.compat_readahead = kernel.function("sys32_readahead") ?
+{
+	name = "readahead"
+	fd = __int32($fd)
+	offset = (($off_hi << 32) | $off_lo)
+	count = __uint32($count)
+	argstr = sprintf("%d, %d, %u", fd, offset, count)
+}
+probe syscall.compat_readahead.return =
+	kernel.function("sys32_readahead").return ?
+{
+	name = "readahead"
+	retstr = return_str(1, $return)
+}
+
+# fallocate __________________________________________________
+#
+# asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_lo,
+#				unsigned offset_hi, unsigned len_lo,
+#				unsigned len_hi)
+probe syscall.compat_fallocate = kernel.function("sys32_fallocate").call ?
+{
+	name = "fallocate"
+	fd = __int32($fd)
+	mode = __int32($mode)
+	offset = (($offset_hi << 32) | $offset_lo)
+	len = (($len_hi << 32) | $len_lo)
+	argstr = sprintf("%d, %s, %#x, %u", fd, _stp_fallocate_mode_str(mode),
+			 offset, len)
+}
+probe syscall.compat_fallocate.return =
+	kernel.function("sys32_fallocate").return ?
+{
+	name = "fallocate"
+	retstr = return_str(1, $return)
+}
+
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). It was just a wrapper around generic
+# do_execve(), but the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+# long sys_execve(char __user *name, char __user * __user *argv,
+#		char __user * __user *envp, struct pt_regs regs)
+probe syscall.execve = kernel.function("sys_execve").call
+{
+	name = "execve"
+	filename = user_string_quoted($name)
+	args = __get_argv($argv, 0)
+	env_str = __count_envp($envp)
+	argstr = sprintf("%s, %s, %s", filename, __get_argv($argv, 0),
+			 __count_envp($envp))
+}
+probe syscall.execve.return = kernel.function("sys_execve").return
+{
+	name = "execve"
+	retstr = return_str(1, $return)
+}
+
+# execve _____________________________________________________
+#
+#   asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
+#			     compat_uptr_t __user *envp, struct pt_regs *regs)
+probe syscall.compat_execve = kernel.function("sys32_execve").call ?
+{
+	name = "execve"
+	filename = user_string_quoted($name)
+	args = __get_compat_argv($argv, 0)
+	env_str = __count_compat_envp($envp)
+	argstr = sprintf("%s, %s, %s", filename, __get_compat_argv($argv, 0),
+			 __count_compat_envp($envp))
+}
+probe syscall.compat_execve.return = kernel.function("sys32_execve").return ?
+{
+	name = "execve"
+	retstr = return_str(1, $return)
+}
+%)
+
+# lookup_dcookie _____________________________________________
+# COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *,
+#                        buf, compat_size_t, len)
+# long sys32_lookup_dcookie(u32 addr_low, u32 addr_high, char __user *buf,
+#                           size_t len)
+#
+probe syscall.compat_lookup_dcookie =
+		kernel.function("compat_sys_lookup_dcookie") ?,
+		kernel.function("sys32_lookup_dcookie") ?
+{
+        name = "lookup_dcookie"
+        cookie = (@choose_defined($w1, $addr_high) << 32 | @choose_defined($w0, $addr_low))
+        buffer_uaddr = $buf
+        len = __ulong($len)
+        argstr = sprintf("%#lx, %p, %#x", cookie, buffer_uaddr, len)
+}
+probe syscall.compat_lookup_dcookie.return =
+		kernel.function("compat_sys_lookup_dcookie").return ?,
+		kernel.function("sys32_lookup_dcookie").return ?
+{
+        name = "lookup_dcookie"
+        retstr = return_str(1, $return)
+}
+

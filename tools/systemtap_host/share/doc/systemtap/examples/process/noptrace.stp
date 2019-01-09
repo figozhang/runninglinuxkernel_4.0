@@ -1,0 +1,69 @@
+#! /bin/sh
+
+# Disable ptrace(2) on a dynamic list of processes, by rewriting the
+# incoming arguments on an attempted ptrace(2) syscall.  The list of
+# processes is enlarged upon fork(), shrunken by exit(), and may be
+# edited interactively with a set of /proc files.
+
+# note use of guru mode, to enable changing of syscall arguments
+//bin/true && exec stap -g $0 ${1+"$@"}
+
+global noptrace # map pid->name: list of pids forbidden from ptrace(2)
+
+
+probe begin { # init. noptrace process list with stap -x PID/-c CMD, if given
+      if (target())
+         noptrace[target()]="?"
+}
+
+probe scheduler.process_fork { # propagate flag to child processes
+      if (parent_pid in noptrace)
+         noptrace[child_pid] = noptrace[parent_pid]
+}
+
+probe syscall.*execve {  # update stored pid->name mapping
+      if (pid() in noptrace)
+         noptrace[pid()] = filename
+}
+
+probe syscall.exit {  # optional; clean up pid->name mapping table
+      delete noptrace[pid()]
+}
+
+# procfs control files under /proc/systemtap/stap_XXXXX/
+
+probe procfs("blocked").read {   # report currently blocked processes
+      foreach (pid in noptrace) 
+              $value .= sprintf("%d %s\n",pid,noptrace[pid])      
+}
+
+probe procfs("block").write {  # block given pid
+      pid = strtol($value,10)
+      noptrace[pid]="?"
+}
+
+probe procfs("unblock").write {  # unblock given pid
+      pid = strtol($value,10)
+      delete noptrace[pid]
+}
+
+# payload
+
+probe syscall.ptrace {
+      if (pid() in noptrace) {
+         # report
+         printf ("%s[%d] ptrace(%d) blocked: ", execname(), tid(), $request)
+         # (or if desired, accumulate counts and report at probe end {})
+
+         # disable the ptrace call in progress
+         # if it weren't for PTRACE_TRACEME, we could set $pid=1 => -EPERM
+         # changing it to an invalid request number works too
+         $request=0xbeef # anything invalid should do
+      }
+}
+
+probe syscall.ptrace.return { # should occur instantly
+      if (pid() in noptrace) {
+         printf ("rc=%d\n", $return)
+      }
+}

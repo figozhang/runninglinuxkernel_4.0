@@ -1,0 +1,15 @@
+#! /usr/bin/env stap
+
+# This is not useful, but it demonstrates that
+# Systemtap can modify variables in a running kernel.
+
+# Usage: ./keyhack.stp -g
+
+probe kernel.function("kbd_event") {
+  # Changes 'm' to 'b' .
+  if ($event_code == 50) $event_code = 48
+}
+
+probe end {
+  printf("\nDONE\n")
+}

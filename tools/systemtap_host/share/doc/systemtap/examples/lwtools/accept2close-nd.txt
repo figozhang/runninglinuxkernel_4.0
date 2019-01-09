@@ -1,0 +1,68 @@
+Examples of accept2close-nd.stp, the Linux SystemTap version.
+
+
+This shows accepted socket lifespans, by measuring the time from syscall
+accept() to close() on the same file descriptor. Sessions are printed as they
+occur, and a histogram summary is printed at the end. For example:
+
+# ./accept2close-nd.stp
+TIME                     PID    COMM           FD   DURATION
+Sat Jan 31 05:31:14 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   2 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   3 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   2 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+Sat Jan 31 05:31:15 2015 29042  node           11   1 ms
+[...]
+Duration (ns):
+   value |-------------------------------------------------- count
+  131072 |                                                     0
+  262144 |                                                     0
+  524288 |                                                     1
+ 1048576 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@     138
+ 2097152 |@@                                                   6
+ 4194304 |                                                     1
+ 8388608 |                                                     0
+16777216 |                                                     0
+
+Most of these sessions were between 1 and 2 milliseconds in lifespan.
+
+The socket lifespan is expected to represent the time taken by a server to
+respond to a request. This time may include cycles on-CPU, and cycles off-CPU
+blocked on another resource. Note that HTTP keep-alive sessions may have long
+durations which process multiple requests.
+
+
+accept2close-nd.stp accepts an optional argument: a minimum lifespan threshold
+in milliseconds. For example, socket sessions that are 5 milliseconds and
+longer:
+
+# ./accept2close-nd.stp 5
+Only tracing events slower than 5 ms.
+TIME                     PID    COMM           FD   DURATION
+Sat Jan 31 05:36:23 2015 5236   node           11   5 ms
+Sat Jan 31 05:37:39 2015 5236   node           11   5 ms
+Sat Jan 31 05:37:50 2015 5236   node           11   9 ms
+Sat Jan 31 05:38:09 2015 5236   node           11   7 ms
+^C
+Duration (ns):
+   value |-------------------------------------------------- count
+ 1048576 |                                                   0
+ 2097152 |                                                   0
+ 4194304 |@@@                                                3
+ 8388608 |@                                                  1
+16777216 |                                                   0
+33554432 |                                                   0

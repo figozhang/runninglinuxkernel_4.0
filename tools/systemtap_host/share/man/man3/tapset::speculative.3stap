@@ -1,0 +1,52 @@
+.\" -*- nroff -*-
+.TH TAPSET::SPECULATIVE 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::speculative \- systemtap speculative tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B speculation 
+Allocate a new id for speculative output
+.IP
+See 
+.IR function::speculation (3stap)
+ for details.
+.P
+.TP
+.B speculate 
+Store a string for possible output later
+.IP
+See 
+.IR function::speculate (3stap)
+ for details.
+.P
+.TP
+.B discard 
+Discard all output related to a speculation buffer
+.IP
+See 
+.IR function::discard (3stap)
+ for details.
+.P
+.TP
+.B commit 
+Write out all output related to a speculation buffer
+.IP
+See 
+.IR function::commit (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::speculation (3stap),
+.BR
+.IR \%function::speculate (3stap),
+.BR
+.IR \%function::discard (3stap),
+.BR
+.IR \%function::commit (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)
