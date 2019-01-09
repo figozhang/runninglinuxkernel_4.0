@@ -1,0 +1,64 @@
+#! /usr/bin/env stap
+
+global traced_pid, command
+global pgout, bgwriteout, kupdate
+
+function log_event:long ()
+{
+  return (!traced_pid || traced_pid == pid())
+}
+
+probe kernel.trace("balance_dirty_pages") !,		# v3.2+
+      kernel.trace("mm_balancedirty_writeout") !,	# RHEL6(2.6.32)
+      kernel.trace("mm_pdflush_bgwriteout")		# RHEL5(2.6.18)
+{
+  if (!log_event()) next
+  bgwriteout[pid()] <<< (@defined($dirtied) ? $dirtied
+			 : (@defined($written) ? $written : $count))
+  command[pid()] = execname()
+}
+
+probe kernel.trace("writeback_pages_written") !,	# v2.6.36+
+							#   & RHEL6(2.6.32)
+      kernel.trace("mm_pdflush_kupdate")		# RHEL5(2.6.18)
+{
+  if (!log_event()) next
+  kupdate[pid()] <<< (@defined($pages_written) ? $pages_written : $count)
+  command[pid()] = execname()
+}
+
+probe kernel.trace("mm_vmscan_writepage") !,		# v2.6.36+
+							#   & RHEL6(2.6.32)
+      kernel.trace("mm_pagereclaim_pgout")		# RHEL5(2.6.18)
+							#   & RHEL6(2.6.32)
+{
+  if (!log_event()) next
+  pgout[pid()] <<< 1
+  command[pid()] = execname()
+}
+
+probe begin {
+  printf("Starting data collection\n")
+  if (target())
+    printf("mode Specific Pid, traced pid: %d\n\n", target())
+  else
+    printf("mode - All Pids\n\n")
+}
+
+probe end, error {
+  printf("Terminating data collection\n")
+  printf("%-16s %6s %10s %10s %10s %10s %11s\n",
+         "", "", "Pdflush", "Pdflush", "Kupdate", "Kupdate", "Pgout")
+  printf("%-16s %6s %10s %10s %10s %10s %11s\n",
+         "Command", "Pid", "count", "sum", "count", "sum", "count")
+  printf("%-16s %6s %10s %10s %10s %10s %11s\n",
+         "-------", "---", "-------", "-------", "-------", "-------", "-----")
+  foreach (pid in command-)
+    printf("%-16s %6d %10d %10d %10d %10d %11d\n",
+           command[pid], pid,
+           @count(bgwriteout[pid]),
+           (@count(bgwriteout[pid]) ? @sum(bgwriteout[pid]) : 0),
+           @count(kupdate[pid]),
+           (@count(kupdate[pid]) ? @sum(kupdate[pid]) : 0),
+           @count(pgout[pid]))
+}

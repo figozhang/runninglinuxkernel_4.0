@@ -1,0 +1,174 @@
+// UDP tapset
+// Copyright (C) 2006 Intel Corporation.
+// Copyright (C) 2013 Red Hat, Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// This family of probe points is used to probe events that occur in the UDP layer. 
+// </tapsetdescription>
+
+/* Helper functions analogous (or even identical) those in tcp.stp */
+@__private30 function __get_skb_udphdr:long (skb:long) { return __get_skb_tcphdr(skb) }
+@__private30 function __udp_sock_sport (sock) { return __tcp_sock_sport (sock) }
+@__private30 function __udp_sock_dport (sock) { return __tcp_sock_dport (sock) }
+
+@__private30 function __udp_skb_dport(udphdr) { return ntohs(@cast(udphdr, "udphdr")->dest) }
+@__private30 function __udp_skb_sport(udphdr) { return ntohs(@cast(udphdr, "udphdr")->source) }
+
+
+
+
+
+/**
+  * probe udp.sendmsg - Fires whenever a process sends a UDP message  
+  * @name: The name of this probe
+  * @sock: Network socket used by the process 
+  * @size: Number of bytes sent by the process
+  * @family: IP address family
+  * @saddr: A string representing the source IP address
+  * @daddr: A string representing the destination IP address
+  * @sport: UDP source port
+  * @dport: UDP destination port
+  *
+  * Context:
+  *   The process which sent a UDP message 
+  */
+probe udp.sendmsg = kernel.function("udp_sendmsg") {
+	name = "udp.sendmsg"
+	sock    = $sk
+	size    = $len
+        %( systemtap_v >= "2.3" %?
+	family  = __ip_sock_family($sk)
+	saddr   = format_ipaddr(__ip_sock_saddr($sk), __ip_sock_family($sk))
+	daddr   = format_ipaddr(__ip_sock_daddr($sk), __ip_sock_family($sk))
+	sport   = __udp_sock_sport($sk)
+	dport   = __udp_sock_dport($sk)
+           %)
+}
+
+/**
+  * probe udp.sendmsg.return - Fires whenever an attempt to send a UDP message is completed
+  * @name: The name of this probe
+  * @size: Number of bytes sent by the process
+  *
+  * Context:
+  *   The process which sent a UDP message
+  */
+probe udp.sendmsg.return = kernel.function("udp_sendmsg").return {
+	name = "udp.sendmsg"
+	size = $return 
+        %( systemtap_v >= "2.3" %?
+	family  = __ip_sock_family($sk)
+	saddr   = format_ipaddr(__ip_sock_saddr($sk), __ip_sock_family($sk))
+	daddr   = format_ipaddr(__ip_sock_daddr($sk), __ip_sock_family($sk))
+	sport   = __udp_sock_sport($sk)
+	dport   = __udp_sock_dport($sk)
+        %)
+}
+
+/**
+  * probe udp.recvmsg - Fires whenever a UDP message is received
+  * @name: The name of this probe
+  * @sock: Network socket used by the process
+  * @size: Number of bytes received by the process
+  * @family: IP address family
+  * @saddr: A string representing the source IP address
+  * @daddr: A string representing the destination IP address
+  * @sport: UDP source port
+  * @dport: UDP destination port
+  *
+  * Context:
+  *  The process which received a UDP message
+  */
+probe udp.recvmsg = kernel.function("udp_recvmsg") {
+	name = "udp.recvmsg"
+	sock    = $sk
+	size    = $len
+        %( systemtap_v >= "2.3" %?
+	family  = __ip_sock_family($sk)
+	saddr   = format_ipaddr(__ip_sock_saddr($sk), __ip_sock_family($sk))
+	daddr   = format_ipaddr(__ip_sock_daddr($sk), __ip_sock_family($sk))
+	sport   = __udp_sock_sport($sk)
+	dport   = __udp_sock_dport($sk)
+        %)
+}
+
+/**
+  * probe udp.recvmsg.return - Fires whenever an attempt to receive a UDP message received is completed
+  * @name: The name of this probe
+  * @size: Number of bytes received by the process
+  * @family: IP address family
+  * @saddr: A string representing the source IP address
+  * @daddr: A string representing the destination IP address
+  * @sport: UDP source port
+  * @dport: UDP destination port
+  *
+  * Context:
+  *  The process which received a UDP message
+  */
+probe udp.recvmsg.return = kernel.function("udp_recvmsg").return {
+	name = "udp.recvmsg"
+	size = $return 
+        %( systemtap_v >= "2.3" %?
+	family  = __ip_sock_family($sk)
+	saddr   = format_ipaddr(__ip_sock_saddr($sk), __ip_sock_family($sk))
+	daddr   = format_ipaddr(__ip_sock_daddr($sk), __ip_sock_family($sk))
+	sport   = __udp_sock_sport($sk)
+	dport   = __udp_sock_dport($sk)
+        %)
+}
+
+/**
+  * probe udp.disconnect - Fires when a process requests for a UDP disconnection
+  * @name: The name of this probe
+  * @sock: Network socket used by the process
+  * @flags: Flags (e.g. FIN, etc)  
+  * @family: IP address family
+  * @saddr: A string representing the source IP address
+  * @daddr: A string representing the destination IP address
+  * @sport: UDP source port
+  * @dport: UDP destination port
+  *
+  * Context:
+  *  The process which requests a UDP disconnection 
+  */
+probe udp.disconnect = kernel.function("udp_disconnect") {
+	name = "udp.disconnect"
+	sock  = $sk
+	flags = $flags
+        %( systemtap_v >= "2.3" %?
+	family  = __ip_sock_family($sk)
+	saddr   = format_ipaddr(__ip_sock_saddr($sk), __ip_sock_family($sk))
+	daddr   = format_ipaddr(__ip_sock_daddr($sk), __ip_sock_family($sk))
+	sport   = __udp_sock_sport($sk)
+	dport   = __udp_sock_dport($sk)
+        %)
+}
+
+/**
+  * probe udp.disconnect.return - UDP has been disconnected successfully
+  * @name: The name of this probe
+  * @ret: Error code (0: no error) 
+  * @family: IP address family
+  * @saddr: A string representing the source IP address
+  * @daddr: A string representing the destination IP address
+  * @sport: UDP source port
+  * @dport: UDP destination port
+  *
+  * Context:
+  *  The process which requested a UDP disconnection
+  */
+probe udp.disconnect.return = kernel.function("udp_disconnect").return {
+	name = "udp.disconnect"
+	ret = $return 
+        %( systemtap_v >= "2.3" %?
+	family  = __ip_sock_family($sk)
+	saddr   = format_ipaddr(__ip_sock_saddr($sk), __ip_sock_family($sk))
+	daddr   = format_ipaddr(__ip_sock_daddr($sk), __ip_sock_family($sk))
+	sport   = __udp_sock_sport($sk)
+	dport   = __udp_sock_dport($sk)
+        %)
+}

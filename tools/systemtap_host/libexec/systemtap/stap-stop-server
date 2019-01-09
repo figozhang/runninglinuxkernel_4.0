@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Start a systemtap server
+#
+# Copyright (C) 2008 Red Hat Inc.
+#
+# This file is part of systemtap, and is free software.  You can
+# redistribute it and/or modify it under the terms of the GNU General
+# Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+# This script attempts to stop a systemtap server with the
+# given pid.
+
+# Get the process id.
+pid=$1
+if test "X$pid" = "X"; then
+   echo "Usage: $0 PROCESS_ID" >&2
+   exit 1
+fi
+
+# Verify that it is a systemtap server
+(ps -e | grep stap-serverd | grep -q $pid)
+if test $? != 0; then
+   echo "$pid is not a systemtap server" >&2
+   exit 1
+fi
+
+# Try to kill the server
+i=0
+while kill -s SIGTERM $pid > /dev/null 2>&1; do
+   sleep 0.5
+
+   # If we've tried and failed to kill the server for around 10
+   # seconds (20 * 0.5 seconds), quit.
+   i=$((i + 1))
+   if test $i -ge 20; then
+       echo "$pid not shutting down" >&2
+       exit 1
+       break
+   fi
+done

@@ -1,0 +1,43 @@
+.TH rwtime-nd 8  "2015-01-30" "USER COMMANDS"
+.SH NAME
+rwtime-nd \- summarize syscall read() and write() times. Uses Linux SystemTap (non-debuginfo).
+.SH SYNOPSIS
+.B rwtime-nd.stp
+[execname]
+.SH DESCRIPTION
+This traces read() and write() syscalls, producing a histogram summary of their
+durations (aka latencies).
+.SH REQUIREMENTS
+SystemTap.
+.SH OPTIONS
+.TP
+execname
+An optional argument to specify the process name to trace. All PIDs with this
+process name will be observed.
+.SH EXAMPLES
+.TP
+Trace all syscall read()s and write()s, showing latency summaries:
+#
+.B rwtime-nd.stp
+.TP
+Trace all syscall read()s and write()s for processes named "node":
+.B rwtime-nd.stp
+node
+.SH OVERHEAD
+While these syscalls are frequent, the overhead should be low as this uses
+in-kernel summaries. Test before use to confirm.
+.SH SOURCE
+This is from the SystemTap lwtools collection.
+.IP
+https://github.com/brendangregg/systemtap-lwtools
+.PP
+Also look under the examples directory for a text file containing example
+usage, output, and commentary for this tool.
+.SH OS
+Linux
+.SH STABILITY
+Unstable - in development.
+.SH AUTHOR
+Brendan Gregg
+.SH SEE ALSO
+strace(1)

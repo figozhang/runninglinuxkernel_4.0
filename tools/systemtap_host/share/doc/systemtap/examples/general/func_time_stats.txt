@@ -1,0 +1,9 @@
+# stap func_time_stats.stp 'syscall.nanosleep' -c "sleep 1"
+
+OUT intervals min:1000199us avg:1000199us max:1000199us count:1
+  value |-------------------------------------------------- count
+ 131072 |                                                   0
+ 262144 |                                                   0
+ 524288 |@                                                  1
+1048576 |                                                   0
+2097152 |                                                   0

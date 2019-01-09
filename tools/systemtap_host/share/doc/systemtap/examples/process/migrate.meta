@@ -1,0 +1,14 @@
+title: Track the Migration of Specific Executables
+name: migrate.stp
+version: 1.0
+author: Ankita Garg at IBM
+keywords: scheduler
+subsystem: scheduler
+status: production
+exit: user-controlled
+output: trace
+scope: process
+description: The migrate.stp script takes an argument which is the executable name of the task it should monitor. Each time a task with that executable name migrates between processors an entry is printed with the process id (pid), the executable name, the processor off loading the task, and the process taking the task. Note that the task may or may not be executing at the time of the migration.
+arg_1: The name of the executable to watch
+test_check: stap -p4 migrate.stp bash
+test_installcheck: stap migrate.stp -c "sleep 1" bash

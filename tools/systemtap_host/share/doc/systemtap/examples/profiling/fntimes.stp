@@ -1,0 +1,23 @@
+#! /usr/bin/env stap
+
+# usage:   fntimes.stp FUNCTIONPROBE
+# e.g.     fntimes.stp 'module("ext4").function("*")'
+
+global mincount = 100      # training: beneath this number of hits, only collect data
+global note_percent = 250  # percent beyond maximum-so-far to generate report for
+function time() { return gettimeofday_us() }    # time measurement function
+
+global times
+
+function check(t)   # t: elapsed time
+{
+   if (@count(times[ppfunc()]) >= mincount
+       && t >= @max(times[ppfunc()]) * note_percent / 100) {   # also consider @avg()
+     printf("function %s well over %s time (%d vs %d)\n",
+            ppfunc(), "maximum", t, @max(times[ppfunc()]))
+     # also consider: print_backtrace()
+   }
+   times[ppfunc()] <<< t  # (increments @count, updates @max)
+}
+
+probe $1.return { check(time()-@entry(time())) }

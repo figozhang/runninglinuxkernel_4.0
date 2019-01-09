@@ -1,0 +1,52 @@
+'\" t
+.\"     Title: probe::udp.sendmsg.return
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Networking Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::UDP\&.SENDMSG" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::udp.sendmsg.return \- Fires whenever an attempt to send a UDP message is completed
+.SH "SYNOPSIS"
+.sp
+.nf
+udp\&.sendmsg\&.return 
+.fi
+.SH "VALUES"
+.PP
+\fIname\fR
+.RS 4
+The name of this probe
+.RE
+.PP
+\fIsize\fR
+.RS 4
+Number of bytes sent by the process
+.RE
+.SH "CONTEXT"
+.PP
+The process which sent a UDP message
+.SH SEE ALSO\n 
+.IR tapset::udp (3stap)

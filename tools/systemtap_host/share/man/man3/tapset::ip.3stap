@@ -1,0 +1,32 @@
+.\" -*- nroff -*-
+.TH TAPSET::IP 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::ip \- systemtap ip tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B format_ipaddr 
+Returns a string representation for an IP address
+.IP
+See 
+.IR function::format_ipaddr (3stap)
+ for details.
+.P
+.TP
+.B ip_ntop 
+Returns a string representation for an IPv4 address
+.IP
+See 
+.IR function::ip_ntop (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::format_ipaddr (3stap),
+.BR
+.IR \%function::ip_ntop (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

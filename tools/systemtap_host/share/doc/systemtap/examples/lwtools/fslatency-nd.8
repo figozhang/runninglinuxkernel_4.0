@@ -1,0 +1,61 @@
+.TH fslatency-nd 8  "2015-01-30" "USER COMMANDS"
+.SH NAME
+fslatency-nd \- Measure file system sync read and write latency distribution. Uses Linux SystemTap (non-debuginfo).
+.SH SYNOPSIS
+.B fslatency-nd.stp
+[interval [count]]
+.SH DESCRIPTION
+fslatency-nd.stp dynamically traces two common file system functions:
+do_sync_read() and do_sync_write(), and reports a histogram distribution of
+latency. Many, but not all, file systems and
+workloads use these functions. Tracing their time provides one view of
+suffered file system latency.
+
+Other file system requests not covered by these functions and this tool include:
+asynchronous I/O, directory operations, and file handle operations.
+.SH REQUIREMENTS
+SystemTap.
+.SH OPTIONS
+.TP
+interval
+Interval for reports, in seconds.
+.TP
+count
+Number of reports to output.
+.SH EXAMPLES
+.TP
+Measure (most) file system synchronous read and write latency, and show a distribution histogram on Ctrl-C:
+#
+.B fslatency-nd.stp
+.TP
+Measure (most) file system synchronous read and write latency, and show a report every second, five times:
+#
+.B fslatency-nd.stp 1 5
+.SH FIELDS
+.TP
+value
+The minimum value, in nanoseconds, for this histogram bucket. Read this value
+as "I/O latency was at least xxx".
+.TP
+count
+How many reads/writes fell into this latency range.
+.SH OVERHEAD
+The overheads are measurable, as file system requests can be very frequent, and
+the small overhead of tracing each (eg, 4 microseconds per call) can begin to
+add up. Best case, it won't be noticeable. Worst case, the application may run
+2x slower.
+.SH SOURCE
+This is from the SystemTap lwtools collection.
+.IP
+https://github.com/brendangregg/systemtap-lwtools
+.PP
+Also look under the examples directory for a text file containing example
+usage, output, and commentary for this tool.
+.SH OS
+Linux
+.SH STABILITY
+Unstable - in development.
+.SH AUTHOR
+Brendan Gregg
+.SH SEE ALSO
+iostat(1), fsslower-nd.stp(8), biolatency-nd.stp(8)

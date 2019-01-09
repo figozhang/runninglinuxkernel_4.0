@@ -1,0 +1,10 @@
+# stap iodevstats.stp -c "sleep 1"
+
+starting probe
+
+                                       read     read             write    write
+            name   device     read   KB tot    B avg    write   KB tot    B avg
+           sleep 253,    0        2        0      368        0        0        0
+          stapio 253,    0        4        0      132        0        0        0
+          stapio   0,    7        7        0        3        0        0        0
+          stapio   0,    8        0        0        0        1        0       15

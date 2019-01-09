@@ -1,0 +1,156 @@
+// kernel process tapset
+// Copyright (C) 2006 Intel Corporation.
+// Copyright (C) 2014 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+//  This family of probe points is used to probe process-related activities.
+// </tapsetdescription>
+
+@__private30 function _IS_ERR:long(ptr:long) %{ /* pure */
+    STAP_RETVALUE = IS_ERR((const void *)(long)STAP_ARG_ptr);
+%}
+
+
+/**
+ * probe kprocess.create - Fires whenever a new process or thread is successfully created
+ * @new_pid: The PID of the newly created process
+ * @new_tid: The TID of the newly created task
+ *
+ * Context:
+ *  Parent of the created process.
+ *
+ *  Fires whenever a new process is successfully created, either as a result of
+ *  fork (or one of its syscall variants), or a new kernel thread.
+ */
+probe kprocess.create = kernel.function("copy_process").return {
+    task = $return
+    if (_IS_ERR(task)) next
+    new_pid = task_pid(task)
+    new_tid = task_tid(task)
+}
+
+
+/**
+ * probe kprocess.start - Starting new process
+ *
+ * Context:
+ * Newly created process.
+ *
+ * Fires immediately before a new process begins execution.
+ *
+ */
+probe kprocess.start = kernel.function("schedule_tail") { }
+
+
+/**
+ * probe kprocess.exec - Attempt to exec to a new program
+ *
+ * @filename: The path to the new executable
+ * @name: Name of the system call ("execve") (SystemTap v2.5+)
+ * @args: The arguments to pass to the new executable, including
+ * the 0th arg (SystemTap v2.5+)
+ * @argstr: A string containing the filename followed by the
+ * arguments to pass, excluding 0th arg (SystemTap v2.5+)
+ *
+ * Context:
+ *  The caller of exec.
+ *
+ *  Fires whenever a process attempts to exec to a new program. Aliased
+ *  to the syscall.execve probe in SystemTap v2.5+.
+ */
+%(systemtap_v <= "2.4" %?
+probe kprocess.exec = 
+    kernel.function("do_execve"),
+    kernel.function("compat_do_execve") ?
+{
+    filename = kernel_string($filename)
+}
+%:
+probe kprocess.exec = syscall.execve
+{
+   /*
+   name = "execve"
+   filename = user_string_quoted(@choose_defined($filename, $name))
+   # kernel 3.0 changed the pointer's name to __argv
+   __argv = @choose_defined($__argv, $argv)
+   args = __get_argv(__argv, 0)
+   argstr = sprintf("%s %s", filename, __get_argv(__argv, 1))
+   */
+}
+%)
+
+
+/**
+ * probe kprocess.exec_complete - Return from exec to a new program
+ * @errno: The error number resulting from the exec
+ * @success: A boolean indicating whether the exec was successful
+ * @name: Name of the system call ("execve") (SystemTap v2.5+)
+ * @retstr: A string representation of errno (SystemTap v2.5+)
+ *
+ * Context:
+ *  On success, the context of the new executable.
+ *  On failure, remains in the context of the caller.
+ *
+ *  Fires at the completion of an exec call. Aliased to the
+ *  syscall.execve.return probe in SystemTap v2.5+.
+ */
+%(systemtap_v <= "2.4" %?
+probe kprocess.exec_complete =
+    kernel.function("do_execve").return,
+    kernel.function("compat_do_execve").return ?
+%:
+probe kprocess.exec_complete = syscall.execve.return
+%)
+{
+    errno = $return
+    success = (errno >= 0)
+    /*
+    name = "execve"
+    retstr = return_str(1, $return)
+    */
+}
+
+
+/**
+ * probe kprocess.exit - Exit from process
+ * @code: The exit code of the process
+ *
+ * Context:
+ *  The process which is terminating.
+ *
+ *  Fires when a process terminates.  This will always be followed by a
+ *  kprocess.release, though the latter may be delayed if the process waits in a
+ *  zombie state.
+ */
+probe kprocess.exit = kernel.function("do_exit") {
+    code = $code
+}
+
+
+/**
+ * probe kprocess.release - Process released
+ * @task: A task handle to the process being released
+ * @released_pid: PID of the process being released
+ * @released_tid: TID of the task being released
+ * @pid: Same as @released_pid for compatibility (deprecated)
+ *
+ * Context:
+ *  The context of the parent, if it wanted notification of this process'
+ *  termination, else the context of the process itself.
+ *
+ *  Fires when a process is released from the kernel.  This always follows a
+ *  kprocess.exit, though it may be delayed somewhat if the process waits in a
+ *  zombie state.
+ */
+probe kprocess.release = kernel.function("release_task") {
+    task = $p
+%(systemtap_v <= "1.7" %?
+    pid = task_pid($p)
+%)
+    released_pid = task_pid($p)
+    released_tid = task_tid($p)
+}

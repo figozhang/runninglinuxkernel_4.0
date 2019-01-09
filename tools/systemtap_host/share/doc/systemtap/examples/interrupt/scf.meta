@@ -1,0 +1,13 @@
+title: Tally Backtraces for Inter-Processor Interrupt
+name: scf.stp
+version: 1.0
+author: William Cohen
+keywords: interrupt backtrace
+subsystem: interrupt
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The Linux kernel function smp_call_function causes expensive inter-processor interrupts (IPIs). The scf.stp script tallies the processes and backtraces causing the interprocessor interrupts to identify the cause of the expensive IPI. On exit the script prints the tallies in descending frequency.
+test_check: stap -p4 scf.stp
+test_installcheck: stap scf.stp -c "sleep 1"

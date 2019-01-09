@@ -1,0 +1,128 @@
+# Helper for _arch_ptrace_argstr below.
+%{
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
+
+#include <asm/prctl.h>
+
+static const _stp_val_array const _stp_arch_prctl_list[] = {
+	V(ARCH_SET_GS),
+	V(ARCH_SET_FS),
+	V(ARCH_GET_FS),
+	V(ARCH_GET_GS),
+	{0, NULL}
+};
+%}
+@__private30 function _arch_ptrace_prctl_str:string(f:long)
+%{
+	_stp_lookup_str(_stp_arch_prctl_list, (unsigned int)STAP_ARG_f,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+# arch-specific requests of ptrace ___________________________
+# = like tapset/x86_64/syscalls.stp but with PTRACE_ARCH_PRCTL
+#
+%{
+#ifndef PTRACE_SYSEMU
+# define PTRACE_SYSEMU 31
+#endif
+#ifndef PTRACE_SYSEMU_SINGLESTEP
+# define PTRACE_SYSEMU_SINGLESTEP 32
+#endif
+#ifndef PTRACE_SINGLEBLOCK
+# define PTRACE_SINGLEBLOCK 33
+#endif
+
+static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
+	V(PTRACE_GETREGS),
+	V(PTRACE_SETREGS),
+	V(PTRACE_GETFPREGS),
+	V(PTRACE_SETFPREGS),
+	V(PTRACE_GETFPXREGS),
+	V(PTRACE_SETFPXREGS),
+	V(PTRACE_OLDSETOPTIONS),
+	V(PTRACE_GET_THREAD_AREA),
+	V(PTRACE_SET_THREAD_AREA),
+	V(PTRACE_ARCH_PRCTL),
+	V(PTRACE_SYSEMU),
+	V(PTRACE_SYSEMU_SINGLESTEP),
+	V(PTRACE_SINGLEBLOCK),
+	{0, NULL}
+};
+%}
+
+function __arch_ptrace_request_str:string(request:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_arch_ptrace_request_list,
+			(unsigned long)STAP_ARG_request, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+function _arch_ptrace_argstr:string(request:long, pid:long, addr:long,
+				    data:long)
+{
+	if (request == %{ /* pure */ PTRACE_GETREGS %}
+	    || request == %{ /* pure */ PTRACE_SETREGS %}
+	    || request == %{ /* pure */ PTRACE_GETFPREGS %}
+	    || request == %{ /* pure */ PTRACE_SETFPREGS %}
+	    || request == %{ /* pure */ PTRACE_GETFPXREGS %}
+	    || request == %{ /* pure */ PTRACE_SETFPXREGS %})
+		return sprintf("%s, %d, %#x, %p",
+			       __arch_ptrace_request_str(request), pid,
+			       addr, data)
+	if (request == %{ /* pure */ PTRACE_SYSEMU %}
+	    || request == %{ /* pure */ PTRACE_SYSEMU_SINGLESTEP %}
+	    || request == %{ /* pure */ PTRACE_SINGLEBLOCK %})
+		return sprintf("%s, %d, %#x, %s",
+			       __arch_ptrace_request_str(request), pid,
+			       addr, _signal_name (data))
+	if (request == %{ /* pure */ PTRACE_OLDSETOPTIONS %})
+		return sprintf("PTRACE_OLDSETOPTIONS, %d, %#x, %s", pid,
+			       addr, _ptrace_options_str(data))
+	if (request == %{ /* pure */ PTRACE_GET_THREAD_AREA %}
+	    || request == %{ /* pure */ PTRACE_SET_THREAD_AREA %})
+		return sprintf("%s, %d, %d, %p", 
+			       __arch_ptrace_request_str(request), pid,
+			       __int32(addr), data)
+	if (request == %{ /* pure */ PTRACE_ARCH_PRCTL %})
+		return sprintf("PTRACE_ARCH_PRCTL, %d, %p, %s", pid,
+			       addr, _arch_ptrace_prctl_str(data))
+}
+
+function _ptrace_return_arch_prctl_addr(request, addr, data)
+{
+	if (request == %{ /* pure */ PTRACE_ARCH_PRCTL %}
+	    && (data == %{ /* pure */ ARCH_GET_FS %}
+	        || data == %{ /* pure */ ARCH_GET_GS %}))
+		return user_long(addr)
+}
+
+%{
+#include <asm/ldt.h>
+%}
+
+function _struct_user_desc_u:string(uaddr:long)
+%{ /* pure */
+	struct user_desc ud;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&ud, ptr,
+		    sizeof(struct user_desc)) == 0)
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			         "{entry_number=%u, base_addr=%u, limit=%u, seg_32bit=%u, contents=%u, "
+			         "read_exec_only=%u, limit_in_pages=%u, seg_not_present=%u, useable=%u, lm=%u}",
+			         ud.entry_number, ud.base_addr, ud.limit, ud.seg_32bit, ud.contents,
+			         ud.read_exec_only, ud.limit_in_pages, ud.seg_not_present, ud.useable, ud.lm);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+%}
+

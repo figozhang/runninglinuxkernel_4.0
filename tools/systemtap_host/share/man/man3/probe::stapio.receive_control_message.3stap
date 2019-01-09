@@ -1,0 +1,57 @@
+'\" t
+.\"     Title: probe::stapio.receive_control_message
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: SystemTap Translator Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::STAPIO\&.RECE" "3stap" "March 2016" "SystemTap Tapset Reference" "SystemTap Translator Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::stapio.receive_control_message \- Received a control message
+.SH "SYNOPSIS"
+.sp
+.nf
+stapio\&.receive_control_message 
+.fi
+.SH "VALUES"
+.PP
+\fItype\fR
+.RS 4
+type of message being send; defined in runtime/transport/transport_msgs\&.h
+.RE
+.PP
+\fIdata\fR
+.RS 4
+a ptr to a binary blob of data sent as the control message
+.RE
+.PP
+\fIlen\fR
+.RS 4
+the length (in bytes) of the data blob
+.RE
+.SH "DESCRIPTION"
+.PP
+Fires just after a message was receieved and before it\*(Aqs processed\&.
+.SH SEE ALSO\n 
+.IR tapset::stap_staticmarkers (3stap)

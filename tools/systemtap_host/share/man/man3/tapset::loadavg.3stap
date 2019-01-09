@@ -1,0 +1,36 @@
+.\" -*- nroff -*-
+.TH TAPSET::LOADAVG 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::loadavg \- systemtap loadavg tapset
+ 
+.SH DESCRIPTION
+
+ Functions in the loadavg tapset allow a probe handler to capture
+ the load average.
+
+.TP
+.P
+.TP
+.B get_loadavg_index 
+Get the load average for a specified interval
+.IP
+See 
+.IR function::get_loadavg_index (3stap)
+ for details.
+.P
+.TP
+.B sprint_loadavg 
+Report a pretty-printed load average
+.IP
+See 
+.IR function::sprint_loadavg (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::get_loadavg_index (3stap),
+.BR
+.IR \%function::sprint_loadavg (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

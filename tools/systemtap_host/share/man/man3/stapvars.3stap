@@ -1,0 +1,54 @@
+.\" -*- nroff -*-
+.TH STAPVARS 3stap 
+.SH NAME
+stapvars \- systemtap variables
+
+.SH DESCRIPTION
+The following sections enumerate the public variables provided by
+standard tapsets installed, (the installation path is show in the
+stappaths (7) manual page).  Each variable is described with a
+type, and its behavior/restrictions.
+The syntax is the same as printed with the 
+.IR stap " option " \-p2 .
+Examples:
+
+.TP
+example1:long
+Variable "example1" contains an integer.
+
+.TP
+example2:string [long]
+Variable "example2" is an array of strings, indexed by integers.
+
+.SS ARGV
+
+.TP
+argc:long
+Contains the value of the
+.BR
+$#
+value: the number of command line arguments passed to the systemtap script.
+It is initialized with an implicit begin(\-1) probe.
+
+.TP
+argv:string [long]
+Contains each command line argument as a string.  argv[1] will equal @1 if
+there was at least one command line argument.  Arguments beyond #32 are not
+transcribed, and produce a warning message within the begin(\-1) probe that
+initializes this array.
+
+.SS NULL
+
+.TP
+NULL:long
+Simply defined as the number 0.
+
+.SH FILES
+.TP
+More files and their corresponding paths can be found in the stappaths (7) manual page.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1)
+.IR stappaths (7)

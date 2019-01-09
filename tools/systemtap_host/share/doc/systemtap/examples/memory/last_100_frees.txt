@@ -1,0 +1,25 @@
+%  stap last_100_frees.stp -c "stap -V" -d `which stap` --ldd
+
+free #187843928538773: stap[1377], pointer 0x8e07fa0:
+free+0x1d [libc-2.12.so]
+_ZdlPv+0x22 [libstdc++.so.6.0.13]
+_ZN17systemtap_sessionD1Ev+0xe5 [stap]
+main+0xde3 [stap]
+
+free #187843928596932: stap[1377], pointer 0x8e0a6c0:
+free+0x1d [libc-2.12.so]
+_ZdlPv+0x22 [libstdc++.so.6.0.13]
+_ZNSs4_Rep10_M_destroyERKSaIcE+0x1e [libstdc++.so.6.0.13]
+_ZNSsD2Ev+0x4e [libstdc++.so.6.0.13]
+_ZN17systemtap_sessionD1Ev+0x368 [stap]
+main+0xde3 [stap]
+
+free #187843928647723: stap[1377], pointer 0x8e08138:
+free+0x1d [libc-2.12.so]
+_ZdlPv+0x22 [libstdc++.so.6.0.13]
+_ZNSs4_Rep10_M_destroyERKSaIcE+0x1e [libstdc++.so.6.0.13]
+_ZNSsD2Ev+0x4e [libstdc++.so.6.0.13]
+_ZN17systemtap_sessionD1Ev+0x398 [stap]
+main+0xde3 [stap]
+
+[...]

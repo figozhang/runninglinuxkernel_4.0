@@ -1,0 +1,184 @@
+.\" -*- nroff -*-
+.TH TAPSET::NFSD 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::nfsd \- systemtap nfsd tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B nfsd.dispatch 
+NFS server receives an operation from client 
+.IP
+ See 
+.IR probe::nfsd.dispatch (3stap)
+ for details.
+.P
+.TP
+.B nfsd.proc.lookup 
+NFS server opening or searching for a file for client
+.IP
+ See 
+.IR probe::nfsd.proc.lookup (3stap)
+ for details.
+.P
+.TP
+.B nfsd.proc.read 
+NFS server reading file for client
+.IP
+ See 
+.IR probe::nfsd.proc.read (3stap)
+ for details.
+.P
+.TP
+.B nfsd.proc.write 
+NFS server writing data to file for client
+.IP
+ See 
+.IR probe::nfsd.proc.write (3stap)
+ for details.
+.P
+.TP
+.B nfsd.proc.commit 
+NFS server performing a commit operation for client
+.IP
+ See 
+.IR probe::nfsd.proc.commit (3stap)
+ for details.
+.P
+.TP
+.B nfsd.proc.create 
+NFS server creating a file for client
+.IP
+ See 
+.IR probe::nfsd.proc.create (3stap)
+ for details.
+.P
+.TP
+.B nfsd.proc.remove 
+NFS server removing a file for client
+.IP
+ See 
+.IR probe::nfsd.proc.remove (3stap)
+ for details.
+.P
+.TP
+.B nfsd.proc.rename 
+NFS Server renaming a file for client
+.IP
+ See 
+.IR probe::nfsd.proc.rename (3stap)
+ for details.
+.P
+.TP
+.B nfsd.open 
+NFS server opening a file for client
+.IP
+ See 
+.IR probe::nfsd.open (3stap)
+ for details.
+.P
+.TP
+.B nfsd.close 
+NFS server closing a file for client
+.IP
+ See 
+.IR probe::nfsd.close (3stap)
+ for details.
+.P
+.TP
+.B nfsd.read 
+NFS server reading data from a file for client
+.IP
+ See 
+.IR probe::nfsd.read (3stap)
+ for details.
+.P
+.TP
+.B nfsd.write 
+NFS server writing data to a file for client
+.IP
+ See 
+.IR probe::nfsd.write (3stap)
+ for details.
+.P
+.TP
+.B nfsd.commit 
+NFS server committing all pending writes to stable storage
+.IP
+ See 
+.IR probe::nfsd.commit (3stap)
+ for details.
+.P
+.TP
+.B nfsd.lookup 
+NFS server opening or searching file for a file for client
+.IP
+ See 
+.IR probe::nfsd.lookup (3stap)
+ for details.
+.P
+.TP
+.B nfsd.create 
+NFS server creating a file(regular,dir,device,fifo) for client
+.IP
+ See 
+.IR probe::nfsd.create (3stap)
+ for details.
+.P
+.TP
+.B nfsd.createv3 
+NFS server creating a regular file or set file attributes for client
+.IP
+ See 
+.IR probe::nfsd.createv3 (3stap)
+ for details.
+.P
+.TP
+.B nfsd.unlink 
+NFS server removing a file or a directory for client
+.IP
+ See 
+.IR probe::nfsd.unlink (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::nfsd.dispatch (3stap),
+.BR
+.IR \%probe::nfsd.proc.lookup (3stap),
+.BR
+.IR \%probe::nfsd.proc.read (3stap),
+.BR
+.IR \%probe::nfsd.proc.write (3stap),
+.BR
+.IR \%probe::nfsd.proc.commit (3stap),
+.BR
+.IR \%probe::nfsd.proc.create (3stap),
+.BR
+.IR \%probe::nfsd.proc.remove (3stap),
+.BR
+.IR \%probe::nfsd.proc.rename (3stap),
+.BR
+.IR \%probe::nfsd.open (3stap),
+.BR
+.IR \%probe::nfsd.close (3stap),
+.BR
+.IR \%probe::nfsd.read (3stap),
+.BR
+.IR \%probe::nfsd.write (3stap),
+.BR
+.IR \%probe::nfsd.commit (3stap),
+.BR
+.IR \%probe::nfsd.lookup (3stap),
+.BR
+.IR \%probe::nfsd.create (3stap),
+.BR
+.IR \%probe::nfsd.createv3 (3stap),
+.BR
+.IR \%probe::nfsd.unlink (3stap),
+.BR
+.IR \%probe::nfsd.rename (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

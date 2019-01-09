@@ -1,0 +1,53 @@
+.\" -*- nroff -*-
+.TH STAPVARS 3stap
+.SH JMÉNO
+stapvars \- proměnné
+
+.SH POPIS
+
+Následující sekce představují seznam veřejných proměnných, které
+poskytuje standardní tapset (jeho umístění dokumentuje manuálová
+stránka stappaths (7)).  Pro každou proměnnou je uveden popis, datový
+typ a případná omezení.  Syntaxe odpovídá výstupu příkazu
+.IR stap " option " \-p2 .
+Příklad:
+
+.TP
+example1:long
+Proměnná "example1" je celočíselného datového typu.
+
+.TP
+example2:string [long]
+Proměnná "example2" je pole řetězců s celočíselným klíčem.
+
+.SS ARGV
+
+.TP
+argc:long
+obsahuje hodnotu výrazu
+.BR
+$#
+hodnota: počet argumentů příkazové řádky systemtap skriptu.  Inicializuje se
+implicitní sondou begin(-1).
+
+.TP
+argv:string [long]
+Obsahuje všechny argumenty příkazové řádky jako řetězce. argv[1] odpovídá
+@1 pokud byl zadán alespoň jeden argument příkazové řádky.  Argumenty nad
+#32 nejsou zpracovány a způsobí varovné hlášení při inicializaci.
+
+.SS NULL
+
+.TP
+NULL:long
+Odpovídá jednoduše nule.
+
+.SH SOUBORY
+.TP
+Důležité soubory a jejich umístění shrnuje manuálová stránka stappaths (7).
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1)
+.IR stappaths (7)

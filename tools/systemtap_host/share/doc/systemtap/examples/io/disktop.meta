@@ -1,0 +1,13 @@
+title: Summarize Disk Read/Write Traffic
+name: disktop.stp
+version: 1.0
+author: Oracle
+keywords: disk
+subsystem: disk io
+status: production
+exit: user-controlled
+output: timed
+scope: system-wide
+description: Get the status of reading/writing disk every 5 seconds, output top ten entries during that period.
+test_check: stap -p4 disktop.stp
+test_installcheck: stap disktop.stp -c "sleep 1"

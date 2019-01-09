@@ -1,0 +1,49 @@
+#! /usr/bin/env stap
+# traceio.stp
+# Copyright (C) 2007 Red Hat, Inc., Eugene Teo <eteo@redhat.com>
+# Copyright (C) 2009 Kai Meyer <kai@unixlords.com>
+#   Fixed a bug that allows this to run longer
+#   And added the humanreadable function
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+
+global reads, writes, total_io
+
+probe vfs.read.return {
+  if ($return > 0) {
+    reads[pid(),execname()] += $return
+    total_io[pid(),execname()] += $return
+  }
+}
+
+probe vfs.write.return {
+  if ($return > 0) {
+    writes[pid(),execname()] += $return
+    total_io[pid(),execname()] += $return
+  }
+}
+
+function humanreadable(bytes) {
+  if (bytes > 1024*1024*1024) {
+    return sprintf("%d GiB", bytes/1024/1024/1024)
+  } else if (bytes > 1024*1024) {
+    return sprintf("%d MiB", bytes/1024/1024)
+  } else if (bytes > 1024) {
+    return sprintf("%d KiB", bytes/1024)
+  } else {
+    return sprintf("%d   B", bytes)
+  }
+}
+
+probe timer.s(1) {
+  foreach([p,e] in total_io- limit 10)
+    printf("%8d %15s r: %12s w: %12s\n",
+           p, e, humanreadable(reads[p,e]),
+           humanreadable(writes[p,e]))
+  printf("\n")
+  # Note we don't zero out reads, writes and total_io,
+  # so the values are cumulative since the script started.
+}

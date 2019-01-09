@@ -1,0 +1,13 @@
+title: Increase Initial TCP Congestion Window to 10
+name: tcp_init_cwnd.stp
+version: 1.0
+author: anonymous
+keywords: network tcp socket guru
+subsystem: network
+scope: system-wide
+status: proposed
+exit: user-controlled
+output: trace on-exit
+description: Run the tcp_init_cwnd.stp script in the background to override a kernel's default tcp cwnd value to 10, which has been found to improve latency for web server type workloads.  The script prints a count of cwnd value changes when it is stopped.
+test_check: stap -g -p4 tcp_init_cwnd.stp
+test_installcheck: stap -g tcp_init_cwnd.stp -c "sleep 1"

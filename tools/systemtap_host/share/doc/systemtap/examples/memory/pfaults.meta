@@ -1,0 +1,13 @@
+title: Generate Log of Major and Minor Page Faults
+name: pfaults.stp
+version: 1.0
+author: anonymous
+keywords: memory
+subsystem: memory
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The pfaults.stp script generates a simple log for each major and minor page fault that occurs on the system. Each line contains a timestamp (in microseconds) when the page fault servicing was completed, the pid of the process, the address of the page fault, the type of access (read or write), the type of fault (major or minor), and the elapsed time for page fault. This log can be examined to determine where the page faults are occurring.
+test_check: stap -p4 pfaults.stp
+test_installcheck: stap pfaults.stp -c "sleep 1"

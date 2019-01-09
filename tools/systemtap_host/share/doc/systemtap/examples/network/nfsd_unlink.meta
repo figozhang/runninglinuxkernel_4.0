@@ -1,0 +1,13 @@
+title: Find Which Client Is Removing NFS Files on Server
+name: nfsd_unlink.stp
+version: 1.0
+author: anonymous
+keywords: nfs disk
+subsystem: network
+status: proposed
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The nfsd_unlink.stp script lists the ip address and file name each time time a file is being removed or unlinked by the nfsd. This script is run on the nfs server.
+test_check: stap -p4 nfsd_unlink.stp
+test_installcheck: stap nfsd_unlink.stp -c "sleep 1"

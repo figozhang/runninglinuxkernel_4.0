@@ -1,0 +1,89 @@
+.\" t
+.TH ERROR::BUILDID 7stap 
+.SH NAME
+error::buildid \- build-id verification failures
+
+.\" macros
+.de SAMPLE
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+..
+
+
+.SH DESCRIPTION
+
+Because systemtap's script translation / execution stages may be
+executed at different times and places, it is sometimes necessary to
+verify certain invariants.  One such invariant is that if a script
+was informed by translate-time analysis of executables, then those
+same executables need to be used at run time.  This checking
+is done based upon the build-id, a binary hash that modern (post-2007)
+compilers/toolchains add as an 
+.IR NT_GNU_BUILD_ID
+ELF note to object files and executables.
+Use the
+.IR "readelf -n"
+command to examine the build-ids of binaries, if you are interested.
+
+.PP
+
+Only scripts are sensitive to executables' build-ids: generally those
+that perform deep analysis of the binaries or their debuginfo.  For example,
+scripts that place
+.IR .function " or " .statement
+probes, or use stack backtrace-related tapset functions may be sensitive.
+Other scripts that rely only on
+.IR process.mark " or " kernel.trace
+probes do not require debuginfo.  See the DWARF DEBUGINFO section in the
+.IR stapprobes (3stap)
+man page.
+
+.PP
+
+During translation, systemtap saves a copy of the relevant files'
+build-ids within the compiled modules.  At run-time, the modules
+compare the saved ones to the actual run-time build-ids in memory.
+The error message indicates that they did not match, so the module
+will decline placing a probe that was computed based upon obsolete
+data.  This is important for safety, as placing them at an
+inappropriate address could crash the programs.  However, this is not
+necessarily a fatal error, since probes unrelated to the mismatching
+binaries may operate.
+
+.PP
+
+A build-id mismatch could be caused by a few different situations.
+The main one is where the executable versions or architecture were
+different between the systemtap translation and execution
+times/places.  For example, one may run a stap-server on a slightly
+different version of the OS distribution.  Someone may have rebuilt a
+new kernel image, but preserved the previous version numbers.  The
+kernel running on the workstation may be slightly different from the
+version being targeted - perhaps due to a pending kernel upgrade
+leaving different files on disk versus running in memory.  If your OS
+distribution uses separate debuginfo packages, the split \fI.debug\fR
+files may not exactly match the main binaries.
+
+.PP
+
+To disable build-id verification errors, if one is confident that they
+are an artefact of build accidents rather than a real mismatch, one
+might try the
+.IR -DSTP_NO_BUILDID_CHECK
+option.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR http://fedoraproject.org/wiki/Releases/FeatureBuildId ,
+.IR stap (1),
+.IR stapprobes (3stap),
+.IR warning::debuginfo (7stap),
+.IR error::reporting (7stap)

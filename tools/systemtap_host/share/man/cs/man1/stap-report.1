@@ -1,0 +1,67 @@
+.\" -*- nroff -*-
+.TH STAP\-REPORT 1
+.SH JMÉNO
+stap\-report \- sesbírá informace o systému užitečné pro odhalování chyb
+
+.\" macros
+.\" do not nest SAMPLEs
+.de SAMPLE
+.br
+
+.nr oldin \\n(.i
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POUŽITÍ
+
+.br
+.B stap\-report
+
+.SH POPIS
+
+Program stap\-report sbírá systémové informace, které mohou být užitečné při
+odhalování chyb v systemtapu.  Výstup tohoto programu je vhodné přiložit k
+hlášení o chybě systemtapu, zejména pokud posíláte hlášení přímo "upstream"
+vývojářské komunitě.  Program stap\-report může spustit jak root, tak běžný
+uživatel.
+
+.SH PŘÍKLADY
+.SAMPLE
+$ stap-report > report.txt
+$ head report.txt
+== id ==
+uid=1000(user) gid=1000(user) groups=122(stapdev),123(stapusr),129(stapsys)
+== stap -V ==
+Systemtap translator/driver (version 2.2.1/0.153, Debian version 2.2.1-1)
+Copyright (C) 2005-2013 Red Hat, Inc. and others
+This is free software; see the source for copying conditions.
+enabled features: AVAHI LIBSQLITE3 NSS TR1_UNORDERED_MAP NLS
+== which stap ==
+/usr/bin/stap
+== locate --regex '/stap(run)?$' | xargs ls -ald ==
+.ESAMPLE
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1)
+
+.SH CHYBY                                                                       
+Použijte projektovou bugzillu, nebo mailing list.                               
+.nh                                                                             
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .          
+.hy                                                                             
+.PP                                                                             
+.IR error::reporting (7stap),                                                   
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs                       
+.hy
+

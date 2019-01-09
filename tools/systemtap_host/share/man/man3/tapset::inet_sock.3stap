@@ -1,0 +1,32 @@
+.\" -*- nroff -*-
+.TH TAPSET::INET_SOCK 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::inet_sock \- systemtap inet_sock tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B inet_get_local_port 
+Provide local port number for a kernel socket
+.IP
+See 
+.IR function::inet_get_local_port (3stap)
+ for details.
+.P
+.TP
+.B inet_get_ip_source 
+Provide IP source address string for a kernel socket
+.IP
+See 
+.IR function::inet_get_ip_source (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::inet_get_local_port (3stap),
+.BR
+.IR \%function::inet_get_ip_source (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

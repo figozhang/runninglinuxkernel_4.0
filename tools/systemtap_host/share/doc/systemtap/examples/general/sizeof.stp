@@ -1,0 +1,18 @@
+#! /usr/bin/env stap
+
+# Usage:   sizeof.stp TYPENAME
+#          sizeof.stp TYPENAME kernelmodule
+#          sizeof.stp TYPENAME /usr/bin/executable
+#          sizeof.stp TYPENAME kernel:<include/linux/someheader.h>
+#          sizeof.stp TYPENAME </usr/include/someheader.h>
+
+probe begin {
+  println("type ", @1, 
+          %( $# > 1 %? " in ", @2, %)   /* module or header file name */
+          " byte-size: ",
+          & @cast(0,
+                  @1 /* type name */
+                  %( $# > 1 %? , @2 %)  )  /* module or header file name */
+                 [1])
+  exit ()
+}

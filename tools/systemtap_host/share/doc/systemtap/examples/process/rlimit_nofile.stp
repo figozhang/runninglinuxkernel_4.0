@@ -1,0 +1,39 @@
+############################################################
+# rlimit_nofile.stp
+# Author: Robin Hack <rhack@redhat.com>
+# This script watches processes being scheduled and which
+# try to allocate a file descriptor without luck.
+############################################################
+
+global failed_calls
+
+probe kernel.trace("sched_wakeup")
+{
+    pid = task_pid($p);
+    name = task_execname($p);
+    open_ds = task_open_file_handles($p);
+    max_ds = task_rlimit_nofile($p);
+    if (failed_calls[name, pid] == "EMFILE") {
+        printf ("%s %s(%d) open: %d - max: %d Hit: %s\n",
+                ctime(gettimeofday_s()), name, pid, open_ds, max_ds,
+                failed_calls[name, pid]);
+    }
+}
+
+probe kernel.trace("sched_process_exit")
+{
+    pid = task_pid($p);
+    name = task_execname($p);
+    delete failed_calls[name, pid];
+}
+
+# This is exactly point where all the fun happens
+# This function returns only EMFILE errno.
+probe kernel.function("__alloc_fd@fs/file.c").return !,
+      kernel.function("alloc_fd").return
+{
+    if (errno_str($return) == "EMFILE")
+    {
+        failed_calls[execname(), pid()] = errno_str($return);
+    }
+}

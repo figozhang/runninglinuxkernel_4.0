@@ -1,0 +1,13 @@
+title: Tally the Number of NFS Functions Used by Each Process
+name: nfs_func_users.stp
+version: 1.0
+author: William Cohen
+keywords: io profiling
+subsystem: io
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The nfs_func_users.stp script counts the uses of NFS functions in the kernel on a per process bases.  The output is sorted from the process with the greatest number of NFS functions called to the least. The output contains the executable name, the process number, and the total number of NFS functions called by the process.
+test_check: stap -p4 nfs_func_users.stp
+test_installcheck: stap nfs_func_users.stp -c "sleep 1"

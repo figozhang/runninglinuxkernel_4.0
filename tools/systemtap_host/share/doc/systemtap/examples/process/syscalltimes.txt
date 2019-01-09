@@ -1,0 +1,156 @@
+# ./syscalltimes -h
+USAGE: syscalltimes [-n pname]... [-p pid]... [-u username]... [-c 'process']
+                    [-v]... [-t] [-h]
+    -n pname     # filter by this process name
+    -p pid       # filter by this process ID
+    -u username  # filter by this user
+    -c 'process' # run 'process' then exit to show totals
+    -t           # print totals (default with filters: OFF
+                                 default without filters: ON)
+    -v           # print verbose output during SystemTap module creation
+    -h           # print this help text
+
+NOTE: This script can take long time to build. Use -v[vv] to monitor
+      the module creation and build process.
+
+
+# ./syscalltimes -n top -n vi
+Creating and building SystemTap module...
+Collecting data - type Ctrl-C to print output and exit...
+
+Times for process name vi:
+
+           System Call      Count     Total ns       Avg ns       Min ns       Max ns
+                access          4        59169        14792         7770        27556
+        rt_sigprocmask          6        32879         5479         5328         6132
+          rt_sigaction         22       119127         5414         5291         6293
+                select         15   1605144751    107009650         7386   1117677549
+               sysinfo          1        13178        13178        13178        13178
+                 lseek          2        12869         6434         6331         6538
+                getuid          3        16839         5613         5468         5757
+             getrlimit          1         5558         5558         5558         5558
+                munmap          8       103326        12915         9689        19190
+                getpid          1         5639         5639         5639         5639
+                unlink          3       143502        47834        20291        97191
+            arch_prctl          1         6296         6296         6296         6296
+                 chdir          6        58086         9681         7213        16062
+                getcwd          9        81327         9036         6820        17583
+                  read         28       341507        12196         6007        54806
+                 fcntl          4        23418         5854         5478         6459
+           sigaltstack          1         5845         5845         5845         5845
+              mprotect         13       130272        10020         8255        17130
+                statfs          1        10223        10223        10223        10223
+                 fstat         20       118660         5933         5446         7050
+              readlink          1        17884        17884        17884        17884
+            readlinkat          1         7889         7889         7889         7889
+                socket          2        24932        12466         8090        16842
+                  stat         13       120911         9300         7376        19549
+                 ioctl         19       135172         7114         5504        11711
+                execve          1       262658       262658       262658       262658
+                 write         15       382744        25516         8391       136359
+                 uname          1         6772         6772         6772         6772
+                 close         30       210468         7015         5478        12543
+                fchdir          6        34269         5711         5496         6185
+                  open         31       474649        15311         7807        54475
+                 chmod          1        12865        12865        12865        12865
+                   brk          6        48116         8019         5782        10240
+                 lstat          2        15369         7684         7334         8035
+               connect          2        29287        14643        10616        18671
+
+Times for process name top:
+
+           System Call      Count     Total ns       Avg ns       Min ns       Max ns
+            arch_prctl          1         6424         6424         6424         6424
+                 fcntl         97       607311         6260         5170        10873
+                  read        970     12341710        12723         5574       446707
+                 lseek         11        66250         6022         5481         7165
+          rt_sigaction         71       380049         5352         5255         6374
+                access          5        66406        13281         8942        24323
+                select          3   6385526578   2128508859    499261647   2999551597
+              getdents         21       889837        42373         6386        73490
+                getuid          1         5494         5494         5494         5494
+                munmap         15       174255        11617         8872        17670
+                 write         10      2309851       230985        16248      2006254
+                 uname          1        10474        10474        10474        10474
+                 close        932      5749946         6169         5348        21248
+                 ioctl         14       122233         8730         5824        14243
+                execve          1       261447       261447       261447       261447
+                   brk          4        26527         6631         5493         8285
+               connect          2        28533        14266        10756        17777
+                  open        934      9289314         9945         8473        30315
+              mprotect         10        97990         9799         8295        14636
+                  stat        455      3834994         8428         7920        26084
+                socket          2        21980        10990         8990        12990
+                 fstat         26       150418         5785         5426         7127
+                 alarm         90       536017         5955         5543        11487
+
+
+# ./syscalltimes -v
+Creating and building SystemTap module...
+Pass 1: parsed user script and 42 library script(s) in 200usr/10sys/218real ms.
+Pass 2: analyzed script: 768 probe(s), 15 function(s), 15 embed(s), 13 global(s) in 35870usr/140sys/36036real ms.
+Pass 3: using cached /root/.systemtap/cache/d5/stap_d5fcd430388d4f4a30f63d03aaa3eb80_392196.c
+Pass 4: using cached /root/.systemtap/cache/d5/stap_d5fcd430388d4f4a30f63d03aaa3eb80_392196.ko
+Pass 5: starting run.
+Collecting data - type Ctrl-C to print output and exit...
+
+Times for all processes (unfiltered):
+
+           System Call      Count     Total ns       Avg ns       Min ns       Max ns
+                writev        681      6526983         9584         6807        18709
+                 write        421      4367057        10373         6424        52077
+                 uname         15        98071         6538         6336         6787
+                 close        459      9528659        20759         5265      1346856
+     inotify_add_watch         17       164258         9662         8000        17280
+                 ioctl       1205     28994711        24062         5211      2928218
+                execve         12      2148953       179079        10195       280392
+                   brk        309      2400150         7767         5383        23454
+                 lstat          5        43864         8772         7938        10426
+               connect         24       352784        14699        10679        25868
+               getppid         12        71219         5934         5812         6123
+                 wait4         24     20952033       873001         5664      3387688
+                  open        377     22181286        58836         8819      3011655
+                  dup2         18       109197         6066         5865         6403
+                  bind          3        25322         8440         8263         8759
+                  poll       1034  36509105361     35308612         5499   1999784046
+                getgid         12        65851         5487         5335         5667
+         compat_execve         12      3012173       251014       182782       472356
+              mprotect        150      1434021         9560         7854        13812
+          gettimeofday         10        60416         6041         5238         7429
+               recvmsg          9       116065        12896         6889        37388
+              readlink         12       638216        53184        46337        64203
+            readlinkat         12       530499        44208        37794        55136
+                  stat        140      1244798         8891         6702        17331
+                socket         39       435318        11162         7642        16694
+           getsockname          3        18899         6299         6198         6443
+                statfs          6        62737        10456        10311        10671
+                 fstat        238      1400126         5882         5502        12739
+               geteuid         12        73475         6122         5248        14048
+                 readv         27       349998        12962         7150        21210
+            arch_prctl         21       135320         6443         6231         6832
+             nanosleep         28   8927802107    318850075    150954837   2001911237
+                 futex        595   8755563465     14715232         5431   1000945645
+                  read       2586   5154654212      1993292         5622   4985306501
+               getpgrp         12        67137         5594         5469         5740
+                 fcntl         51       289553         5677         5353         6835
+                  pipe         12       122220        10185         8771        13959
+             setitimer        159      1004756         6319         5551         8776
+                 lseek          4        24304         6076         5900         6253
+                 mmap2         19       182403         9600         7496        13574
+                access        105      1220874        11627         8077        33600
+          rt_sigreturn         93       665180         7152         5541         8265
+          rt_sigaction        171       967575         5658         5278        18684
+        rt_sigprocmask        132       760337         5760         5273        14170
+         clock_gettime        151       997395         6605         5275         9090
+                 pread        192      2387721        12436         5679        43553
+                select        925  24357064459     26331961         6669   2861600879
+               getegid         12        63624         5302         5200         5466
+                getpid         12        66761         5563         5348         5701
+                getuid         12        67112         5592         5483         5790
+                sendto          3        54766        18255        17541        19501
+                munmap        116      1432698        12350         8634        48526
+              getdents          6        57855         9642         6248        13313
+                 times         10        59281         5928         5514         6617
+                 ppoll         24   4799366329    199973597    199872030    200070128
+Pass 5: run completed in 20usr/90sys/8215real ms.
+

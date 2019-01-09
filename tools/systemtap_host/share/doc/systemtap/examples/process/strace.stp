@@ -1,0 +1,87 @@
+#! /bin/sh
+
+# suppress some run-time errors here for cleaner output
+//bin/true && exec stap --suppress-handler-errors --skip-badvars $0 ${1+"$@"}
+
+
+/* configuration options; set these with stap -G */
+global follow_fork = 0   /* -Gfollow_fork=1 means trace descendant processes too */
+global timestamp = 1     /* -Gtimestamp=0 means don't print a syscall timestamp */
+global elapsed_time = 0  /* -Gelapsed_time=1 means print a syscall duration too */
+
+global thread_argstr%
+global thread_time%
+
+global syscalls_nonreturn[2]
+probe begin 
+  {
+    /* list those syscalls that never .return */
+    syscalls_nonreturn["exit"]=1
+    syscalls_nonreturn["exit_group"]=1
+  }
+
+
+
+function filter_p()
+  {
+    if (target() == 0) return 0; /* system-wide */
+    if (!follow_fork && pid() != target()) return 1; /* single-process */
+    if (follow_fork && !target_set_pid(pid())) return 1; /* multi-process */
+    return 0;
+  }
+
+probe nd_syscall.* 
+  {
+    # TODO: filter out apparently-nested syscalls (that are implemented
+    # in terms of each other within the kernel); PR6762
+
+    if (filter_p()) next;
+
+    thread_argstr[tid()]=argstr
+    if (timestamp || elapsed_time)
+      thread_time[tid()]=gettimeofday_us()
+
+    if (name in syscalls_nonreturn)
+      report(name,argstr,"")
+  }
+
+probe nd_syscall.*.return
+  {
+    if (filter_p()) next;
+
+    report(name,thread_argstr[tid()],retstr)
+  }
+
+
+
+function report(syscall_name, syscall_argstr, syscall_retstr)
+  {
+    if (timestamp || elapsed_time)
+      {
+        now = gettimeofday_us()
+        then = thread_time[tid()]
+
+        if (timestamp)
+          prefix=sprintf("%s.%06d ", ctime(then/1000000), then%1000000)
+
+        if (elapsed_time && (now>then)) {
+          diff = now-then
+          suffix=sprintf(" <%d.%06d>", diff/1000000, diff%1000000)
+        }
+
+        delete thread_time[tid()]
+      }
+
+    /* add a thread-id string in lots of cases, except if
+       stap strace.stp -c SINGLE_THREADED_CMD */
+    if (tid() != target()) {
+      prefix .= sprintf("%s[%d] ", execname(), tid())
+    }
+
+    printf("%s%s(%s) = %s%s\n",
+           prefix, 
+           syscall_name, syscall_argstr, syscall_retstr,
+           suffix)
+    
+    delete thread_argstr[tid()]
+  }

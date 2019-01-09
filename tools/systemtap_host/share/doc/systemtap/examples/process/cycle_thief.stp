@@ -1,0 +1,94 @@
+#! /usr/bin/env stap
+# Copyright (C) 2010 Red Hat, Inc.
+# Write by William Cohen <wcohen@redhat.com>
+#
+# cycle_thief provide the following information for the specified pid:
+#   Number of times the task is migrated to another cpu
+#   How long the task is scheduled on and off a processor
+#   Tasks that run when the task is scheduled off the processor
+#   IRQs that run when the task is scheduled on the processor
+#
+# Run the script with:
+#   stap cycle_thief.stp -x pid
+#
+# control-c to exit data collection
+
+global last_cpu = -1
+global pid_on, pid_off, migrated
+global time_on, time_off, irq_entry
+global cycle_thief, irq_thief, cycle_thief_name
+
+
+probe kernel.trace("sched_switch") {
+  t = gettimeofday_us(); c = cpu();
+  if ($prev->pid == target() && $next->pid != target()) {
+    /* being switched out */
+    pid_off = t; last_cpu = c;
+    if (pid_on) time_on <<< pid_off - pid_on;
+  } else if ($prev->pid != target() && $next->pid == target()) {
+    /* being switched in */
+    pid_on = t;
+    if (pid_off) time_off <<< pid_on - pid_off;
+    if (c != last_cpu) ++migrated;
+  }
+  /* watch what other processes scheduled while pid off */
+  if (pid_off > pid_on && c == last_cpu) {
+    cycle_thief[$next->pid] <<< 1;
+    cycle_thief_name[$next->pid] = kernel_string($next->comm)
+  }
+}
+
+/* what interrupts occur while process is running */
+probe kernel.{trace("irq_handler_entry")!, trace("irq_entry")}
+{
+  t = gettimeofday_us(); c = cpu();
+  i = @defined($irq) ? $irq : $id;
+  /* watch what irq run while pid is running */
+  if (pid_on > pid_off && c == last_cpu) {
+    irq_entry[i] = t;
+  }
+}
+
+
+probe kernel.{trace("irq_handler_exit")!, trace("irq_exit")}
+{
+  i = @defined($irq) ? $irq : $id;
+  t = gettimeofday_us(); c = cpu(); irqt=irq_entry[i]
+  /* watch what irq run while pid is running */
+  if (pid_on > pid_off && c == last_cpu &&  irqt) {
+     irq_thief[i] <<< t - irqt;
+     delete irq_entry[i];
+  }
+}
+
+
+probe end {
+  printf("\n")
+  printf("task %d migrated: %d\n", target(), migrated)
+  if (@count(time_on)) {
+    printf("\n")
+    printf("task %d on processor (us):\n", target())
+    print(@hist_log(time_on));
+  }
+  if (@count(time_off)) {
+    printf("\n")
+    printf("task %d off processor (us)\n", target())
+      print(@hist_log(time_off));
+  }
+
+  printf("\n")
+  printf("other pids taking processor from task %d\n", target())
+  printf("%6s %10s %s\n", "PID", "count", "command");
+  foreach (p in cycle_thief-)
+    printf("%6d %10d %s\n", p, @count(cycle_thief[p]), cycle_thief_name[p])
+
+  printf("\n")
+  printf("irq taking processor from task %d\n", target())
+
+  printf("%6s %10s %10s %10s %10s\n", "irq", "count",
+      "min(us)", "avg(us)", "max(us)")
+  foreach (p in irq_thief-)
+    printf("%6d %10d %10d %10d %10d\n", p, @count(irq_thief[p]),
+      @min(irq_thief[p]), @avg(irq_thief[p]), @max(irq_thief[p]))
+
+}

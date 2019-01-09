@@ -1,0 +1,5 @@
+
+// 'init' is a probe alias to run as early as possible, using begin(INT64_MIN).
+// That runs it before all other begin probes, but still after basic internal
+// initialization -- notably after any -G foo=bar values are set.
+probe init = begin(-9223372036854775808) {}

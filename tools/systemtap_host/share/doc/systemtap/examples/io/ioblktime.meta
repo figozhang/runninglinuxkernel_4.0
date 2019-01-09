@@ -1,0 +1,13 @@
+title: Average Time Block IO Requests Spend in Queue 
+name: ioblktime.stp
+version: 1.0
+author: William Cohen
+keywords: io
+subsystem: io
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The ioblktime.stp script tracks the amount of time that each block IO requests spend waiting for completion. The script computes the average waiting time for block IO per device and prints list every 10 seconds. In some cases there can be too many outstanding block IO operations and the script may exceed the default number of MAXMAPENTRIES allowed. In this case the allowed number can be increased with "-DMAXMAPENTRIES=10000" option on the stap command line.
+test_check: stap -p4 ioblktime.stp
+test_installcheck: stap ioblktime.stp -c "sleep 1"

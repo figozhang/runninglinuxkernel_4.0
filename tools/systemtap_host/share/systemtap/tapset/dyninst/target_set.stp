@@ -1,0 +1,33 @@
+// NB: functionally equivalent to linux/target_set.stp
+
+@__private30 global _target_set # map: target-set-pid -> ancestor-pid
+
+function target_set_pid (pid)
+{
+	return ([pid] in _target_set)
+}
+
+probe init
+{
+	if (target())
+		_target_set[target()] = stp_pid()
+}
+
+probe process.begin
+{
+	// NB: by definition, every process we see in stapdyn is part of the
+	// target set, so we don't need to filter like linux/target_set.stp.
+	_target_set[pid()] = ppid()
+}
+
+probe process.end
+{
+	delete _target_set[pid()]
+}
+
+function target_set_report ()
+{
+	printf("target set:\n")
+	foreach (pid in _target_set+)
+		printf("%d begat %d\n", _target_set[pid], pid)
+}

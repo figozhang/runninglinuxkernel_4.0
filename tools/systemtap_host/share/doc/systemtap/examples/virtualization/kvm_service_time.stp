@@ -1,0 +1,94 @@
+#!/usr/bin/env stap
+#
+# Copyright (C) 2011 Red Hat, Inc.
+# Written by William Cohen <wcohen@redhat.com>
+#
+# This script tracks the statistics about the amount of time that the
+# processor left the guest virtual machine for each exit reason (for
+# example fixing up a page table or handling an io operation).  On
+# Linux 2.6.38 and newer kernel the script can automatically determine
+# whether it is running on Intel or AMD processors. For older kernel
+# with a kernel.trace("kvm_exit") tracepoint that does not have the
+# $isa parameter you can explicitly state the kvm type as below.
+# 
+# On an Intel machine run with:
+# ./kvm_service_time.stp -G kvm=intel
+#
+# On an AMD machine run with:
+# ./kvm_service_time.stp -G kvm=amd
+#
+global KVM_ISA_VMX=1, KVM_ISA_SVM=2, kvm_isa=0
+global kvm="unknown" # user select whether "amd" or "intel" flavor kvm
+global e_time, reason, stats
+
+# leaving the guest vm for some reason
+probe kernel.trace("kvm_exit")
+{
+  e_time[tid()] = gettimeofday_us()
+  reason[tid()] = $exit_reason;
+  kvm_isa = @defined($isa) ? $isa : 0  
+}
+
+# re-entering guest kvm
+probe kernel.trace("kvm_entry")
+{
+  new_t = gettimeofday_us();
+  if ( [tid()] in e_time) {
+    elapsed = new_t - e_time[tid()]
+    stats[reason[tid()]] <<< elapsed
+    delete e_time[tid()]
+    delete reason[tid()]
+  }
+}
+
+probe end
+{
+  kvm_flavor()
+  print_header()
+  foreach(r+ in stats) {
+    printf ("%s: %d %d %d %d %d\n", reason_string(r),
+      @count(stats[r]), @sum(stats[r]),
+      @min(stats[r]), @avg(stats[r]), @max(stats[r]))
+  }
+}
+
+function kvm_flavor()
+{
+  /* automatically determine kvm flavor where possible */
+  if (kvm_isa == KVM_ISA_VMX)
+    kvm="intel"
+  else if (kvm_isa == KVM_ISA_SVM)
+    kvm="amd"
+}
+
+function reason_string:string(r:long)
+{
+  if (kvm=="amd")
+    return sprintf ("0x%03x", r)
+  else if (kvm=="intel")
+    return sprintf ("%d", r)
+  else
+    return sprintf ("%d 0x%03x", r, r)
+}
+
+function print_header()
+{
+  if (kvm=="amd") {
+    printf ("\n# AMD reasons are SVM_EXIT_* in %s\n",
+            "linux/arch/x86/include/asm/svm.h")
+    printf ("# %s: %s %s %s %s %s\n",
+    	   "reason(hex)", "count", "sum(us)", "min(us)", "avg(us)", "max(us)")
+  } else if (kvm=="intel") {
+    printf("\n# Intel exit reasons are EXIT_REASON_* in %s\n",
+           "linux/arch/x86/include/asm/vmx.h")
+    printf ("# %s: %s %s %s %s %s\n",
+           "reason", "count", "sum(us)", "min(us)", "avg(us)", "max(us)")
+  } else {
+    printf ("\n# Intel exit reasons are EXIT_REASON_* in %s\n",
+            "linux/arch/x86/include/asm/vmx.h")
+    printf ("# AMD reasons are SVM_EXIT_* in %s\n",
+            "linux/arch/x86/include/asm/svm.h")
+    printf ("# %s %s: %s %s %s %s %s\n", "reason", "reason(hex)",
+           "count", "sum(us)", "min(us)", "avg(us)", "max(us)")
+  }
+}

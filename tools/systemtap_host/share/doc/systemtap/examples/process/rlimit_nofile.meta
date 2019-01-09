@@ -1,0 +1,7 @@
+title: Trace processes running out of file descriptors 
+name: rlimit_nofile.stp
+keywords: limits
+subsystem: process
+description: This script watches processes being scheduled and which try to allocate a file descriptor without luck.
+test_check: stap -p4 rlimit_nofile.stp
+test_installcheck: stap rlimit_nofile.stp -c "sleep 1"

@@ -1,0 +1,6 @@
+title: Print Process File Descriptors
+name: psig.stp
+keywords: process signals
+description: Run psig.stp to produce a human-readable summary of the signal handling configuration of a given process.  Specify the process-id as -x PID for fastest performance.
+test_check: stap -gp4 psig.stp -x $$
+test_installcheck: stap -DMAXACTION=10000 -g psig.stp -x $$

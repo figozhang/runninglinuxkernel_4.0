@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Start a systemtap server
+#
+# Copyright (C) 2008-2011 Red Hat Inc.
+#
+# This file is part of systemtap, and is free software.  You can
+# redistribute it and/or modify it under the terms of the GNU General
+# Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+# This script attempts to start a systemtap server and echoes the
+# process id, if successful.
+
+# Initialize the environment
+. /home/figo/systemtap_host/libexec/systemtap/stap-env
+
+startup_timeout=10
+
+# start the server
+cd / # change to a dir we're 100% sure we have RD_ONLY access to
+${stap_pkglibexecdir}stap-serverd "$@" </dev/null >/dev/null 2>/dev/null &
+server_pid=$!
+
+# Make sure the server is started
+for ((attempt=0; $attempt < $startup_timeout; ++attempt))
+do
+    # Has the server started?
+    if ! (ps -e | grep stap-serverd | grep $server_pid) >/dev/null 2>&1; then
+        sleep 1
+        continue
+    fi
+
+    # The server is ready
+    echo $server_pid
+    exit 0
+done
+
+echo -n "Unable to start a systemtap server: " >&2
+echo "${stap_pkglibexecdir}stap-serverd did not start" >&2
+
+exit 1 # server did not start

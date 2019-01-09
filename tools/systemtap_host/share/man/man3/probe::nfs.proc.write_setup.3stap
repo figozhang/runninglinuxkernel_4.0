@@ -1,0 +1,87 @@
+'\" t
+.\"     Title: probe::nfs.proc.write_setup
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Network File Storage Tapsets
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::NFS\&.PROC\&." "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::nfs.proc.write_setup \- NFS client setting up a write RPC task
+.SH "SYNOPSIS"
+.sp
+.nf
+nfs\&.proc\&.write_setup 
+.fi
+.SH "VALUES"
+.PP
+\fIversion\fR
+.RS 4
+NFS version
+.RE
+.PP
+\fIserver_ip\fR
+.RS 4
+IP address of server
+.RE
+.PP
+\fIprot\fR
+.RS 4
+transfer protocol
+.RE
+.PP
+\fIbitmask1\fR
+.RS 4
+V4 bitmask representing the set of attributes supported on this filesystem
+.RE
+.PP
+\fIcount\fR
+.RS 4
+bytes written in this execution
+.RE
+.PP
+\fIsize\fR
+.RS 4
+bytes written in this execution
+.RE
+.PP
+\fIhow\fR
+.RS 4
+used to set args\&.stable\&. The stable value could be: NFS_UNSTABLE,NFS_DATA_SYNC,NFS_FILE_SYNC (in nfs\&.proc3\&.write_setup and nfs\&.proc4\&.write_setup)
+.RE
+.PP
+\fIbitmask0\fR
+.RS 4
+V4 bitmask representing the set of attributes supported on this filesystem
+.RE
+.PP
+\fIoffset\fR
+.RS 4
+the file offset
+.RE
+.SH "DESCRIPTION"
+.PP
+The write_setup function is used to setup a write RPC task\&. It is not doing the actual write operation\&.
+.SH SEE ALSO\n 
+.IR tapset::nfs_proc (3stap)

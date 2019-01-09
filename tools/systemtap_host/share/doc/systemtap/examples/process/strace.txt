@@ -1,0 +1,55 @@
+strace.stp - Trace system calls
+
+  The script loosely emulates strace, when applied to individual
+  processes or hierarchies (via -c/-x), or the entire system (without
+  -c/-x).  A few output configuration parameters may be set with -G.
+
+$  stap strace.stp -w -c "echo hello world" 
+
+hello world
+Fri Feb 13 15:37:16 2015.057695 rt_sigsuspend() = -514
+Fri Feb 13 15:37:16 2015.057749 rt_sigreturn() = -4 (EINTR)
+Fri Feb 13 15:37:16 2015.057756 rt_sigaction(SIGUSR1, {SIG_DFL}, 0x0, 8) = 0
+Fri Feb 13 15:37:16 2015.057772 rt_sigprocmask(SIG_SETMASK, [EMPTY], 0x0, 8) = 0
+Fri Feb 13 15:37:16 2015.057794 execve("/home/ajakop/work/codebase/install/bin/echo" "hello" "world") = -2 (ENOENT)
+Fri Feb 13 15:37:16 2015.057813 execve("/usr/local/bin/echo" "hello" "world") = -2 (ENOENT)
+Fri Feb 13 15:37:16 2015.057821 execve("/usr/bin/echo" "hello" "world") = 0
+Fri Feb 13 15:37:16 2015.058032 brk(0x0) = 17408000
+Fri Feb 13 15:37:16 2015.058048 mmap2(0x0, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fbbb2cbc000
+Fri Feb 13 15:37:16 2015.058060 access("/etc/ld.so.preload", R_OK) = -2 (ENOENT)
+Fri Feb 13 15:37:16 2015.058089 open("/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+Fri Feb 13 15:37:16 2015.058099 fstat(3, 0x7fff6992ac80) = 0
+Fri Feb 13 15:37:16 2015.058105 mmap2(0x0, 91161, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7fbbb2ca5000
+Fri Feb 13 15:37:16 2015.058110 close(3) = 0
+Fri Feb 13 15:37:16 2015.058122 open("/lib64/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+Fri Feb 13 15:37:16 2015.058131 read(3, 0x7fff6992ae20, 832) = 832
+Fri Feb 13 15:37:16 2015.058136 fstat(3, 0x7fff6992acd0) = 0
+Fri Feb 13 15:37:16 2015.058141 mmap2(0x0, 3920480, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fbbb26e0000
+Fri Feb 13 15:37:16 2015.058147 mprotect(0x7fbbb2894000, 2093056, PROT_NONE) = 0
+Fri Feb 13 15:37:16 2015.058155 mmap2(0x7fbbb2a93000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 1781760) = 0x7fbbb2a93000
+Fri Feb 13 15:37:16 2015.058166 mmap2(0x7fbbb2a99000, 16992, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7fbbb2a99000
+Fri Feb 13 15:37:16 2015.058176 close(3) = 0
+Fri Feb 13 15:37:16 2015.058189 mmap2(0x0, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fbbb2ca4000
+Fri Feb 13 15:37:16 2015.058195 mmap2(0x0, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fbbb2ca2000
+Fri Feb 13 15:37:16 2015.058202 arch_prctl(4098, 0x7fbbb2ca2740) = 0
+Fri Feb 13 15:37:16 2015.058262 mprotect(0x7fbbb2a93000, 16384, PROT_READ) = 0
+Fri Feb 13 15:37:16 2015.058273 mprotect(0x606000, 4096, PROT_READ) = 0
+Fri Feb 13 15:37:16 2015.058279 mprotect(0x7fbbb2cbd000, 4096, PROT_READ) = 0
+Fri Feb 13 15:37:16 2015.058286 munmap(0x7fbbb2ca5000, 91161) = 0
+Fri Feb 13 15:37:16 2015.058350 brk(0x0) = 17408000
+Fri Feb 13 15:37:16 2015.058354 brk(0x10bb000) = 17543168
+Fri Feb 13 15:37:16 2015.058357 brk(0x0) = 17543168
+Fri Feb 13 15:37:16 2015.058364 open("/usr/lib/locale/locale-archive", O_RDONLY|O_CLOEXEC) = 3
+Fri Feb 13 15:37:16 2015.058372 fstat(3, 0x7fbbb2a98b60) = 0
+Fri Feb 13 15:37:16 2015.058377 mmap2(0x0, 106066864, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7fbbac1b8000
+Fri Feb 13 15:37:16 2015.058384 close(3) = 0
+Fri Feb 13 15:37:16 2015.058416 fstat(1, 0x7fff6992b3c0) = 0
+Fri Feb 13 15:37:16 2015.058421 mmap2(0x0, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fbbb2cbb000
+Fri Feb 13 15:37:16 2015.058430 write(1, "hello world\n", 12) = 12
+Fri Feb 13 15:37:16 2015.058451 close(1) = 0
+Fri Feb 13 15:37:16 2015.058454 munmap(0x7fbbb2cbb000, 4096) = 0
+Fri Feb 13 15:37:16 2015.058461 close(2) = 0
+Fri Feb 13 15:37:16 2015.058466 exit_group(0) = 
+
+
+

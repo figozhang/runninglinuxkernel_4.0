@@ -1,0 +1,15 @@
+title: Show performance ratios using perf.counter to access performance counters
+name: perf.stp
+version: 1.0
+author: Stan Cox
+keywords: profiling
+subsystem: any
+status: production
+exit: user-controlled
+output: sorted-list
+requires: findutils-debuginfo
+scope: process
+description: On exit the perf.stp script provides a sorted list showing cycles per insn, branches per insn, and cache refs per insn
+test_support: rpm -q findutils-debuginfo
+test_check: stap -w -p4 perf.stp
+test_installcheck: stap -w perf.stp -c "find /usr/bin -name \"l*\" -printf \"%h/%f %s %Cx %Ck%CM %Y\n\""

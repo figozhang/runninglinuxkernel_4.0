@@ -1,0 +1,479 @@
+# S390-specific system calls
+
+%(arch == "s390" %?
+
+# getresgid __________________________________________________
+# long sys32_getresgid16(u16 __user *rgid, u16 __user *egid, u16 __user *sgid)
+#
+probe nd_syscall.getresgid16 = kprobe.function("sys32_getresgid16") ?
+{
+	name = "getresgid"
+	asmlinkage()
+	rgid_uaddr = pointer_arg(1)
+	egid_uaddr = pointer_arg(2)
+	sgid_uaddr = pointer_arg(3)
+	argstr = sprintf("%p, %p, %p", rgid_uaddr, egid_uaddr, sgid_uaddr)
+}
+probe nd_syscall.getresgid16.return = kprobe.function("sys32_getresgid16").return ?
+{
+	name = "getresgid"
+	retstr = returnstr(1)
+}
+
+# getresuid __________________________________________________
+# long sys32_getresuid16(u16 __user *ruid, u16 __user *euid, u16 __user *suid)
+#
+probe nd_syscall.getresuid16 = kprobe.function("sys32_getresuid16") ?
+{
+	name = "getresuid"
+	asmlinkage()
+	ruid_uaddr = pointer_arg(1)
+	euid_uaddr = pointer_arg(2)
+	suid_uaddr = pointer_arg(3)
+	argstr = sprintf("%p, %p, %p", ruid_uaddr, euid_uaddr, suid_uaddr)
+}
+probe nd_syscall.getresuid16.return = kprobe.function("sys32_getresuid16").return ?
+{
+	name = "getresuid"
+	retstr = returnstr(1)
+}
+
+%( systemtap_v < "2.7" %?
+# sys32_ipc() is just a syscall multiplexer (similar to
+# sys_socketcall()). So, we don't really need to probe it, since we'll
+# be probing what sys32_ipc() will call (semget, msgsnd, msgrcv,
+# shmat, etc.).
+
+# ipc _________________________________________________
+# long sys32_ipc(u32 call, int first, int second, int third, u32 ptr)
+#
+probe nd_syscall.ipc = kprobe.function("sys32_ipc") ?
+{
+	name = "ipc"
+	// argstr = sprintf("%d, %d, %d, %d, %p", $call, $first, $second, $third, $ptr)
+	asmlinkage()
+	argstr = sprintf("%d, %d, %d, %d, %p", uint_arg(1), int_arg(2), int_arg(3), int_arg(4), uint_arg(5))
+}
+probe nd_syscall.ipc.return = kprobe.function("sys32_ipc").return ?
+{
+	name = "ipc"
+	retstr = returnstr(1)
+}
+%)
+
+# In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
+# code.  In kernels >= 2.6.33, the arch-specific code just calls
+# generic sys_mmap_pgoff().
+%( kernel_v < "2.6.33" %?
+# mmap _________________________________________________
+# long old_mmap(struct mmap_arg_struct __user *arg)
+# long old32_mmap(struct mmap_arg_struct_emu31 __user *arg)
+#
+probe nd_syscall.mmap = __nd_syscall.mmap ?, __nd_syscall.mmap32 ?
+{
+	name = "mmap"
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, len,
+	                 _mprotect_prot_str(prot), _mmap_flags(flags),
+	                 fd, offset)
+}
+probe __nd_syscall.mmap = kprobe.function("old_mmap") ?,
+			  kprobe.function("SyS_s390_old_mmap") ?
+{
+	asmlinkage()
+	__args = &@cast(pointer_arg(1), "ulong", "kernel<linux/types.h>")
+	start = user_ulong(&(__args)[0])
+	len = user_ulong(&(__args)[1])
+	prot = user_ulong(&(__args)[2])
+	flags = user_ulong(&(__args)[3])
+	fd = user_long(&(__args)[4])
+	offset = user_ulong(&(__args)[5])
+}
+probe __nd_syscall.mmap32 = kprobe.function("old32_mmap")
+{
+	asmlinkage()
+	__args = &@cast(pointer_arg(1), "unsigned int", "kernel<linux/types.h>")
+	start = user_uint32(&(__args)[0])
+	len = user_uint32(&(__args)[1])
+	prot = user_uint32(&(__args)[2])
+	flags = user_uint32(&(__args)[3])
+	fd = user_int(&(__args)[4])
+	offset = user_uint32(&(__args)[5])
+}
+probe nd_syscall.mmap.return = kprobe.function("old_mmap").return ?,
+                               kprobe.function("old32_mmap").return ?,
+                               kprobe.function("SyS_s390_old_mmap").return ?
+{
+	name = "mmap"
+	retstr = returnstr(2)
+}
+
+# mmap2 _________________________________________________
+#
+# long sys_mmap2(struct mmap_arg_struct __user  *arg)
+# long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg)
+#
+probe nd_syscall.mmap2 = __nd_syscall.mmap2 ?, __nd_syscall.mmap2_32 ?
+{
+	name = "mmap2"
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, length,
+	                 _mprotect_prot_str(prot), _mmap_flags(flags),
+	                 fd, pgoffset)
+}
+probe __nd_syscall.mmap2 = kprobe.function("sys_mmap2")
+{
+	asmlinkage()
+	__args = &@cast(pointer_arg(1), "ulong", "kernel<linux/types.h>")
+	start = user_ulong(&(__args)[0])
+	length = user_ulong(&(__args)[1])
+	prot = user_ulong(&(__args)[2])
+	flags = user_ulong(&(__args)[3])
+	fd = user_long(&(__args)[4])
+	pgoffset = user_ulong(&(__args)[5])
+}
+probe __nd_syscall.mmap2_32 = kprobe.function("sys32_mmap2")
+{
+	asmlinkage()
+	__args = &@cast(pointer_arg(1), "unsigned int", "kernel<linux/types.h>")
+	start = user_uint32(&(__args)[0])
+	length = user_uint32(&(__args)[1])
+	prot = user_uint32(&(__args)[2])
+	flags = user_uint32(&(__args)[3])
+	fd = user_int(&(__args)[4])
+	pgoffset = user_uint32(&(__args)[5])
+}
+
+probe nd_syscall.mmap2.return = kprobe.function("sys_mmap2").return ?,
+                                kprobe.function("sys32_mmap2").return ?
+{
+	name = "mmap2"
+	retstr = returnstr(2)
+}
+%)
+
+%( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
+# sigaltstack ________________________________________________
+# asmlinkage long
+# sys_sigaltstack(const stack_t __user * uss, stack_t __user *uoss)
+#
+# NOTE: args vary between archs.
+probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
+{
+	name = "sigaltstack"
+	asmlinkage()
+	uss_uaddr = pointer_arg(1)
+	uoss_uaddr = pointer_arg(2)
+%(systemtap_v < "2.3" %?
+	regs = %{ /* pure */ _stp_current_pt_regs() %}
+%)
+	argstr = sprintf("%s, %p", _stp_sigaltstack_u(uss_uaddr), uoss_uaddr)
+}
+probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return
+{
+	name = "sigaltstack"
+	retstr = returnstr(1)
+}
+
+# sys32_sigaltstack ________________________________________________
+# asmlinkage long
+# sys32_sigaltstack(const stack_t32 __user *uss, stack_t32 __user *uoss)
+#
+# NOTE: args vary between archs.
+probe nd_syscall.sys32_sigaltstack = kprobe.function("sys32_sigaltstack") ?
+{
+	name = "sigaltstack"
+	asmlinkage()
+	uss_uaddr = pointer_arg(1)
+	uoss_uaddr = pointer_arg(2)
+	argstr = sprintf("%s, %p", _stp_compat_sigaltstack_u(uss_uaddr),
+			 uoss_uaddr)
+}
+probe nd_syscall.sys32_sigaltstack.return =
+	kprobe.function("sys32_sigaltstack").return ?
+{
+	name = "sigaltstack"
+	retstr = returnstr(1)
+}
+%)
+
+# sysctl _____________________________________________________
+#
+# long sys32_sysctl(struct __sysctl_args32 __user *args)
+#
+probe nd_syscall.sysctl32 = kprobe.function("sys32_sysctl") ?
+{
+	name = "sysctl"
+	// argstr = sprintf("%p", $args)
+	asmlinkage()
+	argstr = sprintf("%p", pointer_arg(1))
+}
+probe nd_syscall.sysctl32.return = kprobe.function("sys32_sysctl").return ?
+{
+	name = "sysctl"
+	retstr = returnstr(1)
+}
+
+# ftruncate64 _________________________________________________
+#
+# COMPAT_SYSCALL_DEFINE3(s390_ftruncate64, unsigned int, fd, u32, high,
+#			 u32, low)
+#
+probe nd_syscall.compat_ftruncate64 = kprobe.function("sys32_ftruncate64") ?
+{
+	asmlinkage()
+        name = "ftruncate"
+        fd = int_arg(1)
+        length = ((uint_arg(2) << 32) | uint_arg(3))
+        argstr = sprintf("%d, %d", fd, length)
+}
+probe nd_syscall.compat_ftruncate64.return =
+	kprobe.function("sys32_ftruncate64").return ?
+{
+	name = "ftruncate"
+	retstr = returnstr(1)
+}
+
+# truncate64 __________________________________________________
+#
+# COMPAT_SYSCALL_DEFINE3(s390_truncate64, const char __user *, path,
+#			 u32, high, u32, low)
+#
+probe nd_syscall.compat_truncate64 = kprobe.function("sys32_truncate64") ?
+{
+	asmlinkage()
+        name = "truncate"
+	path_uaddr = pointer_arg(1)
+	path = user_string_quoted(path_uaddr)
+        length = ((uint_arg(2) << 32) | uint_arg(3))
+	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
+}
+probe nd_syscall.compat_truncate64.return =
+	kprobe.function("sys32_truncate64").return ?
+{
+	name = "truncate"
+	retstr = returnstr(1)
+}
+
+# readahead __________________________________________________
+#
+# asmlinkage ssize_t
+# compat_ssize_t sys32_readahead(int fd, u32 offhi, u32 offlo, s32 count)
+#
+probe nd_syscall.compat_readahead = kprobe.function("sys32_readahead") ?
+{
+	name = "readahead"
+	asmlinkage()
+	fd = int_arg(1)
+	offset = ((uint_arg(2) << 32) | uint_arg(3))
+	count = ulong_arg(4)
+	argstr = sprintf("%d, %d, %u", fd, offset, count)
+}
+probe nd_syscall.compat_readahead.return = kprobe.function("sys32_readahead").return ?
+{
+	name = "readahead"
+	retstr = returnstr(1)
+}
+
+# fadvise64 _______________________________________________________
+#
+# The following kernel commit:
+#
+#   commit 5383d2c8b3ee61a762043818d7c07bbc0049b031
+#   Author: Heiko Carstens <heiko.carstens@de.ibm.com>
+#   Date:   Wed Feb 26 14:40:43 2014 +0100
+#
+#       s390/compat: convert to COMPAT_SYSCALL_DEFINEx part 7
+#
+# changed sys32_fadvise64 from:
+#
+# asmlinkage long
+# sys32_fadvise64(int fd, loff_t offset, size_t len, int advise)
+#
+# to:
+#
+# COMPAT_SYSCALL_DEFINE5(s390_fadvise64, int, fd, u32, high, u32, low,
+#			 compat_size_t, len, int, advise
+probe nd_syscall.compat_fadvise64 = kprobe.function("sys32_fadvise64") ?
+{
+	asmlinkage()
+	name = "fadvise64"
+	fd = int_arg(1)
+%( kernel_v < "3.15" %?
+ 	# We have to use raw access here since the long long value is
+	# stored in 1 register, not 2 - which longlong_arg() expects.
+	offset = u_register("r3")
+	len = int_arg(3)
+	advice = int_arg(4)
+%:
+        offset = ((uint_arg(2) << 32) | uint_arg(3))
+	len = int_arg(4)
+	advice = int_arg(5)
+%)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe nd_syscall.compat_fadvise64.return =
+	kprobe.function("sys32_fadvise64").return ?
+{
+	name = "fadvise64"
+	retstr = returnstr(1)
+}
+
+
+# fadvise64_64 __________________________________________________
+#
+# COMPAT_SYSCALL_DEFINE1(s390_fadvise64_64,
+#			 struct fadvise64_64_args __user *, args)
+# struct fadvise64_64_args {
+#	int fd;
+#	long long offset;
+#	long long len;
+#	int advice;
+#};
+
+probe nd_syscall.compat_fadvise64_64 = kprobe.function("sys32_fadvise64_64") ?
+{
+	name = "fadvise64"
+	__args = &@cast(pointer_arg(1), "unsigned int", "kernel<linux/types.h>")
+	fd = user_int(&(__args)[0])
+	offset = user_int64(&(__args)[2])
+	len = user_uint64(&(__args)[4])
+	advice = user_int(&(__args)[6])
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe nd_syscall.compat_fadvise64_64.return =
+	kprobe.function("sys32_fadvise64_64").return ?
+{
+	name = "fadvise64"
+	retstr = returnstr(1)
+}
+
+# fallocate __________________________________________________
+#
+# SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
+# asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_lo,
+#				unsigned offset_hi, unsigned len_lo,
+#				unsigned len_hi)
+#
+# We've got a problem here on RHEL6 (2.6.32-504.el6.s390x) and RHEL7
+# (3.10.0-229.el7.s390x). If we probe the real syscall (sys_fallocate)
+# and call longlong_arg(N), systemtap knows this is a compat task and
+# tries to get the long long from 2 different registers. However, by
+# the time we get to sys_fallocate(), the 64-bit value has been put
+# into one register.
+#
+# Normally we'd probe the "compat" version of the function to get the
+# raw values. However, on those kernels, the compat wrapper for
+# fallocate (sys_fallocate_wrapper) is in assembly language, which
+# stap can't find.
+#
+# So, we'll probe the "real" syscall here, and grab the "raw" register
+# values.
+probe nd_syscall.compat_fallocate = kprobe.function("sys_fallocate") ?
+{
+	asmlinkage()
+	name = "fallocate"
+
+	fd = int_arg(1)
+	mode = int_arg(2)
+	# This logic is stolen from _stp_arg (in
+	# tapset/s390/registers.stp).
+	mode_str = _stp_fallocate_mode_str(mode)
+	offset = u_register("r4")
+	len = u_register("r5")
+	argstr = sprintf("%d, %s, %#x, %u", fd, mode_str, offset, len)
+}
+probe nd_syscall.compat_fallocate.return =
+	kprobe.function("sys_fallocate").return ?
+{
+	name = "fallocate"
+	retstr = returnstr(1)
+}
+
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). It was just a wrapper around generic
+# do_execve(), but the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+#  asmlinkage long sys_execve(struct pt_regs regs)
+#  SYSCALL_DEFINE3(execve, char __user *, name, char __user * __user *, argv,
+#		char __user * __user *, envp)
+probe nd_syscall.execve = kprobe.function("sys_execve")
+{
+	name = "execve"
+%( kernel_v < "2.6.32" %?
+	__regs = &@cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")
+	filename = user_string_quoted(__regs->orig_gpr2)
+	args = __get_argv(__regs->gprs[3], 0)
+	env_str = __count_envp(__regs->gprs[4])
+%:
+	filename = user_string_quoted(pointer_arg(1))
+	args = __get_argv(pointer_arg(2), 0)
+	env_str = __count_envp(pointer_arg(3))
+%)
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe nd_syscall.execve.return = kprobe.function("sys_execve").return
+{
+	name = "execve"
+	retstr = returnstr(1)
+}
+
+# execve _____________________________________________________
+#
+#   asmlinkage long sys32_execve(struct pt_regs regs)
+#   asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
+#			     compat_uptr_t __user *envp)
+probe nd_syscall.compat_execve = kprobe.function("sys32_execve") ?
+{
+	asmlinkage()
+	name = "execve"
+%( kernel_v < "2.6.32" %?
+	__regs = &@cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")
+	filename = user_string_quoted(__regs->orig_gpr2 & 0x7fffffff)
+	args = __get_compat_argv(__regs->gprs[3] & 0x7fffffff, 0)
+	env_str = __count_compat_envp(__regs->gprs[4] & 0x7fffffff)
+%:
+	filename = user_string_quoted(pointer_arg(1))
+	args = __get_compat_argv(pointer_arg(2), 0)
+	env_str = __count_compat_envp(pointer_arg(3))
+%)
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe nd_syscall.compat_execve.return =
+	kprobe.function("sys32_execve").return ?
+{
+	name = "execve"
+	retstr = returnstr(1)
+}
+%)
+
+# lookup_dcookie _____________________________________________
+# rhel7: COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *,
+#                               buf, compat_size_t, len)
+# rhel[56]: kprobe.function("sys32_lookup_dcookie_wrapper")
+#
+probe nd_syscall.compat_lookup_dcookie =
+		kprobe.function("compat_sys_lookup_dcookie") ?,
+		kprobe.function("sys32_lookup_dcookie_wrapper") ?
+{
+        name = "lookup_dcookie"
+        asmlinkage()
+        cookie = ((uint_arg(1) << 32) | uint_arg(2))
+        buffer_uaddr = pointer_arg(3)
+        len = ulong_arg(4)
+        argstr = sprintf("%#lx, %p, %#x", cookie, buffer_uaddr, len)
+}
+probe nd_syscall.compat_lookup_dcookie.return =
+		kprobe.function("compat_sys_lookup_dcookie").return ?,
+		kprobe.function("sys32_lookup_dcookie_wrapper").return ?
+{
+        name = "lookup_dcookie"
+        retstr = returnstr(1)
+}
+
+%)

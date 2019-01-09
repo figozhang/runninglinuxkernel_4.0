@@ -1,0 +1,32 @@
+// Copyright (C) 2012 Red Hat Inc., Bryn M. Reeves <bmr@redhat.com>
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+//
+
+// <tapsetdescription>
+// Functions in the panic tapset allow a probe handler to invoke
+// the system panic routine with a user-specified message.
+//
+// This may be used with a crash dump collection facility such as 
+// kexec/kdump in order to capture data for post-mortem debugging.
+//
+// Due to the fact that this will bring the system to an immediate
+// halt the functions in this tapset require guru mode.
+// </tapsetdescription>
+
+/**
+ * sfunction panic - trigger a panic
+ * @msg: message to pass to kernel's panic() function
+ *
+ * Description: This function triggers an immediate panic of the running
+ * kernel with a user-specified panic message.
+ * It requires guru mode.
+ */
+function panic(msg:string) %{
+        /* guru */ /* unmodified-fnargs */
+        panic("%s", STAP_ARG_msg);
+%}
+

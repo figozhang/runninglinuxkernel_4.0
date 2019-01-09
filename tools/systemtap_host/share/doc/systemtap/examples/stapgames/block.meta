@@ -1,0 +1,6 @@
+title: block breaker game
+name: block.stp
+keywords: stapgames
+description: A block game where you progressively break the ceiling blocks until clearing the level
+test_check: stap -p4 -Itapset/ block.stp
+test_installcheck: stap -p4 -Itapset/ block.stp

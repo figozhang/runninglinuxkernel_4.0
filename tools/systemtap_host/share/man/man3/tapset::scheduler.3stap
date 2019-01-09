@@ -1,0 +1,172 @@
+.\" -*- nroff -*-
+.TH TAPSET::SCHEDULER 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::scheduler \- systemtap scheduler tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B scheduler.cpu_off 
+Process is about to stop running on a cpu
+.IP
+ See 
+.IR probe::scheduler.cpu_off (3stap)
+ for details.
+.P
+.TP
+.B scheduler.cpu_on 
+Process is beginning execution on a cpu
+.IP
+ See 
+.IR probe::scheduler.cpu_on (3stap)
+ for details.
+.P
+.TP
+.B scheduler.tick 
+Schedulers internal tick, a processes timeslice accounting is updated
+.IP
+ See 
+.IR probe::scheduler.tick (3stap)
+ for details.
+.P
+.TP
+.B scheduler.balance 
+A cpu attempting to find more work.
+.IP
+ See 
+.IR probe::scheduler.balance (3stap)
+ for details.
+.P
+.TP
+.B scheduler.ctxswitch 
+A context switch is occuring.
+.IP
+ See 
+.IR probe::scheduler.ctxswitch (3stap)
+ for details.
+.P
+.TP
+.B scheduler.kthread_stop 
+A thread created by kthread_create is being stopped
+.IP
+ See 
+.IR probe::scheduler.kthread_stop (3stap)
+ for details.
+.P
+.TP
+.B scheduler.kthread_stop.return 
+A kthread is stopped and gets the return value
+.IP
+ See 
+.IR probe::scheduler.kthread_stop.return (3stap)
+ for details.
+.P
+.TP
+.B scheduler.wait_task 
+Waiting on a task to unschedule (become inactive)
+.IP
+ See 
+.IR probe::scheduler.wait_task (3stap)
+ for details.
+.P
+.TP
+.B scheduler.wakeup 
+Task is woken up 
+.IP
+ See 
+.IR probe::scheduler.wakeup (3stap)
+ for details.
+.P
+.TP
+.B scheduler.wakeup_new 
+Newly created task is woken up for the first time
+.IP
+ See 
+.IR probe::scheduler.wakeup_new (3stap)
+ for details.
+.P
+.TP
+.B scheduler.migrate 
+Task migrating across cpus
+.IP
+ See 
+.IR probe::scheduler.migrate (3stap)
+ for details.
+.P
+.TP
+.B scheduler.process_free 
+Scheduler freeing a data structure for a process
+.IP
+ See 
+.IR probe::scheduler.process_free (3stap)
+ for details.
+.P
+.TP
+.B scheduler.process_exit 
+Process exiting
+.IP
+ See 
+.IR probe::scheduler.process_exit (3stap)
+ for details.
+.P
+.TP
+.B scheduler.process_wait 
+Scheduler starting to wait on a process
+.IP
+ See 
+.IR probe::scheduler.process_wait (3stap)
+ for details.
+.P
+.TP
+.B scheduler.process_fork 
+Process forked
+.IP
+ See 
+.IR probe::scheduler.process_fork (3stap)
+ for details.
+.P
+.TP
+.B scheduler.signal_send 
+Sending a signal
+.IP
+ See 
+.IR probe::scheduler.signal_send (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::scheduler.cpu_off (3stap),
+.BR
+.IR \%probe::scheduler.cpu_on (3stap),
+.BR
+.IR \%probe::scheduler.tick (3stap),
+.BR
+.IR \%probe::scheduler.balance (3stap),
+.BR
+.IR \%probe::scheduler.ctxswitch (3stap),
+.BR
+.IR \%probe::scheduler.kthread_stop (3stap),
+.BR
+.IR \%probe::scheduler.kthread_stop.return (3stap),
+.BR
+.IR \%probe::scheduler.wait_task (3stap),
+.BR
+.IR \%probe::scheduler.wakeup (3stap),
+.BR
+.IR \%probe::scheduler.wakeup_new (3stap),
+.BR
+.IR \%probe::scheduler.migrate (3stap),
+.BR
+.IR \%probe::scheduler.process_free (3stap),
+.BR
+.IR \%probe::scheduler.process_exit (3stap),
+.BR
+.IR \%probe::scheduler.process_wait (3stap),
+.BR
+.IR \%probe::scheduler.process_fork (3stap),
+.BR
+.IR \%probe::scheduler.signal_send (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

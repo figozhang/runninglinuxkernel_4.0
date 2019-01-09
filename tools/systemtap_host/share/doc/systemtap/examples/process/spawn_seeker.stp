@@ -1,0 +1,56 @@
+#! /usr/bin/env stap
+# Copyright (C) 2014 Red Hat, Inc.
+# Written by William Cohen <wcohen@redhat.com>
+#
+#   spawn_seeker provides a breakdown of which processes and children
+#   are spawning new processes.  To provide better information about
+#   short-lived process, when a child exits the child's spawns are
+#   added to its parent.
+#
+# control-c to exit data collection
+
+global pid_name, fork_by_pid, fork_by_name, fork_count
+
+probe kprocess.create {
+  pid_name[pid()] = execname()
+  fork_by_pid[pid()]++
+  fork_by_name[execname()]++
+  fork_count++
+}
+
+probe kprocess.exit {
+  # take the fork count info for this pid and add it to the parent pid
+  if (fork_by_pid[pid()]) {
+    fork_by_pid[ppid()] += fork_by_pid[pid()]
+    pid_name[ppid()] = pexecname()
+    delete fork_by_pid[pid()]
+    delete pid_name[pid()]
+  }
+}
+
+# every minute print info
+probe timer.s(60), end
+{
+  printf("\n%s\n", tz_ctime(gettimeofday_s()))
+  if (fork_count == 0) next
+
+  # print out the data by pid
+  printf("\n%16s(%6s) %10s (percent)\n", "execname", "PID", "spawned")
+  foreach (p in fork_by_pid-) {
+    printf("%16s(%6d) %10d (%3d%%)\n", pid_name[p], p, fork_by_pid[p],
+            (fork_by_pid[p]*100)/fork_count)
+  }
+
+  # print out the data by execname
+  printf("\n%16s %10s (percent)\n", "execname", "spawned")
+  foreach (n in fork_by_name-) {
+    printf("%16s %10d (%3d%%)\n", n, fork_by_name[n],
+           (fork_by_name[n]*100)/fork_count)
+  }
+
+  # reset for the next interval
+  delete  fork_by_pid
+  delete  fork_by_name
+  fork_count = 0
+}
+

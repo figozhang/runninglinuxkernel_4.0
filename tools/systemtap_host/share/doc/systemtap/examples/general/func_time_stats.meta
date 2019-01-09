@@ -1,0 +1,13 @@
+title: Function Time Statistics
+name: func_time_stats.stp
+version: 1.0
+author: anonymous
+keywords: function statistics
+subsystem: any
+status: proposed
+exit: user-controlled
+output: histogram on-exit
+scope: system-wide
+description: The func_time_stats.stp script tracks the wall clock time for each invocation of the function probe listed as the first command line argument. When the script exits it prints out the minimum, average, and maximum times in microseconds followed by a count of times that the function was called and a histogram showing the distributions of times.
+test_check: stap -p4 func_time_stats.stp 'syscall.nanosleep'
+test_installcheck: stap func_time_stats.stp 'syscall.nanosleep' -c "sleep 1"

@@ -1,0 +1,393 @@
+/*
+ *      Copyright (C) 2009 IBM Corp.
+ *      Copyright (C) 2010 Red Hat Inc.
+ *
+ *      This file is part of systemtap, and is free software.  You can
+ *      redistribute it and/or modify it under the terms of the GNU General
+ *      Public License (GPL); either version 2, or (at your option) any
+ *      later version.
+ *      
+ *      Version 1.0     wilder@us.ibm.com     2009-07-06
+ */
+
+/* Global counter definitions for mib TCP_MIB. */
+
+%{
+#include <net/sock.h>
+#include <linux/tcp.h>
+#include <linux/skbuff.h>
+#include <net/route.h>
+%}
+
+global ActiveOpens
+global AttemptFails
+global CurrEstab
+global EstabResets
+// global InErrs, this mib is not yet supported
+global InSegs
+global OutRsts
+global OutSegs
+global PassiveOpens
+global RetransSegs
+
+/**
+ * sfunction tcpmib_get_state - Get a socket's state
+ * @sk: pointer to a struct sock
+ *
+ * Returns the sk_state from a struct sock.
+ */
+function tcpmib_get_state:long (sk:long)
+{
+	return @cast(sk, "sock", "kernel")->__sk_common->skc_state;
+}
+
+/**
+ * sfunction tcpmib_local_addr - Get the source address
+ * @sk: pointer to a struct inet_sock
+ *
+ * Returns the saddr from a struct inet_sock in host order.
+ */
+function tcpmib_local_addr:long(sk:long)
+{
+	return ntohl(__ip_sock_saddr(sk))
+}
+
+/**
+ * sfunction tcpmib_remote_addr - Get the remote address
+ * @sk: pointer to a struct inet_sock
+ *
+ * Returns the daddr from a struct inet_sock in host order.
+ */
+function tcpmib_remote_addr:long(sk:long)
+{
+	return ntohl(__ip_sock_daddr(sk))
+}
+
+/**
+ * sfunction tcpmib_local_port - Get the local port
+ * @sk: pointer to a struct inet_sock
+ *
+ * Returns the sport from a struct inet_sock in host order.
+ */
+function tcpmib_local_port:long(sk:long)
+{
+	return __tcp_sock_sport(sk)
+}
+
+/**
+ * sfunction tcpmib_remote_port - Get the remote port
+ * @sk: pointer to a struct inet_sock
+ *
+ * Returns the dport from a struct inet_sock in host order.
+ */
+function tcpmib_remote_port:long(sk:long)
+{
+	return __tcp_sock_dport(sk)
+}
+
+/**
+ * probe tcpmib.ActiveOpens - Count an active opening of a socket
+ * @sk:	pointer to the struct sock being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * tcpmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @ActiveOpens (equivalent to SNMP's MIB
+ * TCP_MIB_ACTIVEOPENS)
+ */
+probe
+tcpmib.ActiveOpens = kernel.function("tcp_connect").return
+{
+	sk = $sk;
+	op = 1;
+	if ( $return ) next;
+        // definition in tcpipstat.stp
+	key = tcpmib_filter_key($sk,op);
+	if ( key ) ActiveOpens[key] += op;
+}
+
+/**
+ * probe tcpmib.AttemptFails - Count a failed attempt to open a socket
+ * @sk: pointer to the struct sock being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * tcpmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @AttemptFails (equivalent to SNMP's MIB
+ * TCP_MIB_ATTEMPTFAILS)
+ */
+probe
+tcpmib.AttemptFails = kernel.function("tcp_done").call ?
+{
+	sk = $sk;
+	state = tcpmib_get_state($sk);
+	op = 1;
+
+	TCP_SYN_SENT = 2;
+	TCP_SYN_RECV = 3;
+	if( state == TCP_SYN_SENT || state == TCP_SYN_RECV){
+		key = tcpmib_filter_key($sk,op);
+		if ( key ) AttemptFails[key] += op;
+	}
+}
+
+/**
+ * probe tcpmib.CurrEstab - Update the count of open sockets
+ * @sk: pointer to the struct sock being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * tcpmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @CurrEstab (equivalent to SNMP's MIB
+ * TCP_MIB_CURRESTAB)
+ */
+probe
+tcpmib.CurrEstab = kernel.function("tcp_set_state").call ?
+{
+	sk = $sk;
+	state = $state;
+	oldstate = tcpmib_get_state($sk);
+
+	TCP_ESTABLISHED = 1;
+	if ( oldstate == TCP_ESTABLISHED ) {
+		op = -1;
+		key = tcpmib_filter_key($sk,op);
+		if ( key ) CurrEstab[key] += op;
+	} else {
+		if ( state == TCP_ESTABLISHED ) {
+			op = 1;
+			key = tcpmib_filter_key($sk,op);
+			if ( key ) CurrEstab[key] += op;
+		}
+	}
+}
+
+/**
+ * probe tcpmib.EstabResets - Count the reset of a socket
+ * @sk: pointer to the struct sock being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * tcpmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @EstabResets (equivalent to SNMP's MIB
+ * TCP_MIB_ESTABRESETS)
+ */
+probe
+tcpmib.EstabResets = kernel.function("tcp_set_state").call ?
+{
+	sk = $sk;
+        state = $state;
+        oldstate = tcpmib_get_state($sk);
+	op = 1;
+
+	TCP_CLOSE = 7;
+	TCP_CLOSE_WAIT = 8;
+	TCP_ESTABLISHED = 1;
+	if ( ( state == TCP_CLOSE ) && 
+	   (oldstate == TCP_CLOSE_WAIT || oldstate == TCP_ESTABLISHED) ){
+        	key = tcpmib_filter_key($sk,op);
+		if ( key ) EstabResets[key] += op;
+	}
+}
+
+/**
+ * probe tcpmib.InSegs - Count an incoming tcp segment
+ * @sk: pointer to the struct sock being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * tcpmib_filter_key() (or ipmib_filter_key() for tcp v4).
+ * If the packet passes the filter is is
+ * counted in the global @InSegs (equivalent to SNMP's MIB
+ * TCP_MIB_INSEGS)
+ */
+probe
+tcpmib.InSegs =
+	kernel.function("__inet_lookup_established").return !,
+	kernel.function("tcp_v4_rcv")
+{
+	if (@defined($return)) {
+	        sk=$return
+		key = tcpmib_filter_key($return,op)
+	}
+	else {
+		# We don't know the sk in tcp_v4_rcv()
+		sk=0
+		key = ipmib_filter_key($skb,op,0);
+	}
+	op=1
+	if ( key ) InSegs[key] += op;
+}
+
+/**
+ * probe tcpmib.OutRsts - Count the sending of a reset packet
+ * @sk: pointer to the struct sock being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * tcpmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @OutRsts (equivalent to SNMP's MIB
+ * TCP_MIB_OUTRSTS)
+ */
+probe
+tcpmib.OutRsts = __tcpmib.OutRsts.*
+{
+}
+
+@__private30 function _rtn_local:long ()
+%{
+        STAP_RETVALUE = RTN_LOCAL;
+%}
+
+@__private30 function _is_reset:long (skb:long)
+%{ /* pure */
+        struct tcphdr *th;
+        struct sk_buff *skb = (struct sk_buff *)(long)STAP_ARG_skb;
+	struct tcphdr th_copy;
+
+	#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,21)
+		th = (struct tcphdr *)kread(&(skb->h.th));
+	#else
+
+	#ifdef NET_SKBUFF_DATA_USES_OFFSET
+		th = (struct tcphdr *)(kread(&(skb->network_header)) + kread(&(skb->head)));
+	#else
+		th = (struct tcphdr *)kread(&(skb->network_header));
+	#endif
+	#endif
+
+	// We'd like to kread the 'rst' field here. But, it is a
+	// bitfield (and you can't take the address of a
+	// bitfield). So, let's kread the entire tcphdr, then grab the
+	// 'rst' field out of the copy. Luckily, the tcphdr is only 20
+	// bytes long.
+        memset (((void*)&th_copy), 0, sizeof(th_copy));
+	kderef_buffer(((void *)&th_copy), th, sizeof(struct tcphdr));
+	STAP_RETVALUE = th_copy.rst;
+        CATCH_DEREF_FAULT();
+%}
+
+@__private30 function _tcpmib_input_route_type:long (skb:long)
+%{ /* pure */
+	struct rtable *rt;
+	struct sk_buff *skb = (struct sk_buff *)(long)STAP_ARG_skb;
+
+	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)
+		rt = (struct rtable *)kread(&(skb->_skb_refdst));
+	#else
+
+	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
+		rt = (struct rtable *)kread(&(skb->_skb_dst));
+	#else
+
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
+		rt = (struct rtable *)kread(&(skb->dst));
+	#else
+		rt = (struct rtable *)kread(&(skb->rtable));
+	#endif
+	#endif
+	#endif
+
+	if ( rt )
+		STAP_RETVALUE = kread(&(rt->rt_type));
+	else
+		STAP_RETVALUE = RTN_UNSPEC;
+	CATCH_DEREF_FAULT();
+%}
+
+/*
+ * note:
+ * tcp_v4_send_reset may be called with a NULL sk.
+ * This happens when sending a reset in response to a syn 
+ * when no socket exists (for example the service is not running).
+ * Without a socket we can't count the reset.
+ */
+probe
+__tcpmib.OutRsts.tcp_v4_send_reset = kernel.function("tcp_v4_send_reset")
+{
+        sk = @choose_defined($sk, 0)
+        op = 1;
+        if ( _is_reset($skb) ) next
+        if (_tcpmib_input_route_type($skb) != _rtn_local() )
+                next;
+        key = (@defined($sk) ? tcpmib_filter_key(sk,op)
+			     : ipmib_filter_key($skb,op,1))
+        if ( key ) OutRsts[key] += op;
+}
+
+probe
+__tcpmib.OutRsts.tcp_send_active_reset =
+	kernel.function("tcp_send_active_reset")
+{
+	/* Almost correct,
+	 * If alloc_skb() fails it incorrectly bumps TCP_MIB_OUTRSTS,
+	 */
+	sk = $sk;
+	op = 1;
+	key = tcpmib_filter_key($sk,op);
+        if ( key ) OutRsts[key] += op;
+}
+
+/**
+ * probe tcpmib.OutSegs - Count the sending of a TCP segment
+ * @sk: pointer to the struct sock being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * tcpmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @OutSegs (equivalent to SNMP's MIB
+ * TCP_MIB_OUTSEGS)
+ */
+probe
+tcpmib.OutSegs=kernel.function("ip_queue_xmit").return
+{
+	if ( $return < 0 ) next;
+	sk = $skb->sk;
+	op = 1;
+	
+        //  Only count the events with protocol IPPROTO_TCP,6.
+	iphdr = __get_skb_iphdr($skb);
+        if( !(__ip_skb_proto(iphdr) == 6) ) next ;
+	key = tcpmib_filter_key(sk,op);
+	if ( key ) OutSegs[key] += op;
+}
+
+/**
+ * probe tcpmib.PassiveOpens - Count the passive creation of a socket
+ * @sk: pointer to the struct sock being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * tcpmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @PassiveOpens (equivalent to SNMP's MIB
+ * TCP_MIB_PASSIVEOPENS)
+ */
+probe
+tcpmib.PassiveOpens=kernel.function("tcp_v4_syn_recv_sock").return
+{
+        sk = $return;
+        op = 1;
+        if ( !sk ) next;
+        key = tcpmib_filter_key(sk,op);
+        if ( key ) PassiveOpens[key] += op;
+}
+
+/**
+ * probe tcpmib.RetransSegs - Count the retransmission of a TCP segment
+ * @sk: pointer to the struct sock being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * tcpmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @RetransSegs (equivalent to SNMP's MIB
+ * TCP_MIB_RETRANSSEGS)
+ */
+probe
+tcpmib.RetransSegs=kernel.function("tcp_retransmit_skb").return
+{
+	sk = $sk;
+	op = 1;
+	if ( $return ) next;
+	key = tcpmib_filter_key($sk,op);
+	if ( key ) RetransSegs[key] += op;
+}

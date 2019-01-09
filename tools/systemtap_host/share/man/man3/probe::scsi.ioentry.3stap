@@ -1,0 +1,64 @@
+'\" t
+.\"     Title: probe::scsi.ioentry
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: SCSI Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SCSI\&.IOENTR" "3stap" "March 2016" "SystemTap Tapset Reference" "SCSI Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::scsi.ioentry \- Prepares a SCSI mid\-layer request
+.SH "SYNOPSIS"
+.sp
+.nf
+scsi\&.ioentry 
+.fi
+.SH "VALUES"
+.PP
+\fIdisk_major\fR
+.RS 4
+The major number of the disk (\-1 if no information)
+.RE
+.PP
+\fIdevice_state_str\fR
+.RS 4
+The current state of the device, as a string
+.RE
+.PP
+\fIdevice_state\fR
+.RS 4
+The current state of the device
+.RE
+.PP
+\fIdisk_minor\fR
+.RS 4
+The minor number of the disk (\-1 if no information)
+.RE
+.PP
+\fIreq_addr\fR
+.RS 4
+The current struct request pointer, as a number
+.RE
+.SH SEE ALSO\n 
+.IR tapset::scsi (3stap)

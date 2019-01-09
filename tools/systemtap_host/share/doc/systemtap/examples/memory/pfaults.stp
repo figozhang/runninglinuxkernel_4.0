@@ -1,0 +1,33 @@
+#! /usr/bin/env stap
+
+global fault_entry_time, fault_address, fault_access
+global time_offset
+
+probe begin { time_offset = gettimeofday_us() }
+
+probe vm.pagefault {
+  t = gettimeofday_us()
+  fault_entry_time[tid()] = t
+  fault_address[tid()] = address
+  fault_access[tid()] = write_access ? "w" : "r"
+}
+
+probe vm.pagefault.return {
+  t=gettimeofday_us()
+  if (!(tid() in fault_entry_time)) next
+  e = t - fault_entry_time[id]
+  if (vm_fault_contains(fault_type,VM_FAULT_MINOR)) {
+    ftype="minor"
+  } else if (vm_fault_contains(fault_type,VM_FAULT_MAJOR)) {
+    ftype="major"
+  } else {
+    next #only want to deal with minor and major page faults
+  }
+
+  printf("%d:%d:%id:%s:%s:%d\n",
+	t - time_offset, tid(), fault_address[tid()], fault_access[tid()], ftype, e)
+  #free up memory
+  delete fault_entry_time[tid()]
+  delete fault_address[tid()]
+  delete fault_access[tid()]
+}

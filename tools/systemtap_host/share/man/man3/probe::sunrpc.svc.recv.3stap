@@ -1,0 +1,59 @@
+'\" t
+.\"     Title: probe::sunrpc.svc.recv
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Networking Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SUNRPC\&.SVC\" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::sunrpc.svc.recv \- Listen for the next RPC request on any socket
+.SH "SYNOPSIS"
+.sp
+.nf
+sunrpc\&.svc\&.recv 
+.fi
+.SH "VALUES"
+.PP
+\fItimeout\fR
+.RS 4
+the timeout of waiting for data
+.RE
+.PP
+\fIsv_name\fR
+.RS 4
+the service name
+.RE
+.PP
+\fIsv_prog\fR
+.RS 4
+the number of the program
+.RE
+.PP
+\fIsv_nrthreads\fR
+.RS 4
+the number of concurrent threads
+.RE
+.SH SEE ALSO\n 
+.IR tapset::rpc (3stap)

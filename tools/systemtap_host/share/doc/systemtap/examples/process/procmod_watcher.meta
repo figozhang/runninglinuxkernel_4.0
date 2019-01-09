@@ -1,0 +1,14 @@
+title: Monitor process creation/termination and module [un]loading
+name: procmod_watcher.stp
+version: 1.0
+author: Jonathan Lebon
+keywords: process monitoring syscall tracepoint
+subsystem: process
+status: production
+exit: user-controlled
+output: trace
+scope: process
+description: The procmod_watcher.stp script monitors calls to fork(), exec(), exit(), init_module(), and delete_module(). Event-specific details are also printed out (e.g. for exec(), the file being exec'ed). This script does not require debuginfo.
+test_support: stap -l 'kernel.trace("module_load")'
+test_check: stap -p4 procmod_watcher.stp
+test_installcheck: stap procmod_watcher.stp -c "sleep 1"

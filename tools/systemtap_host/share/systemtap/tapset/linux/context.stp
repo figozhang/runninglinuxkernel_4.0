@@ -1,0 +1,613 @@
+// context tapset
+// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2006 Intel Corporation.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+//
+// NB: tapsetdescription is in tapset/context.stp
+
+/**
+ * sfunction execname - Returns the execname of a target process (or group of processes)
+ * 
+ * Description: Returns the execname of a target process (or group of processes).
+ */
+function execname:string ()
+%{ /* pure */ /* unprivileged */ /* stable */
+	strlcpy (STAP_RETVALUE, current->comm, MAXSTRINGLEN);
+%}
+
+/**
+ * sfunction pid - Returns the ID of a target process
+ * 
+ * Description: This function returns the ID of a target process.
+ */
+function pid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+	STAP_RETVALUE = current->tgid;
+%}
+
+/**
+ * sfunction ns_pid - Returns the ID of a target process as seen in a pid namespace
+ *
+ * Description: This function returns the ID of a target process as seen in
+ * the target pid namespace.
+ */
+function ns_pid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+  int64_t rc = from_target_pid_ns(current, PID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
+ * sfunction tid - Returns the thread ID of a target process
+ * 
+ * Description: This function returns the thread ID of the target process.
+ */
+function tid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+	STAP_RETVALUE = current->pid;
+%}
+
+/**
+ * sfunction ns_tid - Returns the thread ID of a target process as seen in a pid namespace
+ *
+ * Description: This function returns the thread ID of a target process as seen
+ * in  the target pid namespace if provided, or the stap process namespace.
+ */
+function ns_tid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+  int64_t rc = from_target_pid_ns(current, TID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
+ * sfunction ppid - Returns the process ID of a target process's parent process
+ *
+ * Description: This function return the process ID of the target proccess's parent process.
+ */
+function ppid:long()
+%{ /* pure */ /* unprivileged */ /* stable */
+#if defined(STAPCONF_REAL_PARENT)
+	STAP_RETVALUE = current->real_parent->tgid;
+#else
+	STAP_RETVALUE = current->parent->tgid;
+#endif
+%}
+
+/**
+ * sfunction ns_ppid - Returns the process ID of a target process's parent process as seen in a pid namespace
+ *
+ * Description: This function return the process ID of the target proccess's parent process as seen in  the target pid namespace if provided, or the stap process namespace.
+ */
+function ns_ppid:long()
+%{ /* pure */ /* unprivileged */ /* stable */
+  int64_t rc = from_target_pid_ns(current->parent, PID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
+ * sfunction pgrp - Returns the process group ID of the current process
+ *
+ * Description: This function returns the process group ID of the
+ * current process.
+ */
+function pgrp:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
+	struct signal_struct *ss = kread( &(current->signal) );
+	STAP_RETVALUE = kread ( &(ss->pgrp) );
+	CATCH_DEREF_FAULT();
+#else
+	STAP_RETVALUE = task_pgrp_nr_ns(current, &init_pid_ns);
+#endif
+%}
+
+/**
+ * sfunction ns_pgrp - Returns the process group ID of the current process as seen in a pid namespace
+ *
+ * Description: This function returns the process group ID of the
+ * current process as seen in  the target pid namespace if provided, or the stap process namespace.
+ */
+function ns_pgrp:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+  int64_t rc = from_target_pid_ns(current, PGRP);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
+ * sfunction sid - Returns the session ID of the current process
+ *
+ * Description: The session ID of a process is the process group ID
+ * of the session leader. Session ID is stored in the signal_struct
+ *  since Kernel 2.6.0.
+ */
+function sid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
+	struct signal_struct *ss = kread( &(current->signal) );
+	STAP_RETVALUE = kread ( &(ss->session) );
+	CATCH_DEREF_FAULT();
+#else
+	STAP_RETVALUE = task_session_nr_ns(current, &init_pid_ns);
+#endif
+%}
+
+/**
+ * sfunction ns_sid - Returns the session ID of the current process as seen in a pid namespace
+ *
+ * Description: The namespace-aware session ID of a process is the process group ID
+ * of the session leader as seen in  the target pid namespace if provided, or the stap process namespace. Session ID is stored in the signal_struct
+ *  since Kernel 2.6.0.
+ */
+function ns_sid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+  int64_t rc = from_target_pid_ns(current, SID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
+ * sfunction pexecname - Returns the execname of a target process's parent process
+ * 
+ * Description: This function returns the execname of a target
+ * process's parent procces.
+ */
+function pexecname:string ()
+%{ /* pure */ /* unprivileged */ /* stable */
+#if defined(STAPCONF_REAL_PARENT)
+	strlcpy (STAP_RETVALUE, current->real_parent->comm, MAXSTRINGLEN);
+#else
+	strlcpy (STAP_RETVALUE, current->parent->comm, MAXSTRINGLEN);
+#endif
+%}
+
+/**
+ * sfunction gid - Returns the group ID of a target process
+ * 
+ * Description: This function returns the group ID of a target process.
+ */
+function gid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+#ifdef STAPCONF_TASK_UID
+	STAP_RETVALUE = current->gid;
+#else
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+	STAP_RETVALUE = from_kgid_munged(current_user_ns(), current_gid());
+#else
+	STAP_RETVALUE = current_gid();
+#endif
+#endif
+%}
+
+/**
+ * sfunction ns_gid - Returns the group ID of a target process as seen in a user namespace
+ *
+ * Description: This function returns the group ID of a target process as seen in the target user namespace if provided, or the stap process namespace.
+ */
+function ns_gid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+  int64_t rc = from_target_user_ns(current, GID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
+ * sfunction egid - Returns the effective gid of a target process
+ *
+ * Description: This function returns the effective gid of a target process
+ */
+function egid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+#ifdef STAPCONF_TASK_UID
+	STAP_RETVALUE = current->egid;
+#else
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+	STAP_RETVALUE = from_kgid_munged(current_user_ns(), current_egid());
+#else
+	STAP_RETVALUE = current_egid();
+#endif
+#endif
+%}
+
+/**
+ * sfunction ns_egid - Returns the effective gid of a target process as seen in a user namespace
+ *
+ * Description: This function returns the effective gid of a target process as seen in the target user namespace if provided, or the stap process namespace
+ */
+function ns_egid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+  int64_t rc = from_target_user_ns(current, EGID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
+ * sfunction uid - Returns the user ID of a target process
+ *
+ * Description: This function returns the user ID of the target process.
+ */
+function uid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+#ifdef STAPCONF_TASK_UID
+	STAP_RETVALUE = current->uid;
+#else
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+        STAP_RETVALUE = from_kuid_munged(current_user_ns(), current_uid());
+#else
+        STAP_RETVALUE = current_uid();
+#endif
+#endif
+%}
+
+/**
+ * sfunction ns_uid - Returns the user ID of a target process as seen in a user namespace
+ *
+ * Description: This function returns the user ID of the target process as seen in the target user namespace if provided, or the stap process namespace.
+ */
+function ns_uid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+  int64_t rc = from_target_user_ns(current, UID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
+ * sfunction euid - Return the effective uid of a target process
+ *
+ * Description: Returns the effective user ID of the target process.
+ */
+function euid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+#ifdef STAPCONF_TASK_UID
+	STAP_RETVALUE = current->euid;
+#else
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+  STAP_RETVALUE = from_kuid_munged(&init_user_ns, current_euid());
+#else
+	STAP_RETVALUE = current_euid();
+#endif
+#endif
+%}
+
+/**
+ * sfunction ns_euid - Returns the effective user ID of a target process as seen in a user namespace
+ *
+ * Description: This function returns the effective user ID of the target process as seen in the target user namespace if provided, or the stap process namespace.
+ */
+function ns_euid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+  int64_t rc = from_target_user_ns(current, EUID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
+ * sfunction is_myproc - Determines if the current probe point has occurred in the user's own process
+ *
+ * Description: This function returns 1 if the current probe
+ * point has occurred in the user's own process.
+ */
+function is_myproc:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+        STAP_RETVALUE = is_myproc();
+%}
+
+
+%( systemtap_v <= "1.4" %?
+/**
+ * sfunction cpuid - Returns the current cpu number
+ * 
+ * Description: This function returns the current cpu number.
+ * Deprecated in SystemTap 1.4 and removed in SystemTap 1.5.
+ */
+function cpuid:long ()
+%{ /* pure */
+	STAP_RETVALUE = smp_processor_id();
+%}
+%)
+
+/**
+ * sfunction cpu - Returns the current cpu number
+ *
+ * Description: This function returns the current cpu number.
+ */
+function cpu:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+	STAP_RETVALUE = smp_processor_id();
+%}
+
+/**
+ * sfunction registers_valid - Determines validity of register() and u_register() in current context
+ *
+ * Description: This function returns 1 if register() and u_register()
+ * can be used in the current context, or 0 otherwise.
+ * For example, registers_valid() returns 0
+ * when called from a begin or end probe.
+ */
+function registers_valid:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+	STAP_RETVALUE = (c->user_mode_p
+			    ? (CONTEXT->uregs != NULL)
+			    : (CONTEXT->kregs != NULL));
+%}
+
+/**
+ * sfunction user_mode - Determines if probe point occurs in user-mode
+ *
+ * Return 1 if the probe point occurred in user-mode.
+ */
+function user_mode:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+  STAP_RETVALUE = CONTEXT->user_mode_p ? 1 : 0;
+%}
+
+/**
+ * sfunction is_return - Whether the current probe context is a return probe
+ * 
+ * Description: Returns 1 if the current probe context is a return probe,
+ * returns 0 otherwise.
+ */
+function is_return:long ()
+%{ /* pure */ /* stable */
+	if (CONTEXT->probe_type == stp_probe_type_kretprobe
+	    || CONTEXT->probe_type == stp_probe_type_uretprobe)
+		STAP_RETVALUE = 1;
+	else
+		STAP_RETVALUE = 0;
+%}
+
+/**
+ * sfunction target - Return the process ID of the target process
+ * 
+ * Description: This function returns the process ID of the target
+ * process.  This is useful in conjunction with the -x PID or
+ * -c CMD command-line options to stap. An example of its use is
+ * to create scripts that filter on a specific process.
+ *
+ * -x <pid>
+ * target() returns the pid specified by -x
+ *
+ * -c <command>
+ * target() returns the pid for the executed command specified by -c
+ */
+function target:long ()
+%{ /* pure */ /* unprivileged */ /* stable */
+        STAP_RETVALUE = _stp_target;
+%}
+
+/**
+ * sfunction module_name - The module name of the current script
+ * 
+ * Description: This function returns the name of the stap module.
+ * Either generated randomly (stap_[0-9a-f]+_[0-9a-f]+)
+ * or set by stap -m <module_name>.
+ */
+function module_name:string ()
+%{ /* pure */ /* unprivileged */ /* stable */
+	strlcpy(STAP_RETVALUE, THIS_MODULE->name, MAXSTRINGLEN);
+%}
+
+/**
+ * sfunction module_size - The module size of the current script
+ *
+ * Description: This function returns the sizes of various sections
+ * of the stap module.
+ */
+function module_size:string() %{
+    int ctx = num_online_cpus() * sizeof(struct context);
+    snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%ludata/%lutext/%uctx/%unet/%ualloc kb",
+#ifdef STAPCONF_MODULE_LAYOUT
+	(unsigned long) (THIS_MODULE->core_layout.size - THIS_MODULE->core_layout.text_size)/1024,
+	(unsigned long) (THIS_MODULE->core_layout.text_size)/1024,
+#else
+#ifndef STAPCONF_GRSECURITY
+        (unsigned long) (THIS_MODULE->core_size - THIS_MODULE->core_text_size)/1024,
+        (unsigned long) (THIS_MODULE->core_text_size)/1024,
+#else
+        (unsigned long) (THIS_MODULE->core_size_rw - THIS_MODULE->core_size_rx)/1024,
+        (unsigned long) (THIS_MODULE->core_size_rx)/1024,
+#endif
+#endif
+        ctx/1024, _stp_allocated_net_memory/1024,
+        (_stp_allocated_memory - _stp_allocated_net_memory - ctx)/1024);
+%}
+
+/**
+ * sfunction stp_pid - The process id of the stapio process
+ *
+ * Description: This function returns the process id of the 
+ * stapio process that launched this script. There could be
+ * other SystemTap scripts and stapio processes running on
+ * the system.
+ */
+function stp_pid:long ()
+%{ /* pure */ /* stable */
+        STAP_RETVALUE = _stp_pid;
+%}
+
+
+/**
+ * sfunction remote_id - The index of this instance in a remote execution.
+ *
+ * Description: This function returns a number 0..N, which is the unique 
+ * index of this particular script execution from a swarm of
+ * "stap --remote A --remote B ..." runs, and is the same number
+ * "stap --remote-prefix" would print.  The function returns -1 if the
+ * script was not launched with "stap --remote", or if the remote 
+ * staprun/stapsh are older than version 1.7.
+ */
+function remote_id:long () {
+         return %{ /* pure */ /* unprivileged */ _stp_remote_id %}
+}
+
+
+/**
+ * sfunction remote_uri - The name of this instance in a remote execution.
+ *
+ * Description: This function returns the remote host used to invoke
+ * this particular script execution from a swarm of "stap --remote" runs.
+ * It may not be unique among the swarm.
+ * The function returns an empty string if the script was not launched with
+ * "stap --remote".
+ */
+function remote_uri:string () {
+         return %{ /* string */ /* pure */ /* unprivileged */ _stp_remote_uri %}
+}
+
+
+/**
+ * sfunction stack_size - Return the size of the kernel stack
+ * 
+ * Description: This function returns the size of the kernel stack.
+ */
+function stack_size:long ()
+%{ /* pure */ /* stable */
+        STAP_RETVALUE = THREAD_SIZE;
+%}
+
+/**
+ * sfunction stack_used - Returns the amount of kernel stack used
+ *
+ * Description: This function determines how many bytes are
+ * currently used in the kernel stack.
+ */
+function stack_used:long ()
+%{ /* pure */ /* stable */
+	char a;
+        STAP_RETVALUE = THREAD_SIZE - ((long)&a & (THREAD_SIZE-1));
+%}
+
+/**
+ * sfunction stack_unused - Returns the amount of kernel stack currently available
+ *
+ * Description: This function determines how many bytes are
+ * currently available in the kernel stack.
+ */
+function stack_unused:long ()
+%{ /* pure */ /* stable */
+	char a;
+        STAP_RETVALUE = (long)&a & (THREAD_SIZE-1);
+%}
+
+/**
+ * sfunction addr - Address of the current probe point.
+ *
+ * Description: Returns the instruction pointer from the current probe's
+ * register state.  Not all probe types have registers though, in which case
+ * zero is returned.  The returned address is suitable for use with functions
+ * like symname() and symdata().
+ */
+function addr:long ()
+%{ /* pure */ /* stable */
+  if (CONTEXT->user_mode_p) {
+    STAP_RETVALUE = (intptr_t)(CONTEXT->uregs ? REG_IP(CONTEXT->uregs) : 0);
+  } else {
+    STAP_RETVALUE = (intptr_t)(CONTEXT->kregs ? REG_IP(CONTEXT->kregs) : 0);
+  }
+%}
+
+/**
+ * sfunction uaddr - User space address of current running task
+ *
+ * Description: Returns the address in userspace that the current
+ * task was at when the probe occurred. When the current running task
+ * isn't a user space thread, or the address cannot be found, zero
+ * is returned. Can be used to see where the current task is combined
+ * with usymname() or usymdata(). Often the task will be in the VDSO
+ * where it entered the kernel.
+ */
+function uaddr:long ()
+%{ /* pure */ /* myproc-unprivileged */ /* stable */
+  struct pt_regs *uregs;
+
+  if (CONTEXT->user_mode_p)
+    uregs = CONTEXT->uregs;
+  else
+    uregs = _stp_current_pt_regs();
+
+  if (uregs)
+    STAP_RETVALUE = (int64_t) REG_IP(uregs);
+  else
+    STAP_RETVALUE = 0;
+%}
+
+
+/**
+ * sfunction cmdline_args - Fetch command line arguments from current process
+ * @n: First argument to get (zero is normally the program itself)
+ * @m: Last argument to get (or minus one for all arguments after n)
+ * @delim: String to use to separate arguments when more than one.
+ *
+ * Description: Returns arguments from the current process starting
+ * with argument number n, up to argument m. If there are less than n
+ * arguments, or the arguments cannot be retrieved from the current
+ * process, the empty string is returned. If m is smaller than n then
+ * all arguments starting from argument n are returned. Argument zero
+ * is traditionally the command itself.
+ */
+function cmdline_args:string(n:long, m:long, delim:string)
+{
+  __args = "";
+  __mm = task_current()->mm;
+  if (__mm == 0)
+    return "";
+
+  __arg_start = __mm->arg_start;
+  __arg_end = __mm->arg_end;
+  if (__arg_start == 0 || __arg_end == 0)
+    return "";
+
+  for (__nr=0;
+       (__arg_start < __arg_end) && // still string content left?
+         (m<0 || __nr<=m); // caller still interested?
+       __nr++) { 
+
+    __arg = user_string(__arg_start, ""); // argv[__nr], unquoted
+    __arg_start += strlen(__arg) + 1; // skip over for next iteration
+
+    if (__nr == n)     // caller starting to get interested?
+      __args = __arg;
+    else if (__nr > n) // caller still interested?
+      {
+        if (__arg == "")
+          __args .= delim . "\"\""
+        else
+          __args .= delim . __arg;
+      }
+  }
+
+  return __args;
+}
+
+/**
+ * sfunction cmdline_arg - Fetch a command line argument
+ * @n: Argument to get (zero is the program itself)
+ *
+ * Description: Returns argument the requested argument from the
+ * current process or the empty string when there are not that many
+ * arguments or there is a problem retrieving the argument. Argument
+ * zero is traditionally the command itself.
+ */
+function cmdline_arg:string(n:long)
+{
+  return cmdline_args(n, n, "");
+}
+
+/**
+ * sfunction cmdline_str - Fetch all command line arguments from current process
+ *
+ * Description: Returns all arguments from the current process
+ * delimited by spaces. Returns the empty string when the arguments
+ * cannot be retrieved.
+ */
+function cmdline_str:string()
+{
+  return cmdline_args(0, -1, " ");
+}

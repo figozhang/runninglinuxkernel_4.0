@@ -1,0 +1,11 @@
+#! /usr/bin/env stap
+
+%( CONFIG_HAVE_HW_BREAKPOINT == "y" %?
+probe kernel.data(@1).rw
+{
+  printf("%s value is accessed\n", @1);
+  print_backtrace();
+}
+%:
+probe never {}
+%)

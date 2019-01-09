@@ -1,0 +1,68 @@
+// Speculative tapset
+// Copyright (C) 2011-2015 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+@__private30 global _spec_id
+@__private30 global _spec_counter%
+@__private30 global _spec_buff%
+
+
+/**
+ * sfunction speculation - Allocate a new id for speculative output
+ *
+ * The speculation() function is called when a new speculation buffer is needed.
+ * It returns an id for the speculative output.
+ * There can be multiple threads being speculated on concurrently.
+ * This id is used by other speculation functions to keep the threads
+ * separate.
+ */
+function speculation:long ()
+{
+	_spec_id += 1
+	return _spec_id
+}
+
+
+/**
+ * sfunction speculate - Store a string for possible output later
+ * @id: buffer id to store the information in
+ * @output: string to write out when commit occurs
+ *
+ * Add a string to the speculaive buffer for id.
+ */
+function speculate (id:long, output:string)
+{
+	_spec_counter[id] += 1
+	_spec_buff[id, _spec_counter[id]] = output
+}
+
+
+/**
+ * sfunction discard - Discard all output related to a speculation buffer
+ * @id: of the buffer to store the information in
+ *
+ */
+function discard (id:long)
+{
+  delete _spec_buff[id,*]
+}
+
+
+/**
+ * sfunction commit - Write out all output related to a speculation buffer
+ * @id: of the buffer to store the information in
+ *
+ * Output all the output for @id in the order that it was entered into
+ * the speculative buffer by speculative().
+ */
+function commit (id:long)
+{
+  foreach([i, counter+] in _spec_buff [id,*]) {
+    printf("%s", _spec_buff[i, counter])
+  }
+  delete _spec_buff[id,*]
+}

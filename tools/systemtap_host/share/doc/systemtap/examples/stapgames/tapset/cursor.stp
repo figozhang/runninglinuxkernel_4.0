@@ -1,0 +1,60 @@
+# ANSI Escape sequences
+# Copyright (C) 2008 Masami Hiramatsu <masami.hiramatsu@gmail.com>
+#
+# This file is free software and is distributed under the terms of the GNU
+# General Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+/*
+ * cursor_move
+ *
+ * Move cursor to x-y position
+ */
+function cursor_move(x:long, y:long)
+{
+	printf("\033[%d;%dH", y, x)
+}
+
+function cursor_cls()
+{
+	print("\033[1;1H\033[J")
+}
+
+function cursor_show()
+{
+	print("\033[>5h")
+}
+
+function cursor_hide()
+{
+	print("\033[>5I")
+}
+
+function cursor_save()
+{
+	print("\033[s")
+}
+
+function cursor_restore()
+{
+	print("\033[u")
+}
+
+function cursor_set_color(parm1:long)
+{
+	printf("\033[%dm", parm1)
+}
+function cursor_set_color2(parm1:long, parm2:long)
+{
+	printf("\033[%d;%dm", parm1, parm2)
+}
+function cursor_set_color3(parm1:long, parm2:long, parm3:long)
+{
+	printf("\033[%d;%d;%dm", parm1, parm2, parm3)
+}
+
+function cursor_reset_color()
+{
+	cursor_set_color2(0,0)
+}
+

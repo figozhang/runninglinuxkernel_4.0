@@ -1,0 +1,59 @@
+.\" -*- nroff -*-
+.TH STAP\-PREP 1
+.SH NAME
+stap\-prep \- prepare system for systemtap use
+
+.\" macros
+.\" do not nest SAMPLEs
+.de SAMPLE
+.br
+
+.nr oldin \\n(.i
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH SYNOPSIS
+
+.br
+.B stap\-prep
+[
+.I KERNEL_VERSION
+]
+
+.SH DESCRIPTION
+
+The stap\-prep executable prepares the system for systemtap use by
+installing kernel headers, debug symbols and build tools that match
+the currently running kernel or optionally the kernel version given by
+the user.
+
+The exact behavior of stap\-prep may be customized by the
+distribution maintainers. It might for example only give suggestions
+and not actually install the required packages if that is difficult to
+automate.
+
+.SH EXAMPLES
+.SAMPLE
+$ stap-prep
+Please install linux-image-3.2.0-2-amd64-dbg
+.ESAMPLE
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1)
+
+.SH BUGS
+Use the Bugzilla link of the project web page or our mailing list.
+.nh
+.BR http://sourceware.org/systemtap/ , <systemtap@sourceware.org> .
+.hy

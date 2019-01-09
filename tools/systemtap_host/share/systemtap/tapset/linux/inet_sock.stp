@@ -1,0 +1,42 @@
+// inet_sock information tapset 
+// Copyright (C) 2006 IBM Corp.
+// Copyright (C) 2006 Intel Corporation.
+// Copyright (C) 2009-2012 Red Hat, Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/**
+ * sfunction inet_get_local_port - Provide local port number for a kernel socket
+ * @sock: pointer to the kernel socket
+ */
+function inet_get_local_port:long(sock:long)
+{
+    return @choose_defined(@cast(sock, "inet_sock")->sk->__sk_common->skc_num,
+	     # kernel >= 2.6.33
+	     @choose_defined(@cast(sock, "inet_sock")->inet_num,
+	       # kernel >= 2.6.11
+	       @choose_defined(@cast(sock, "inet_sock")->num,
+		 @cast(sock, "inet_sock", "kernel<net/ip.h>")->inet->num)))
+}
+
+/**
+ * sfunction inet_get_ip_source - Provide IP source address string for a kernel socket
+ *
+ * @sock: pointer to the kernel socket
+ *
+ */
+function inet_get_ip_source:string(sock:long)
+{
+    return format_ipaddr(__ip_sock_daddr(sock), __ip_sock_family(sock))
+}
+
+%(systemtap_v < "2.0" %?
+// Turns a daddr as found in an inet_sock into a dotted ip string.
+function daddr_to_string:string(daddr:long)
+{
+    return format_ipaddr(daddr, %{ /* pure */ /* unprivileged */ AF_INET %})
+}
+%)

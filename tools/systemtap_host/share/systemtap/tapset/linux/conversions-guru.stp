@@ -1,0 +1,142 @@
+// guru-mode conversions tapset
+// Copyright (C) 2010-2014 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/**
+ * sfunction set_kernel_string - Writes a string to kernel memory
+ * @addr: The kernel address to write the string to
+ * @val: The string which is to be written
+ *
+ * Description: Writes the given string to a given kernel
+ * memory address. Reports an error on string copy fault.
+ * Requires the use of guru mode (-g).
+ */
+function set_kernel_string (addr:long, val:string) %{ /* guru */
+  store_kderef_string (STAP_ARG_val, STAP_ARG_addr, MAXSTRINGLEN);
+  if (0) {
+deref_fault: /* branched to from store_deref_string() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel string copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction set_kernel_string_n - Writes a string of given length to kernel memory
+ * @addr: The kernel address to write the string to
+ * @n: The maximum length of the string
+ * @val: The string which is to be written
+ *
+ * Description: Writes the given string up to a maximum given length to a
+ * given kernel memory address. Reports an error on string copy fault.
+ * Requires the use of guru mode (-g).
+ */
+function set_kernel_string_n (addr:long, n:long, val:string) %{ /* guru */
+  int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
+  store_kderef_string (STAP_ARG_val, STAP_ARG_addr, len);
+  if (0) {
+deref_fault: /* branched to from store_deref_string() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel string copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction set_kernel_long - Writes a long value to kernel memory
+ * @addr: The kernel address to write the long to
+ * @val: The long which is to be written
+ *
+ * Description: Writes the long value to a given kernel memory address.
+ * Reports an error when writing to the given address fails.
+ * Requires the use of guru mode (-g).
+ */
+function set_kernel_long (addr:long, val:long) %{ /* guru */
+  kwrite((long *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  if (0) {
+deref_fault: /* branched to from kwrite() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel long copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction set_kernel_int - Writes an int value to kernel memory
+ * @addr: The kernel address to write the int to
+ * @val: The int which is to be written
+ *
+ * Description: Writes the int value to a given kernel memory address.
+ * Reports an error when writing to the given address fails.
+ * Requires the use of guru mode (-g).
+ */
+function set_kernel_int (addr:long, val:long) %{ /* guru */
+  kwrite((int *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  if (0) {
+deref_fault: /* branched to from kwrite() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel int copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction set_kernel_short - Writes a short value to kernel memory
+ * @addr: The kernel address to write the short to
+ * @val: The short which is to be written
+ *
+ * Description: Writes the short value to a given kernel memory address.
+ * Reports an error when writing to the given address fails.
+ * Requires the use of guru mode (-g).
+ */
+function set_kernel_short (addr:long, val:long) %{ /* guru */
+  kwrite((short *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  if (0) {
+deref_fault: /* branched to from kwrite() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel short copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction set_kernel_char - Writes a char value to kernel memory
+ * @addr: The kernel address to write the char to
+ * @val: The char which is to be written
+ *
+ * Description: Writes the char value to a given kernel memory address.
+ * Reports an error when writing to the given address fails.
+ * Requires the use of guru mode (-g).
+ */
+function set_kernel_char (addr:long, val:long) %{ /* guru */
+  kwrite((char *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  if (0) {
+deref_fault: /* branched to from kwrite() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel char copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}
+
+/**
+ * sfunction set_kernel_pointer - Writes a pointer value to kernel memory.
+ * @addr: The kernel address to write the pointer to
+ * @val: The pointer which is to be written
+ *
+ * Description: Writes the pointer value to a given kernel memory address.
+ * Reports an error when writing to the given address fails.
+ * Requires the use of guru mode (-g).
+ */
+function set_kernel_pointer (addr:long, val:long) %{ /* guru */
+  kwrite((void **) (uintptr_t) STAP_ARG_addr, (uintptr_t)STAP_ARG_val);
+  if (0) {
+deref_fault: /* branched to from kwrite() */
+    snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        "kernel pointer copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
+    CONTEXT->last_error = CONTEXT->error_buffer;
+  }
+%}

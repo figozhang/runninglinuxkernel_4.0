@@ -1,0 +1,167 @@
+Examples of execsnoop-nd.stp, the Linux SystemTap version.
+
+
+This traces syscalls system-wide, and produces a summary report showing their
+counts by process ID, process name, and syscall type. For example:
+
+# ./syscallbypid-nd.stp 
+Tracing syscall completions... Hit Ctrl-C to end.
+^C
+PID      CMD              SYSCALL                     COUNT
+4282     bash             read                            1
+4283     bash             ioctl                           1
+902      crond            select                          1
+4283     bash             setpgid                         1
+902      crond            stat                            1
+4283     bash             read                            1
+902      crond            rt_sigaction                    1
+14409    bash             stat                            1
+4279     stapio           rt_sigreturn                    1
+4279     stapio           pselect6                        1
+14564    sshd             ioctl                           1
+4282     bash             ioctl                           1
+4282     bash             setpgid                         1
+4279     stapio           write                           1
+4283     curl             execve                          1
+4283     curl             connect                         1
+4282     curl             pipe                            1
+4282     curl             set_tid_address                 1
+4283     curl             setsockopt                      1
+4282     curl             gettid                          1
+785      auditd           gettimeofday                    1
+4282     curl             ioctl                           1
+4282     curl             getsockname                     1
+4282     curl             rt_sigprocmask                  1
+4283     curl             write                           1
+4046     syscallbypid-nd  rt_sigprocmask                  1
+4279     stapio           madvise                         1
+4283     curl             statfs                          1
+4282     curl             getsockopt                      1
+4283     curl             bind                            1
+4283     curl             getrlimit                       1
+4282     curl             arch_prctl                      1
+4283     curl             recvfrom                        1
+4282     curl             connect                         1
+4282     curl             execve                          1
+4279     stapio           tgkill                          1
+4283     curl             pipe                            1
+4283     curl             set_tid_address                 1
+4282     curl             setsockopt                      1
+4283     curl             gettid                          1
+4283     curl             ioctl                           1
+4282     curl             write                           1
+4283     curl             getsockname                     1
+4283     curl             rt_sigprocmask                  1
+4283     curl             getsockopt                      1
+4282     curl             statfs                          1
+4282     curl             getrlimit                       1
+4282     curl             bind                            1
+4283     curl             arch_prctl                      1
+4282     curl             recvfrom                        1
+4279     stapio           futex                           1
+4283     bash             close                           2
+15216    node             close                           2
+4282     bash             close                           2
+15216    node             write                           2
+14409    bash             rt_sigreturn                    2
+902      crond            rt_sigprocmask                  2
+14409    bash             sendmsg                         2
+4282     curl             sendto                          2
+4283     curl             munmap                          2
+4282     curl             access                          2
+4283     curl             fcntl                           2
+14409    bash             pipe                            2
+14409    bash             clone                           2
+14409    bash             setpgid                         2
+14409    bash             socket                          2
+4283     curl             sendto                          2
+4282     curl             fcntl                           2
+4283     curl             access                          2
+4282     curl             munmap                          2
+785      auditd           clock_gettime                   2
+14409    bash             time                            3
+14564    sshd             read                            3
+14564    sshd             write                           3
+4283     bash             rt_sigprocmask                  3
+902      crond            read                            3
+902      crond            fstat                           3
+902      crond            munmap                          3
+902      crond            open                            3
+4282     bash             rt_sigprocmask                  3
+902      crond            close                           3
+902      crond            mmap2                           3
+902      crond            time                            3
+4282     curl             brk                             3
+4282     curl             rt_sigaction                    3
+4282     curl             recvmsg                         3
+4283     curl             futex                           3
+4283     curl             socket                          3
+4283     curl             brk                             3
+15216    SignalSender     futex                           3
+4283     curl             rt_sigaction                    3
+4283     curl             recvmsg                         3
+4282     curl             futex                           3
+4282     curl             socket                          3
+14409    bash             wait4                           4
+15216    node             accept4                         4
+15216    node             futex                           4
+15216    node             read                            4
+4279     stapio           fcntl                           4
+4282     curl             time                            4
+4283     curl             time                            4
+14564    sshd             select                          5
+15216    SignalSender     nanosleep                       5
+4283     curl             poll                            5
+4282     curl             poll                            5
+15216    node             epoll_wait                      6
+15216    node             epoll_ctl                       6
+14409    bash             close                           6
+4283     bash             rt_sigaction                    7
+4282     bash             rt_sigaction                    7
+14564    sshd             rt_sigprocmask                 12
+14409    bash             ioctl                          20
+14405    sshd             ioctl                          20
+4282     curl             clock_gettime                  24
+4283     curl             clock_gettime                  24
+15216    node             clock_gettime                  26
+14409    bash             read                           28
+14409    bash             write                          29
+4283     curl             read                           32
+4282     curl             read                           32
+4282     curl             open                           34
+4283     curl             fstat                          34
+4283     curl             open                           34
+4282     curl             fstat                          34
+4279     stapio           ppoll                          38
+4282     curl             close                          38
+4283     curl             close                          38
+4279     stapio           read                           42
+14409    bash             rt_sigaction                   48
+14405    sshd             write                          49
+14405    sshd             read                           49
+4282     curl             mprotect                       58
+4283     curl             mprotect                       58
+4282     curl             mmap2                          91
+4283     curl             mmap2                          91
+14405    sshd             select                         97
+14409    bash             rt_sigprocmask                111
+14405    sshd             rt_sigprocmask                196
+
+This can be used to get a handle on syscall usage and rates before using more
+expensive tools to measure their behavior.
+
+
+The output is limited to 2048 rows. If it exceeds that, for example, because
+of many short-lived processes each with their own PID, then you will see the
+following error:
+
+# ./syscallbypid-nd.stp 
+Tracing syscall completions... Hit Ctrl-C to end.
+ERROR: Array overflow, check MAXMAPENTRIES near identifier 'num' at ./syscallbypid-nd.stp:32:2
+WARNING: Number of errors: 1, skipped probes: 0
+WARNING: /usr/local/bin/staprun exited with status: 1
+Pass 5: run failed.  [man error::pass5]
+
+See the oneliners.txt for probing syscalls without breaking down by PID to
+start with.
+

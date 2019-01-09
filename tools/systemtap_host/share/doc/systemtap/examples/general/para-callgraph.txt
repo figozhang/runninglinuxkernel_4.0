@@ -1,0 +1,89 @@
+para-callgraph.stp - Callgraph Tracing with Arguments
+
+  Print a timed per-thread microsecond-timed callgraph, complete with
+  function parameters and return values.  The first parameter names the
+  function probe points to trace.  The optional second parameter names
+  the probe points for trigger functions, which acts to enable tracing
+  for only those functions that occur while the current thread is
+  nested within the trigger.
+
+$ stap para-callgraph.stp 'process("/bin/ls").function("*")' \
+'process("/bin/ls").function("main")' -c "/bin/ls > /dev/null"
+
+     0 ls(24779):->main argc=0x1 argv=0x7ffe16646868
+     4 ls(24779): ->set_program_name argv0=0x7ffe166486e6
+     8 ls(24779): <-set_program_name 
+    33 ls(24779): ->atexit 
+    35 ls(24779): <-atexit 
+    42 ls(24779): ->human_options spec=0x0 opts=0x61d100 block_size=0x61d0f8
+    44 ls(24779): <-human_options return=0x0
+    46 ls(24779): ->clone_quoting_options o=0x0
+    49 ls(24779):  ->xmemdup p=0x61d2e0 s=0x38
+    51 ls(24779):   ->xmalloc n=0x38
+    54 ls(24779):   <-xmalloc return=0x1a15050
+    57 ls(24779):  <-xmemdup return=0x1a15050
+    58 ls(24779): <-clone_quoting_options return=0x1a15050
+    60 ls(24779): ->get_quoting_style o=0x1a15050
+    62 ls(24779): <-get_quoting_style return=0x0
+    63 ls(24779): ->clone_quoting_options o=0x0
+    65 ls(24779):  ->xmemdup p=0x61d2e0 s=0x38
+    66 ls(24779):   ->xmalloc n=0x38
+    68 ls(24779):   <-xmalloc return=0x1a15090
+    69 ls(24779):  <-xmemdup return=0x1a15090
+    70 ls(24779): <-clone_quoting_options return=0x1a15090
+    72 ls(24779): ->set_char_quoting o=0x1a15090 c=0x3a i=0x1
+    74 ls(24779): <-set_char_quoting return=0x0
+    76 ls(24779): ->xmalloc n=0x4b00
+    79 ls(24779): <-xmalloc return=0x1a150d0
+    80 ls(24779): ->clear_files 
+    82 ls(24779): <-clear_files 
+    84 ls(24779): ->queue_directory name=0x414546 realname=0x0 command_line_arg=0x1
+    86 ls(24779):  ->xmalloc n=0x20
+    88 ls(24779):  <-xmalloc return=0x1a19be0
+    89 ls(24779):  ->xstrdup string=0x414546
+    92 ls(24779):   ->xmemdup p=0x414546 s=0x2
+    93 ls(24779):    ->xmalloc n=0x2
+    95 ls(24779):    <-xmalloc return=0x1a19c10
+    96 ls(24779):   <-xmemdup return=0x1a19c10
+    97 ls(24779):  <-xstrdup return=0x1a19c10
+    98 ls(24779): <-queue_directory 
+   104 ls(24779): ->clear_files 
+   106 ls(24779): <-clear_files 
+  1183 ls(24779): ->process_signals 
+  1186 ls(24779): <-process_signals 
+[...]
+  5294 ls(24779):  ->print_file_name_and_frills f=0x1a15fd0 start_col=0x0
+  5296 ls(24779):   ->set_normal_color 
+  5298 ls(24779):   <-set_normal_color 
+  5299 ls(24779):   ->print_name_with_quoting f=0x1a15fd0 symlink_target=0x0 stack=0x0 start_col=0x0
+  5301 ls(24779):    ->quote_name out=0x2b8871d2c620 name=0x1a21ef0 options=0x1a15050 width=0x0
+  5304 ls(24779):     ->quotearg_buffer buffer=0x7ffe16644000 buffersize=0x2000 arg=0x1a21ef0 argsize=0xffffffffffffffff o=0x1a15050
+  5308 ls(24779):      ->quotearg_buffer_restyled buffer=0x7ffe16644000 buffersize=0x2000 arg=0x1a21ef0 argsize=0xffffffffffffffff quoting_style=0x0 flags=0x0 quote_these_too=0x1a15058 left_quote=0x0 right_quote=0x0
+  5310 ls(24779):      <-quotearg_buffer_restyled return=0xe
+  5311 ls(24779):     <-quotearg_buffer return=0xe
+  5312 ls(24779):    <-quote_name return=0xe
+  5313 ls(24779):    ->process_signals 
+  5315 ls(24779):    <-process_signals 
+  5316 ls(24779):   <-print_name_with_quoting return=0xe
+  5317 ls(24779):  <-print_file_name_and_frills return=0xe
+  5318 ls(24779): <-print_current_files 
+  5321 ls(24779): ->close_stdout 
+  5323 ls(24779):  ->close_stream stream=0x2b8871d2c620
+  5326 ls(24779):   ->rpl_fclose fp=0x2b8871d2c620
+  5329 ls(24779):    ->rpl_fflush stream=0x2b8871d2c620
+  5332 ls(24779):    <-rpl_fflush return=0x0
+  5341 ls(24779):   <-rpl_fclose return=0x0
+  5342 ls(24779):  <-close_stream return=0x0
+  5343 ls(24779):  ->close_stream stream=0x2b8871d2c540
+  5345 ls(24779):   ->rpl_fclose fp=0x2b8871d2c540
+  5347 ls(24779):    ->rpl_fflush stream=0x2b8871d2c540
+  5349 ls(24779):    <-rpl_fflush return=0x0
+  5350 ls(24779):   <-rpl_fclose return=0x0
+  5352 ls(24779):  <-close_stream return=0x0
+  5353 ls(24779): <-close_stdout 
+  5355 ls(24779): ->__do_global_dtors_aux 
+  5357 ls(24779):  ->deregister_tm_clones 
+  5359 ls(24779):  <-deregister_tm_clones 
+  5360 ls(24779): <-__do_global_dtors_aux 
+  5362 ls(24779): ->_fini 
+  5363 ls(24779): <-_fini 

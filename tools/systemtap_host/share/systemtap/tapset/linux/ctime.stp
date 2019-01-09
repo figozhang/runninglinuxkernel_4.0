@@ -1,0 +1,194 @@
+/* ctime.stp - Convert seconds to human readable date string.
+ *
+ * This code was adapted from the newlib mktm_r() and asctime_r()
+ * functions.  In newlib, mktm_r.c states that it was adapted from
+ * tzcode maintained by Arthur David Olson.  In newlib, asctime_r.c
+ * doesn't have any author/copyright information.
+ *
+ * Changes copyright (C) 2006-2016 Red Hat Inc.
+ */
+
+/**
+ * sfunction ctime - Convert seconds since epoch into human readable date/time string
+ *
+ * @epochsecs: Number of seconds since epoch (as returned by gettimeofday_s())
+ *
+ * Description: Takes an argument of seconds since the epoch as returned by
+ * gettimeofday_s(). Returns a string of the form
+ *
+ *   "Wed Jun 30 21:49:08 1993"
+ *
+ * The string will always be exactly 24 characters. If the time would
+ * be unreasonable far in the past (before what can be represented
+ * with a 32 bit offset in seconds from the epoch) an error will occur
+ * (which can be avoided with try/catch). If the time would be
+ * unreasonable far in the future, an error will also occur.
+ *
+ * Note that the epoch (zero) corresponds to
+ *
+ *   "Thu Jan  1 00:00:00 1970"
+ *
+ * The earliest full date given by ctime, corresponding to epochsecs
+ * -2147483648 is "Fri Dec 13 20:45:52 1901". The latest full date
+ * given by ctime, corresponding to epochsecs 2147483647 is
+ * "Tue Jan 19 03:14:07 2038".
+ *
+ * The abbreviations for the days of the week are ‘Sun’, ‘Mon’, ‘Tue’,
+ * ‘Wed’, ‘Thu’, ‘Fri’, and ‘Sat’.  The abbreviations for the months
+ * are ‘Jan’, ‘Feb’, ‘Mar’, ‘Apr’, ‘May’, ‘Jun’, ‘Jul’, ‘Aug’, ‘Sep’,
+ * ‘Oct’, ‘Nov’, and ‘Dec’.
+ *
+ * Note that the real C library ctime() function puts a newline ('\n')
+ * character at the end of the string that this function does not.
+ * Also note that since the kernel has no concept of timezones, the
+ * returned time is always in GMT.
+ */
+function ctime:string(epochsecs:long)
+%{ /* pure */
+
+#define SECSPERMIN	60L
+#define MINSPERHOUR	60L
+#define HOURSPERDAY	24L
+#define SECSPERHOUR	(SECSPERMIN * MINSPERHOUR)
+#define SECSPERDAY	(SECSPERHOUR * HOURSPERDAY)
+#define DAYSPERWEEK	7
+#define MONSPERYEAR	12
+
+#define EPOCH_YEAR      1970
+#define EPOCH_WDAY      4
+
+#define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
+
+    static const int mon_lengths[2][MONSPERYEAR] = {
+	{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},
+	{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+    } ;
+
+    static const int year_lengths[2] = {
+	365,
+	366
+    } ;
+
+    static const char day_name[7][3] = {
+	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+    };
+    static const char mon_name[12][3] = {
+	"Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    };
+
+    long days, rem;
+    time_t lcltime;
+    int yleap;
+    const int *ip;
+    int tm_sec;         /* seconds */
+    int tm_min;         /* minutes */
+    int tm_hour;        /* hours */
+    int tm_mday;        /* day of the month */
+    int tm_mon;         /* month */
+    int tm_year;        /* year */
+    int tm_wday;        /* day of the week */
+
+    // Check that the numer of seconds is "reasonable".
+    // Otherwise (especially on 64bit machines) we will be spending
+    // way too much time calculating the correct year, month and
+    // day. Also we would like the returned string to always be 24 chars.
+    // So cap to what can be represented normally on a 32bit machine.
+    int64_t MAX_POS_SECS =  2147483647LL;
+    int64_t MIN_NEG_SECS = -2147483648LL;
+
+    if (STAP_ARG_epochsecs > MAX_POS_SECS)
+      {
+#if STAP_COMPAT_VERSION <= STAP_VERSION(2,2)
+        strlcpy(STAP_RETVALUE, "far far in the future...", MAXSTRINGLEN);
+#else
+	CONTEXT->last_error = "Time too far in the future to be converted";
+#endif
+	return;
+      }
+    if (STAP_ARG_epochsecs < MIN_NEG_SECS)
+      {
+#if STAP_COMPAT_VERSION <= STAP_VERSION(2,2)
+        strlcpy(STAP_RETVALUE, "a long, long time ago...", MAXSTRINGLEN);
+#else
+	CONTEXT->last_error = "Time too far in the past to be converted";
+#endif
+        return;
+      }
+
+    lcltime = STAP_ARG_epochsecs;
+   
+    days = ((long)lcltime) / SECSPERDAY;
+    rem = ((long)lcltime) % SECSPERDAY;
+    while (rem < 0) 
+    {
+	rem += SECSPERDAY;
+	--days;
+    }
+    while (rem >= SECSPERDAY)
+    {
+	rem -= SECSPERDAY;
+	++days;
+    }
+ 
+    /* compute hour, min, and sec */  
+    tm_hour = (int) (rem / SECSPERHOUR);
+    rem %= SECSPERHOUR;
+    tm_min = (int) (rem / SECSPERMIN);
+    tm_sec = (int) (rem % SECSPERMIN);
+
+    /* compute day of week */
+    if ((tm_wday = ((EPOCH_WDAY + days) % DAYSPERWEEK)) < 0)
+	tm_wday += DAYSPERWEEK;
+
+    /* compute year & day of year */
+    tm_year = EPOCH_YEAR;
+    if (days >= 0)
+    {
+	for (;;)
+	{
+	    yleap = isleap(tm_year);
+	    if (days < year_lengths[yleap])
+		break;
+	    tm_year++;
+	    days -= year_lengths[yleap];
+	}
+    }
+    else
+    {
+	do
+	{
+	    --tm_year;
+	    yleap = isleap(tm_year);
+	    days += year_lengths[yleap];
+	} while (days < 0);
+    }
+
+    ip = mon_lengths[yleap];
+    for (tm_mon = 0; days >= ip[tm_mon]; ++tm_mon)
+	days -= ip[tm_mon];
+    tm_mday = days + 1;
+
+    /*
+     * At this point we have all our information.  Now we need to
+     * convert it to an ascii representation.
+     */
+
+    snprintf (STAP_RETVALUE, MAXSTRINGLEN, "%.3s %.3s%3d %.2d:%.2d:%.2d %d",
+	      day_name[tm_wday], mon_name[tm_mon],
+	      tm_mday, tm_hour, tm_min,
+	      tm_sec, tm_year);
+%}
+
+
+/**
+ * sfunction ctime - Convert seconds since epoch into human readable date/time string
+ *
+ *
+ * Description: Without an argument, does the same as ctime(gettimeofday_s()).
+ *
+ */
+function ctime:string()
+{
+  return ctime(gettimeofday_s())
+}

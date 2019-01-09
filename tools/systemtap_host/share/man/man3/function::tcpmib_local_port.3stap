@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::tcpmib_local_port
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: SNMP Information Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::TCPMIB_LOC" "3stap" "March 2016" "SystemTap Tapset Reference" "SNMP Information Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::tcpmib_local_port \- Get the local port
+.SH "SYNOPSIS"
+.sp
+.nf
+    tcpmib_local_port:long(sk:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIsk\fR
+.RS 4
+pointer to a struct inet_sock
+.RE
+.SH "DESCRIPTION"
+.PP
+Returns the sport from a struct inet_sock in host order\&.
+.SH SEE ALSO\n 
+.IR tapset::tcpmib (3stap)

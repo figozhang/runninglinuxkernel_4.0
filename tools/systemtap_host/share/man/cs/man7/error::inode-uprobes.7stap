@@ -1,0 +1,36 @@
+.\" t
+.TH ERROR::INODE-UPROBES 7stap 
+.SH JMÉNO
+error::inode-uprobes \- omezení použitelnosti sond typu "inode-uprobes"
+
+.SH POPIS
+
+Jaderný subsystém "uprobes" přišel s linuxovým jádrem 3.5 a má nahradit
+předchozí "utrace" patch, který nebyl součástí oficiálního stromu.  Obojí
+slouží k analýze uživatelských procesů.  V minulosti existovala v této
+souvislosti jistá omezení.  Některá stále existují a věříme, že se časem
+podaří je odstranit.
+
+.TP
+sondy function.return
+sondy
+.IR process.function().return 
+vyžadují funkcionalitu "return probes" nebo "uretprobes", která nabyla v rámci
+"inode-uprobes" implementována do verze 3.10.  Pokud nemáte možnost povýšit
+jádro, zvažte použití sond
+.IR process.statement() 
+umístěných na číslo řádku odpovídající návratu z funkce.
+
+.TP
+sondy function.statement.absolute
+Do jader, která byla vybavena mechanizmem "utrace", bylo možné umístit sondu
+na konkrétní adresu v rámci virtuálního adresního prostoru.  Nová "inode-uprobes"
+funkcionalita toto neumožňuje.
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR http://kernelnewbies.org/Linux_3.5 ,
+.IR http://sourceware.org/systemtap/wiki/utrace ,
+.IR error::reporting (7stap)

@@ -1,0 +1,52 @@
+'\" t
+.\"     Title: function::stringat
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: A collection of standard string functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::STRINGAT" "3stap" "March 2016" "SystemTap Tapset Reference" "A collection of standard strin"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::stringat \- Returns the char at a given position in the string
+.SH "SYNOPSIS"
+.sp
+.nf
+    stringat:long(str:string,pos:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIstr\fR
+.RS 4
+the string to fetch the character from
+.RE
+.PP
+\fIpos\fR
+.RS 4
+the position to get the character from (first character is 0)
+.RE
+.SH "DESCRIPTION"
+.PP
+This function returns the character at a given position in the string or zero if the string doesn\*(Aqt have as many characters\&. Reports an error if pos is out of bounds\&.
+.SH SEE ALSO\n 
+.IR tapset::string (3stap)

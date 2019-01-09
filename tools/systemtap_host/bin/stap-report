@@ -1,0 +1,140 @@
+#! /bin/sh
+
+run(){
+  echo "== $1 =="
+  sh -c "$@" || true
+}
+
+PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin
+export PATH
+
+exec 2>&1
+
+if [ "`id -u`" -ne 0 ]; then
+        echo
+	echo WARNING: rerun $0 as root for fuller results.
+        echo
+fi
+
+nss_db_status () {
+    db_path="$1"
+    if [ ! -e "$db_path" ]; then
+	echo "NSS database path '$db_path' does not exist"
+	return
+    fi
+    run "ls '$db_path'"
+    dbm_files_found=0
+    sql_files_found=0
+    secmod_found=0
+    key3_found=0
+    cert8_found=0
+    pkcs11_found=0
+    key4_found=0
+    cert9_found=0
+    if [ -e "$db_path/secmod.db" ]; then
+	dbm_files_found=$((dbm_files_found + 1))
+	secmod_found=1
+    fi
+    if [ -e "$db_path/key3.db" ]; then
+	dbm_files_found=$((dbm_files_found + 1))
+	key3_found=1
+    fi
+    if [ -e "$db_path/cert8.db" ]; then
+	dbm_files_found=$((dbm_files_found + 1))
+	cert8_found=1
+    fi
+    if [ -e "$db_path/pkcs11.txt" ]; then
+	sql_files_found=$((sql_files_found + 1))
+	pkcs11_found=1
+    fi
+    if [ -e "$db_path/key4.db" ]; then
+	sql_files_found=$((sql_files_found + 1))
+	key4_found=1
+    fi
+    if [ -e "$db_path/cert9.db" ]; then
+	sql_files_found=$((sql_files_found + 1))
+	cert9_found=1
+    fi
+
+    if [ $dbm_files_found = 0 -a $sql_files_found = 0 ]; then
+	echo "No NSS database found at '$db_path'"
+    else
+	if [ $dbm_files_found = 3 ]; then
+	    echo "dbm format NSS database found at '$db_path'"
+	elif [ $dbm_files_found != 0 ]; then
+	    [ $secmod_found = 0 ] && echo "secmod.db is missing from dbm format NSS database at '$db_path'"
+	    [ $key3_found = 0 ] && echo "key3.db is missing from dbm format NSS database at '$db_path'"
+	    [ $cert8_found = 0 ] && echo "cert8.db is missing from dbm format NSS database at '$db_path'"
+	fi
+	if [ $sql_files_found = 3 ]; then
+	    echo "sql format NSS database found at '$db_path'"
+	elif [ $sql_files_found != 0 ]; then
+	    [ $pkcs11_found = 0 ] && echo "pkcs11.txt is missing from sql format NSS database at '$db_path'"
+	    [ $key4_found = 0 ] && echo "key4.db is missing from sql format NSS database at '$db_path'"
+	    [ $cert9_found = 0 ] && echo "cert9.db is missing from sql format NSS database at '$db_path'"
+	fi
+    fi
+}
+
+run "id"
+run "stap -V"
+run "which stap"
+run "cat $HOME/.systemtap/rc"
+run "which stap-server"
+run "locate --regex '/stap(run|io|dyn)?$' | xargs ls -ald"
+run "printenv | egrep '^PATH=|^LD_LIBRARY_PATH=|^SYSTEMTAP_.*=|^XDG_DATA.*=|^NSS.*='"
+run "stap -vv --poison-cache -p4 -e 'probe begin {exit()}'"
+run "gcc -v"
+run "uname -a"
+run "dmesg | fgrep 'Linux version'"
+run "dmesg | egrep 'stap|systemtap' | tail -n 10"
+run "hostname"
+run "nslookup `hostname`"
+run "cat /etc/hosts"
+run "cat /var/log/stap-server/log"
+run "cat /proc/cpuinfo | egrep 'processor|vendor_id|model name'"
+if [ -x /usr/bin/dpkg ]; then
+  # debian/ubuntu
+  run "dpkg --list | egrep 'systemtap|elfutils|kernel|linux|gcc|dyninst|avahi|nss|nspr|dejagnu|libdw' | awk '{print \$2,\$3}' | sort"
+elif [ -x /usr/bin/rpm -o -x /bin/rpm ]; then
+  # fedora/rhel/suse/...
+  run "rpm -qa --qf '%{name}-%{version} %{release}.%{arch}\\t%{buildtime:date}@%{buildhost}\\n' | egrep 'systemtap|elfutils|kernel|gcc|dyninst|avahi|nss|nspr|dejagnu|libdw' | sort"
+elif [ -f /var/log/packages ]; then
+  # slackware
+  run "cat /var/log/packages | egrep 'systemtap|elfutils|kernel|gcc|dyninst|avahi|nss|nspr|dejagnu' | sort -k9"
+fi
+run "egrep 'PROBE|TRACE|MARKER|KALLSYM|_DEBUG_|LOCKDEP|LOCKING|MODULE|FENTRY|_SIG' /lib/modules/`uname -r`/build/.config | grep -v not.set | sort | fmt -w 80"
+run "find /debugfs /proc /sys /dev /sys/kernel/debug -type f -path '*kprobe*' -o -path '*yama*' 2>/dev/null | xargs grep -H ."
+run "lsmod"
+run "avahi-browse -r -t _stap._tcp"
+run "ifconfig -a"
+run "ps awux | grep stap"
+for file in /boot/vmlinuz-`uname -r` /usr/lib/debug/lib/modules/`uname -r`/vmlinux /lib/modules/`uname -r`/build/vmlinux
+do
+    if [ -f $file ]; then
+        run "(eu-readelf -n $file || readelf -n $file) | grep Build"
+    fi
+done
+run "hexdump -C /sys/kernel/notes"
+for file in /sys/module/*/notes/.*build*
+do
+    run "hexdump -C $file"
+done
+if [ -x /usr/bin/seinfo ]; then
+   run "seinfo"
+fi
+if [ -x /usr/sbin/getenforce ]; then
+   run "getenforce"
+fi
+if [ -x /usr/sbin/aa-status ]; then
+   run "aa-status"
+fi
+echo == NSS ==
+if [ -n "$SYSTEMTAP_DIR" ]; then
+    nss_db_status "$SYSTEMTAP_DIR/ssl/client"
+    nss_db_status "$SYSTEMTAP_DIR/ssl/server"
+fi
+nss_db_status ~/.systemtap/ssl/client
+nss_db_status ~/.systemtap/ssl/server
+nss_db_status /etc/systemtap/ssl/server
+nss_db_status /etc/systemtap/staprun

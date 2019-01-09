@@ -1,0 +1,74 @@
+'\" t
+.\"     Title: probe::sunrpc.clnt.bind_new_program
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Networking Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SUNRPC\&.CLNT" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::sunrpc.clnt.bind_new_program \- Bind a new RPC program to an existing client
+.SH "SYNOPSIS"
+.sp
+.nf
+sunrpc\&.clnt\&.bind_new_program 
+.fi
+.SH "VALUES"
+.PP
+\fIold_progname\fR
+.RS 4
+the name of old RPC program
+.RE
+.PP
+\fIprogname\fR
+.RS 4
+the name of new RPC program
+.RE
+.PP
+\fIold_vers\fR
+.RS 4
+the version of old RPC program
+.RE
+.PP
+\fIservername\fR
+.RS 4
+the server machine name
+.RE
+.PP
+\fIprog\fR
+.RS 4
+the number of new RPC program
+.RE
+.PP
+\fIvers\fR
+.RS 4
+the version of new RPC program
+.RE
+.PP
+\fIold_prog\fR
+.RS 4
+the number of old RPC program
+.RE
+.SH SEE ALSO\n 
+.IR tapset::rpc (3stap)

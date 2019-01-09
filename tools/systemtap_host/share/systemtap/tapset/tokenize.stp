@@ -1,0 +1,59 @@
+// Tokenize tapset
+// Copyright (C) 2010 Red Hat, Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+%{
+#define STAP_NEED_CONTEXT_TOKENIZE 1
+%}
+
+/**
+ * sfunction tokenize - Return the next non-empty token in a string
+ *
+ * @delim: set of characters that delimit the tokens
+ *
+ * Description: This function returns the next token in the string
+ * passed in the previous call to tokenize. If no delimiter is found,
+ * the entire remaining input string is * returned. It returns empty
+ * when no more tokens are available.
+ */
+function tokenize:string(delim:string) {
+  return tokenize("", delim)
+}
+
+/**
+ * sfunction tokenize - Return the next non-empty token in a string
+ *
+ * @input: string to tokenize. If empty, returns the next non-empty token
+ * in the string passed in the previous call to tokenize().
+ * @delim: set of characters that delimit the tokens
+ * 
+ * Description: This function returns the next non-empty token in the
+ * given input string, where the tokens are delimited by characters in
+ * the delim string.  If the input string is non-empty, it returns the
+ * first token.  If the input string is empty, it returns the next
+ * token in the string passed in the previous call to tokenize.
+ * If no delimiter is found, the entire remaining input string is 
+ * returned. It returns empty when no more tokens are available.
+ */
+function tokenize:string(input:string, delim:string)
+%{ /* unprivileged */ /* unmodified-fnargs */
+	char *token = NULL;
+	char *token_end = NULL;
+
+	if (STAP_ARG_input[0]) {
+		strncpy(CONTEXT->tok_str, STAP_ARG_input, MAXSTRINGLEN);
+		CONTEXT->tok_start = &CONTEXT->tok_str[0];
+		CONTEXT->tok_end = &CONTEXT->tok_str[0] + strlen(CONTEXT->tok_str);
+	}
+	do {
+		token = strsep(& CONTEXT->tok_start, STAP_ARG_delim);
+	} while (token && !token[0]);
+	if (token) {
+		token_end = (CONTEXT->tok_start ? CONTEXT->tok_start - 1 : CONTEXT->tok_end);
+		memcpy(STAP_RETVALUE, token, token_end - token + 1);
+	}
+%}

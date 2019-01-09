@@ -1,0 +1,52 @@
+'\" t
+.\"     Title: function::printk
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Logging Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::PRINTK" "3stap" "March 2016" "SystemTap Tapset Reference" "Logging Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::printk \- Send a message to the kernel trace buffer
+.SH "SYNOPSIS"
+.sp
+.nf
+    printk(level:long,msg:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIlevel\fR
+.RS 4
+an integer for the severity level (0=KERN_EMERG \&.\&.\&. 7=KERN_DEBUG)
+.RE
+.PP
+\fImsg\fR
+.RS 4
+The formatted message string
+.RE
+.SH "DESCRIPTION"
+.PP
+Print a line of text to the kernel dmesg/console with the given severity\&. An implicit end\-of\-line is added\&. This function may not be safely called from all kernel probe contexts, so is restricted to guru mode only\&.
+.SH SEE ALSO\n 
+.IR tapset::logging (3stap)

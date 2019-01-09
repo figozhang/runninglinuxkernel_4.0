@@ -1,0 +1,104 @@
+'\" t
+.\"     Title: probe::irq_handler.exit
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Interrupt Request (IRQ) Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::IRQ_HANDLER\&" "3stap" "March 2016" "SystemTap Tapset Reference" "Interrupt Request (IRQ) Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::irq_handler.exit \- Execution of interrupt handler completed
+.SH "SYNOPSIS"
+.sp
+.nf
+irq_handler\&.exit 
+.fi
+.SH "VALUES"
+.PP
+\fIthread\fR
+.RS 4
+thread pointer for threaded interrupts
+.RE
+.PP
+\fIflags_str\fR
+.RS 4
+symbolic string representation of IRQ flags
+.RE
+.PP
+\fIret\fR
+.RS 4
+return value of the handler
+.RE
+.PP
+\fIirq\fR
+.RS 4
+interrupt number
+.RE
+.PP
+\fIdev_name\fR
+.RS 4
+name of device
+.RE
+.PP
+\fInext_irqaction\fR
+.RS 4
+pointer to next irqaction for shared interrupts
+.RE
+.PP
+\fIthread_fn\fR
+.RS 4
+interrupt handler function for threaded interrupts
+.RE
+.PP
+\fIhandler\fR
+.RS 4
+interrupt handler function that was executed
+.RE
+.PP
+\fIaction\fR
+.RS 4
+struct irqaction*
+.RE
+.PP
+\fIdir\fR
+.RS 4
+pointer to the proc/irq/NN/name entry
+.RE
+.PP
+\fIthread_flags\fR
+.RS 4
+Flags related to thread
+.RE
+.PP
+\fIdev_id\fR
+.RS 4
+Cookie to identify device
+.RE
+.PP
+\fIflags\fR
+.RS 4
+flags for IRQ handler
+.RE
+.SH SEE ALSO\n 
+.IR tapset::irq (3stap)

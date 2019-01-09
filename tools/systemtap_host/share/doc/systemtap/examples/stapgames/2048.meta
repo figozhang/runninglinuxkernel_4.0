@@ -1,0 +1,7 @@
+title: 2048
+name: 2048.stp
+keywords: _best stapgames
+description: The modern classic 2048 sliding-tiles game, using local keyboard and ansi animation.
+test_support: stap -p4 2048.stp
+test_check: stap -p4 2048.stp
+test_installcheck: stap -p4 2048.stp

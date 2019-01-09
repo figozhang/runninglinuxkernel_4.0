@@ -1,0 +1,37 @@
+#! /usr/bin/env stap
+global reads, writes, totals
+
+probe begin { printf("starting probe\n") }
+
+probe vfs.read.return {
+  count = $return
+  if ( count >= 0 ) {
+    reads[execname(),dev] <<< count # statistics array
+    totals[execname(),dev] += count
+  }
+}
+
+probe vfs.write.return {
+  count = $return
+  if (count >= 0 ) {
+    writes[execname(),dev] <<< count # statistics array
+    totals[execname(),dev] += count
+  }
+}
+
+probe end {
+  printf("\n%16s %8s %8s %8s %8s %8s %8s %8s\n",
+    "", "", "", "read", "read", "", "write", "write")
+  printf("%16s %8s %8s %8s %8s %8s %8s %8s\n",
+    "name", "device", "read", "KB tot", "B avg", "write", "KB tot", "B avg")
+  foreach ([name,dev] in totals- limit 20) { # sort by total io
+    printf("%16s %3d, %4d %8d %8d %8d %8d %8d %8d\n",
+      name, MAJOR(dev), MINOR(dev),
+      @count(reads[name,dev]),
+      (@count(reads[name,dev]) ? @sum(reads[name,dev])>>10 : 0 ),
+      (@count(reads[name,dev]) ? @avg(reads[name,dev]) : 0 ),
+      @count(writes[name,dev]),
+      (@count(writes[name,dev]) ? @sum(writes[name,dev])>>10 : 0 ),
+      (@count(writes[name,dev]) ? @avg(writes[name,dev]) : 0 ))
+  }
+}

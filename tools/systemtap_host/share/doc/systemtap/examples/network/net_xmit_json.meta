@@ -1,0 +1,8 @@
+title: Tracks time between packet queue and transmit.
+name: net_xmit_json.stp
+keywords: network statistics json
+subsystem: network
+description: This script tracks time between packet queue and transmit. The information is provided to userspace via procfs in JSON format.
+test_support: stap -l 'kernel.trace("net_dev_queue")' && stap -l 'kernel.trace("net_dev_xmit")'
+test_check: stap -p4 net_xmit_json.stp
+test_installcheck: stap net_xmit_json.stp -c "sleep 1"

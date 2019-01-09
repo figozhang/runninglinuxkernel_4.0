@@ -1,0 +1,29 @@
+fntimes.stp - Show Functions Taking Longer Than Usual
+
+  The fntimes.stp script monitors the execution time history of a given
+  function family (assumed non-recursive).  Each time (beyond a warmup
+  interval) is then compared to the historical maximum.  If it exceeds
+  a certain threshold (250%), a message is printed.
+
+$ stap fntimes.stp 'kernel.function("sys_*")' -c "sleep 7"
+
+function SyS_ioctl well over maximum time (32 vs 12)
+function SyS_open well over maximum time (2832 vs 188)
+function SyS_newfstat well over maximum time (5 vs 2)
+function SyS_mmap_pgoff well over maximum time (282 vs 12)
+function SyS_mmap well over maximum time (286 vs 15)
+function SyS_access well over maximum time (35 vs 11)
+function SyS_access well over maximum time (92 vs 35)
+function SyS_mprotect well over maximum time (44 vs 13)
+function SyS_futex well over maximum time (9753 vs 3260)
+function SyS_newstat well over maximum time (4882 vs 133)
+function SyS_recvmsg well over maximum time (607 vs 44)
+function SyS_futex well over maximum time (55896 vs 9753)
+function SyS_futex well over maximum time (500089 vs 55927)
+function SyS_poll well over maximum time (832629 vs 53308)
+
+Getting no output is not a bad thing; it means that means that functions
+did not exceed the threshold.
+
+This output was gathered by running ls repeatedly in another terminal
+a few seconds after the script started.

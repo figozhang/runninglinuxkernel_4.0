@@ -1,0 +1,14 @@
+/**
+ * sfunction randint - Return a random number between [0,n)
+ * @n: Number past upper limit of range, not larger than 2**20.
+ */
+function randint:long(n:long) 
+%{	/* unprivileged */
+#define RANDMAX (1024*1024)
+        if (STAP_ARG_n > RANDMAX)
+           CONTEXT->last_error = "range too wide";
+        else {
+  	   STAP_RETVALUE = (uint64_t) _stp_random_u((unsigned long) STAP_ARG_n);
+        }
+#undef RANDMAX
+%}

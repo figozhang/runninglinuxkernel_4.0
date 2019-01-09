@@ -1,0 +1,402 @@
+// IO scheduler tapset
+// Copyright (C) 2005, 2006 IBM Corp.
+// Copyright (C) 2010-2015 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// This family of probe points is used to probe IO scheduler activities. 
+// </tapsetdescription>
+%{
+#include <linux/blkdev.h>
+#include <linux/elevator.h>
+%}
+
+/**
+ * probe ioscheduler.elv_next_request - Fires when a request is retrieved from the request queue
+ * @name: Name of the probe point
+ * @elevator_name: The type of I/O elevator currently enabled
+ */
+probe ioscheduler.elv_next_request = kernel.function("blk_peek_request") !,
+				     kernel.function("elv_next_request")
+{
+	name = "elv_next_request"
+	elevator_name = kernel_string(
+		@choose_defined($q->elevator->type->elevator_name,
+			@choose_defined($q->elevator->elevator_type->elevator_name,
+                                        $q->elevator->elevator_name)), "")
+}
+
+/**
+ * probe ioscheduler.elv_next_request.return - Fires when a request retrieval issues a return signal
+ * @name: Name of the probe point
+ * @rq: Address of the request
+ * @rq_flags: Request flags
+ * @disk_major: Disk major number of the request
+ * @disk_minor: Disk minor number of the request
+ */
+probe ioscheduler.elv_next_request.return =
+		kernel.function("blk_peek_request").return !,
+		kernel.function("elv_next_request").return
+{
+	name = "elv_next_request"
+	if ($return == 0)  {
+		rq = 0
+		rq_flags = 0
+		disk_major = -1
+		disk_minor = -1
+	} else {
+		rq = $return
+		rq_flags = @choose_defined($return->cmd_flags, $return->flags)
+		if ($return->rq_disk == 0)  {
+			disk_major = -1
+			disk_minor = -1
+		} else {
+			disk_major = $return->rq_disk->major
+			disk_minor = $return->rq_disk->first_minor
+		}
+	}
+}
+
+/**
+ * probe ioscheduler.elv_completed_request - Fires when a request is completed
+ * @name: Name of the probe point
+ * @elevator_name: The type of I/O elevator currently enabled
+ * @rq: Address of the request
+ * @rq_flags: Request flags
+ * @disk_major: Disk major number of the request
+ * @disk_minor: Disk minor number of the request
+ */
+probe ioscheduler.elv_completed_request
+	= kernel.function("elv_completed_request")
+{
+	name = "elv_completed_request"
+	elevator_name = kernel_string(
+		@choose_defined($q->elevator->type->elevator_name,
+			@choose_defined($q->elevator->elevator_type->elevator_name,
+                                        $q->elevator->elevator_name)), "")
+	if($rq == 0)  {
+		disk_major = -1
+		disk_minor = -1
+	} else {
+		if($rq->rq_disk == 0)  {
+			disk_major = -1
+			disk_minor = -1
+		} else {
+			disk_major = $rq->rq_disk->major
+			disk_minor = $rq->rq_disk->first_minor
+		}
+	}
+
+	rq = $rq
+	rq_flags = ($rq == 0) ? 0
+		: @choose_defined($rq->cmd_flags, $rq->flags)
+}
+
+/**
+ * probe ioscheduler.elv_add_request.kp - kprobe based probe to indicate that a request was added to the request queue
+ * @name: Name of the probe point
+ * @elevator_name: The type of I/O elevator currently enabled
+ * @q: pointer to request queue
+ * @rq: Address of the request
+ * @rq_flags: Request flags
+ * @disk_major: Disk major number of the request
+ * @disk_minor: Disk minor number of the request
+ */
+// when a request is added to the request queue
+probe ioscheduler.elv_add_request.kp =
+		kernel.function("elv_insert") !,
+		kernel.function("__elv_add_request")
+{
+	name = "elv_add_request"
+	elevator_name = kernel_string(
+		@choose_defined($q->elevator->type->elevator_name,
+			@choose_defined($q->elevator->elevator_type->elevator_name,
+                                        $q->elevator->elevator_name)), "")
+	q = $q
+	if($rq == 0)  {
+		disk_major = -1
+		disk_minor = -1
+	} else {
+		if($rq->rq_disk == 0)  {
+			disk_major = -1
+			disk_minor = -1
+		} else {
+			disk_major = $rq->rq_disk->major
+			disk_minor = $rq->rq_disk->first_minor
+		}
+	}
+
+	rq = $rq
+	rq_flags = ($rq == 0) ? 0
+		: @choose_defined($rq->cmd_flags, $rq->flags)
+}
+
+/**
+ * probe ioscheduler.elv_add_request.tp - tracepoint based probe to indicate a request is added to the request queue.
+ * @name		: Name of the probe point
+ * @elevator_name	: The type of I/O elevator currently enabled.
+ * @q			: Pointer to request queue.
+ * @rq			: Address of request.
+ * @rq_flags		: Request flags.
+ * @disk_major		: Disk major no of request.
+ * @disk_minor		: Disk minor number of request.
+ *
+ */
+probe ioscheduler.elv_add_request.tp = kernel.trace("block_rq_insert") ?
+{
+	name = "elv_add_request"
+	q =  $q
+	elevator_name = kernel_string(
+		@choose_defined($q->elevator->type->elevator_name,
+			@choose_defined($q->elevator->elevator_type->elevator_name,
+                                        $q->elevator->elevator_name)), "")
+	rq = $rq
+
+	if ($rq == 0 || $rq->rq_disk ==0) {
+		disk_major = -1
+		disk_minor = -1
+	}
+	else {
+		disk_major = $rq->rq_disk->major
+		disk_minor = $rq->rq_disk->first_minor
+	}
+
+	rq_flags = ($rq == 0) ? 0
+		: @choose_defined($rq->cmd_flags, $rq->flags)
+}
+
+/**
+ * probe ioscheduler.elv_add_request - probe to indicate request is added to the request queue.
+ * @elevator_name	: The type of I/O elevator currently enabled.
+ * @q			: Pointer to request queue.
+ * @rq			: Address of request.
+ * @rq_flags		: Request flags.
+ * @disk_major		: Disk major no of request.
+ * @disk_minor		: Disk minor number of request.
+ *
+ */
+probe ioscheduler.elv_add_request =
+	ioscheduler.elv_add_request.tp !, ioscheduler.elv_add_request.kp
+{}
+
+/**
+ * probe ioscheduler_trace.elv_completed_request - Fires when a request is
+ *							completed.
+ * @name		: Name of the probe point
+ * @elevator_name	: The type of I/O elevator currently enabled.
+ * @rq			: Address of request.
+ * @rq_flags		: Request flags.
+ * @disk_major		: Disk major no of request.
+ * @disk_minor		: Disk minor number of request.
+ *
+ */
+probe ioscheduler_trace.elv_completed_request
+			= kernel.trace("block_rq_complete") ?
+{
+	name = "elv_completed_request"
+	elevator_name = kernel_string(
+		@choose_defined($q->elevator->type->elevator_name,
+			@choose_defined($q->elevator->elevator_type->elevator_name,
+                                        $q->elevator->elevator_name)), "")
+	rq = $rq
+
+	if ($rq == 0 || $rq->rq_disk ==0) {
+		disk_major = -1
+		disk_minor = -1
+	}
+	else {
+		disk_major = $rq->rq_disk->major
+		disk_minor = $rq->rq_disk->first_minor
+	}
+
+	rq_flags = ($rq == 0) ? 0
+		: @choose_defined($rq->cmd_flags, $rq->flags)
+}
+
+/**
+ * probe ioscheduler_trace.elv_issue_request - Fires when a request is
+ *							scheduled.
+ * @name		: Name of the probe point
+ * @elevator_name	: The type of I/O elevator currently enabled.
+ * @rq			: Address of request.
+ * @rq_flags		: Request flags.
+ * @disk_major		: Disk major no of request.
+ * @disk_minor		: Disk minor number of request.
+ *
+ */
+probe ioscheduler_trace.elv_issue_request
+			= kernel.trace("block_rq_issue") ?
+{
+	name = "elv_issue_request"
+	elevator_name = kernel_string(
+		@choose_defined($q->elevator->type->elevator_name,
+			@choose_defined($q->elevator->elevator_type->elevator_name,
+                                        $q->elevator->elevator_name)), "")
+	rq = $rq
+
+	if ($rq == 0 || $rq->rq_disk ==0) {
+		disk_major = -1
+		disk_minor = -1
+	}
+	else {
+		disk_major = $rq->rq_disk->major
+		disk_minor = $rq->rq_disk->first_minor
+	}
+
+	rq_flags = ($rq == 0) ? 0
+		: @choose_defined($rq->cmd_flags, $rq->flags)
+}
+
+/**
+ * probe ioscheduler_trace.elv_requeue_request - Fires when a request is
+ *	put back on the queue, when the hadware cannot accept more requests.
+ * @name		: Name of the probe point
+ * @elevator_name	: The type of I/O elevator currently enabled.
+ * @rq			: Address of request.
+ * @rq_flags		: Request flags.
+ * @disk_major		: Disk major no of request.
+ * @disk_minor		: Disk minor number of request.
+ *
+ */
+probe ioscheduler_trace.elv_requeue_request
+			= kernel.trace("block_rq_requeue") ?
+{
+	name = "elv_requeue_request"
+	elevator_name = kernel_string(
+		@choose_defined($q->elevator->type->elevator_name,
+			@choose_defined($q->elevator->elevator_type->elevator_name,
+                                        $q->elevator->elevator_name)), "")
+	rq = $rq
+
+	if ($rq == 0 || $rq->rq_disk ==0) {
+		disk_major = -1
+		disk_minor = -1
+	}
+	else {
+		disk_major = $rq->rq_disk->major
+		disk_minor = $rq->rq_disk->first_minor
+	}
+
+	rq_flags = ($rq == 0) ? 0
+		: @choose_defined($rq->cmd_flags, $rq->flags)
+}
+
+/**
+ * probe ioscheduler_trace.elv_abort_request - Fires when a request is aborted.
+ * @name		: Name of the probe point
+ * @elevator_name	: The type of I/O elevator currently enabled.
+ * @rq			: Address of request.
+ * @rq_flags		: Request flags.
+ * @disk_major		: Disk major no of request.
+ * @disk_minor		: Disk minor number of request.
+ *
+ */
+probe ioscheduler_trace.elv_abort_request
+			= kernel.trace("block_rq_abort") ?
+{
+	name = "elv_abort_request"
+	elevator_name = kernel_string(
+		@choose_defined($q->elevator->type->elevator_name,
+			@choose_defined($q->elevator->elevator_type->elevator_name,
+                                        $q->elevator->elevator_name)), "")
+	rq = $rq
+
+	if ($rq == 0 || $rq->rq_disk ==0) {
+		disk_major = -1
+		disk_minor = -1
+	}
+	else {
+		disk_major = $rq->rq_disk->major
+		disk_minor = $rq->rq_disk->first_minor
+	}
+
+	rq_flags = ($rq == 0) ? 0
+		: @choose_defined($rq->cmd_flags, $rq->flags)
+}
+
+/**
+ * probe ioscheduler_trace.plug - Fires when a request queue is plugged;
+ *		ie, requests in the queue cannot be serviced by block driver.
+ * @name	: Name of the probe point
+ * @rq_queue	: request queue
+ *
+ */
+probe ioscheduler_trace.plug = kernel.trace("block_plug") ?
+{
+	name = "plug"
+	rq_queue = $q
+}
+
+/**
+ * probe ioscheduler_trace.unplug_io - Fires when a request queue is unplugged;
+ *	Either, when number of pending requests in the queue exceeds threshold
+ *	or, upon expiration of timer that was activated when queue was plugged.
+ * @name	: Name of the probe point
+ * @rq_queue	: request queue
+ *
+ */
+probe ioscheduler_trace.unplug_io = kernel.trace("block_unplug_io") ?
+{
+	name = "unplug_io"
+	rq_queue = $q
+}
+
+/**
+ * probe ioscheduler_trace.unplug_timer - Fires when unplug timer associated
+ *					with a request queue expires.
+ * @name	: Name of the probe point
+ * @rq_queue	: request queue
+ *
+ */
+probe ioscheduler_trace.unplug_timer = kernel.trace("block_unplug_timer") ?
+{
+	name = "unplug_timer"
+	rq_queue = $q
+}
+
+function disk_major_from_request:long(var_q:long)
+%{ /* pure */
+	struct request_queue *q = (struct request_queue *)((long)STAP_ARG_var_q);
+
+	/* We need to make sure there isn't a deref hazard here when
+	 * reading 'q->queue_head'.  However, kread() wants a pointer to
+	 * a pointer, and we can't provide that for 'q->queue_head'
+	 * since the list_head structure is directly embedded in the
+	 * 'struct request_queue'.  So, we validate all the members of
+	 * the list_head structure instead. */
+	(void) kread(&(q->queue_head.next));
+	(void) kread(&(q->queue_head.prev));
+	if (list_empty(&(q->queue_head)))
+		STAP_RETVALUE = -1;
+	else  {
+		struct request *rq = list_entry_rq(q->queue_head.next);
+		struct gendisk *rq_disk = kread(&(rq->rq_disk));
+		STAP_RETVALUE = kread(&(rq_disk->major));
+	}
+	CATCH_DEREF_FAULT();
+%}
+
+function disk_minor_from_request:long(var_q:long)
+%{ /* pure */
+	struct request_queue *q = (struct request_queue *)((long)STAP_ARG_var_q);
+
+	/* We need to make sure there isn't a deref hazard here when
+	 * reading 'q->queue_head'.  However, kread() wants a pointer to
+	 * a pointer, and we can't provide that for 'q->queue_head'
+	 * since the list_head structure is directly embedded in the
+	 * 'struct request_queue'.  So, we validate all the members of
+	 * the list_head structure instead. */
+	(void) kread(&(q->queue_head.next));
+	(void) kread(&(q->queue_head.prev));
+	if (list_empty(&(q->queue_head)))
+		STAP_RETVALUE = -1;
+	else  {
+		struct request *rq = list_entry_rq(q->queue_head.next);
+		struct gendisk *rq_disk = kread(&(rq->rq_disk));
+		STAP_RETVALUE = kread(&(rq_disk->first_minor));
+	}
+	CATCH_DEREF_FAULT();
+%}

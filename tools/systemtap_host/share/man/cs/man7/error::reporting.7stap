@@ -1,0 +1,43 @@
+.\" t
+.TH ERROR::REPORTING 7stap
+.SH JMÉNO
+error::reporting \- reportování chyb
+
+
+.SH KOMERČNÍ PODPORA
+Pokud váš poskytovatel OS nabízí komerční podporu, doporučujeme ji využít
+a nahlásit chybu pomocí příslušného nástroje.
+
+.SH KOMUNITNÍ PODPORA
+Systemtap komunita a dobrovolní vývojáři rádi přijmou Vaše chybové hlášení, aby
+mohli systemtap opravit, či vylepšit.  Existuje několik způsobů jak je
+kontaktovat:
+
+.TP
+veřejný mailing list
+systemtap@sourceware.org
+
+.TP
+veřejné IRC
+#systemtap na irc.freenode.net, použijte fpaste.org pro rozsáhlejší text
+
+.TP
+veřejná bugzilla
+http://sourceware.org/bugzilla/
+
+.SH JAKÉ INFORMACE SBÍRAT
+Do hlášení o chybě zahrňte informaci o platformě, verzi systemtapu,
+vašich skriptech a použitých tapsetech, způsobu vyvolání systemtapu a skutečné
+versus očekávané chování.
+
+Pro sesbírání užitečných informací, které pomohou popsat vaše prostředí, vložte
+do chybového hlášení výstup příkazu
+.IR stap-report "."
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR stap-report (1),
+.IR http://sourceware.org/systemtap/wiki/
+

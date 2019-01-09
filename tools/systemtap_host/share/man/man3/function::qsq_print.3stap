@@ -1,0 +1,50 @@
+'\" t
+.\"     Title: function::qsq_print
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Queue Statistics Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::QSQ_PRINT" "3stap" "March 2016" "SystemTap Tapset Reference" "Queue Statistics Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::qsq_print \- Prints a line of statistics for the given queue
+.SH "SYNOPSIS"
+.sp
+.nf
+    qsq_print(qname:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIqname\fR
+.RS 4
+queue name
+.RE
+.SH "DESCRIPTION"
+.PP
+This function prints a line containing the following
+.SH "STATISTICS FOR THE GIVEN QUEUE"
+.PP
+the queue name, the average rate of requests per second, the average wait queue length, the average time on the wait queue, the average time to service a request, the percentage of time the wait queue was used, and the percentage of time request was being serviced\&.
+.SH SEE ALSO\n 
+.IR tapset::queue_stats (3stap)

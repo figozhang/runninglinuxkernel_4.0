@@ -1,0 +1,56 @@
+'\" t
+.\"     Title: function::return_str
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Errno Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::RETURN_STR" "3stap" "March 2016" "SystemTap Tapset Reference" "Errno Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::return_str \- Formats the return value as a string
+.SH "SYNOPSIS"
+.sp
+.nf
+    return_str:string(format:long,ret:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIformat\fR
+.RS 4
+Variable to determine return type base value
+.RE
+.PP
+\fIret\fR
+.RS 4
+Return value (typically
+\fB$return\fR)
+.RE
+.SH "DESCRIPTION"
+.PP
+This function is used by the syscall tapset, and returns a string\&. Set format equal to 1 for a decimal, 2 for hex, 3 for octal\&.
+.PP
+Note that this function is preferred over
+\fBreturnstr\fR\&.
+.SH SEE ALSO\n 
+.IR tapset::errno (3stap)

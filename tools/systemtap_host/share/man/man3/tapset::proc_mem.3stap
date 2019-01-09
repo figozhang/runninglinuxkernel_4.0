@@ -1,0 +1,158 @@
+.\" -*- nroff -*-
+.TH TAPSET::PROC_MEM 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::proc_mem \- systemtap proc_mem tapset
+ 
+.SH DESCRIPTION
+
+ Process memory query and utility functions provide information about
+ the memory usage of the current application. These functions provide
+ information about the full size, resident, shared, code and data used
+ by the current process. And provide utility functions to query the
+ page size of the current architecture and create human readable string
+ representations of bytes and pages used.
+
+.TP
+.P
+.TP
+.B proc_mem_size 
+Total program virtual memory size in pages
+.IP
+See 
+.IR function::proc_mem_size (3stap)
+ for details.
+.P
+.TP
+.B proc_mem_size 
+Total program virtual memory size in pages
+.IP
+See 
+.IR function::proc_mem_size (3stap)
+ for details.
+.P
+.TP
+.B proc_mem_rss 
+Program resident set size in pages
+.IP
+See 
+.IR function::proc_mem_rss (3stap)
+ for details.
+.P
+.TP
+.B proc_mem_rss 
+Program resident set size in pages
+.IP
+See 
+.IR function::proc_mem_rss (3stap)
+ for details.
+.P
+.TP
+.B proc_mem_shr 
+Program shared pages (from shared mappings)
+.IP
+See 
+.IR function::proc_mem_shr (3stap)
+ for details.
+.P
+.TP
+.B proc_mem_shr 
+Program shared pages (from shared mappings)
+.IP
+See 
+.IR function::proc_mem_shr (3stap)
+ for details.
+.P
+.TP
+.B proc_mem_txt 
+Program text (code) size in pages
+.IP
+See 
+.IR function::proc_mem_txt (3stap)
+ for details.
+.P
+.TP
+.B proc_mem_txt 
+Program text (code) size in pages
+.IP
+See 
+.IR function::proc_mem_txt (3stap)
+ for details.
+.P
+.TP
+.B proc_mem_data 
+Program data size (data + stack) in pages
+.IP
+See 
+.IR function::proc_mem_data (3stap)
+ for details.
+.P
+.TP
+.B proc_mem_data 
+Program data size (data + stack) in pages
+.IP
+See 
+.IR function::proc_mem_data (3stap)
+ for details.
+.P
+.TP
+.B mem_page_size 
+Number of bytes in a page for this architecture
+.IP
+See 
+.IR function::mem_page_size (3stap)
+ for details.
+.P
+.TP
+.B bytes_to_string 
+Human readable string for given bytes
+.IP
+See 
+.IR function::bytes_to_string (3stap)
+ for details.
+.P
+.TP
+.B pages_to_string 
+Turns pages into a human readable string
+.IP
+See 
+.IR function::pages_to_string (3stap)
+ for details.
+.P
+.TP
+.B proc_mem_string 
+Human readable string of process memory usage
+.IP
+See 
+.IR function::proc_mem_string (3stap)
+ for details.
+.P
+.TP
+.B proc_mem_string 
+Human readable string of process memory usage
+.IP
+See 
+.IR function::proc_mem_string (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::proc_mem_size (3stap),
+.BR
+.IR \%function::proc_mem_rss (3stap),
+.BR
+.IR \%function::proc_mem_shr (3stap),
+.BR
+.IR \%function::proc_mem_txt (3stap),
+.BR
+.IR \%function::proc_mem_data (3stap),
+.BR
+.IR \%function::mem_page_size (3stap),
+.BR
+.IR \%function::bytes_to_string (3stap),
+.BR
+.IR \%function::pages_to_string (3stap),
+.BR
+.IR \%function::proc_mem_string (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

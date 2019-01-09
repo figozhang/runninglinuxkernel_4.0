@@ -1,0 +1,35 @@
+$ ./tcpipstat.stp nozeros=0
+Indexing collected stats using tuple values
+Processed filter #1 = 0.0.0.0[0x0]:65535 --> 0.0.0.0[0x0]:65535 
+^C
+-----------------------------------------
+9.47.66.34:22 <-> 9.47.67.150:36570
+-----------------------------------------
+Socket:
+        Bytes Sent = 208
+        Messages sent = 2
+        Bytes Received = 48
+        Messages Received = 1
+Ip:
+        InReceives = 3
+        OutRequests = 2
+        ReasmTimeout = 0
+        ReasmReqds = 0
+        FragOKs = 0
+        FragFails = 0
+Tcp:
+        ActiveOpens = 0
+        AttemptFails = 0
+        CurrEstab = 0
+        EstabResets = 0
+        InSegs = 3
+        OutRsts = 0
+        OutSegs = 2
+        PassiveOpens = 0
+        RetransSegs = 0
+TcpExt:
+        delayed acks sent = 0
+        times the listen queue of a socket overflowed = 0
+        SYNs to LISTEN sockets ignored = 0
+        tcp memory pressure = 0
+

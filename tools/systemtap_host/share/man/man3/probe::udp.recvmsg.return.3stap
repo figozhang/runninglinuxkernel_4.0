@@ -1,0 +1,77 @@
+'\" t
+.\"     Title: probe::udp.recvmsg.return
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Networking Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::UDP\&.RECVMSG" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::udp.recvmsg.return \- Fires whenever an attempt to receive a UDP message received is completed
+.SH "SYNOPSIS"
+.sp
+.nf
+udp\&.recvmsg\&.return 
+.fi
+.SH "VALUES"
+.PP
+\fIdport\fR
+.RS 4
+UDP destination port
+.RE
+.PP
+\fIdaddr\fR
+.RS 4
+A string representing the destination IP address
+.RE
+.PP
+\fIsize\fR
+.RS 4
+Number of bytes received by the process
+.RE
+.PP
+\fIname\fR
+.RS 4
+The name of this probe
+.RE
+.PP
+\fIsport\fR
+.RS 4
+UDP source port
+.RE
+.PP
+\fIfamily\fR
+.RS 4
+IP address family
+.RE
+.PP
+\fIsaddr\fR
+.RS 4
+A string representing the source IP address
+.RE
+.SH "CONTEXT"
+.PP
+The process which received a UDP message
+.SH SEE ALSO\n 
+.IR tapset::udp (3stap)

@@ -1,0 +1,36 @@
+spawn_seeker.stp - List which processes spawning others
+
+  This script once a minute prints out sorted lists showing which
+  processes and executables are spawning the most additional tasks on
+  the system.
+
+$ stap ./spawn_seeker.stp 
+^C
+Sun Apr 19 22:57:02 2015 EDT
+
+        execname(   PID)    spawned (percent)
+            make( 18559)        576 ( 39%)
+            make( 21070)        325 ( 22%)
+            make( 18959)        176 ( 12%)
+            make( 16030)        166 ( 11%)
+            make( 20118)        119 (  8%)
+            make( 20476)         59 (  4%)
+            make( 20723)         16 (  1%)
+             gcc( 20749)          3 (  0%)
+             gcc( 20775)          3 (  0%)
+             gcc( 20790)          3 (  0%)
+             gcc( 20758)          2 (  0%)
+             gcc( 20781)          2 (  0%)
+             gcc( 20793)          2 (  0%)
+            make( 12759)          1 (  0%)
+              sh( 20748)          1 (  0%)
+              sh( 20774)          1 (  0%)
+              sh( 20789)          1 (  0%)
+              sh( 20801)          1 (  0%)
+             gcc( 20802)          1 (  0%)
+             gcc( 20803)          1 (  0%)
+
+        execname    spawned (percent)
+              sh        637 ( 43%)
+             gcc        605 ( 41%)
+            make        217 ( 14%)

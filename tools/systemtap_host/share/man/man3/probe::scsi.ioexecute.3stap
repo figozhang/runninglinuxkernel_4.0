@@ -1,0 +1,99 @@
+'\" t
+.\"     Title: probe::scsi.ioexecute
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: SCSI Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SCSI\&.IOEXEC" "3stap" "March 2016" "SystemTap Tapset Reference" "SCSI Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::scsi.ioexecute \- Create mid\-layer SCSI request and wait for the result
+.SH "SYNOPSIS"
+.sp
+.nf
+scsi\&.ioexecute 
+.fi
+.SH "VALUES"
+.PP
+\fIrequest_bufflen\fR
+.RS 4
+The data buffer buffer length
+.RE
+.PP
+\fIretries\fR
+.RS 4
+Number of times to retry request
+.RE
+.PP
+\fItimeout\fR
+.RS 4
+Request timeout in seconds
+.RE
+.PP
+\fIdata_direction_str\fR
+.RS 4
+Data direction, as a string
+.RE
+.PP
+\fIdevice_state\fR
+.RS 4
+The current state of the device
+.RE
+.PP
+\fIlun\fR
+.RS 4
+The lun number
+.RE
+.PP
+\fIrequest_buffer\fR
+.RS 4
+The data buffer address
+.RE
+.PP
+\fIhost_no\fR
+.RS 4
+The host number
+.RE
+.PP
+\fIchannel\fR
+.RS 4
+The channel number
+.RE
+.PP
+\fIdev_id\fR
+.RS 4
+The scsi device id
+.RE
+.PP
+\fIdata_direction\fR
+.RS 4
+The data_direction specifies whether this command is from/to the device\&.
+.RE
+.PP
+\fIdevice_state_str\fR
+.RS 4
+The current state of the device, as a string
+.RE
+.SH SEE ALSO\n 
+.IR tapset::scsi (3stap)

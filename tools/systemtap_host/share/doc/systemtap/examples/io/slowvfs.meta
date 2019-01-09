@@ -1,0 +1,7 @@
+title: Trace slow vfs opens.
+name: slowvfs.stp
+keywords: io simple
+description: This script prints a line for every kernel vfs_open operation that takes longer than a configurable number of microseconds.  Highly contended or remote filesystems are likelier to hit this.
+test_support: stap -l 'vfs.open.return'
+test_check: stap -p4 slowvfs.stp
+test_installcheck: stap slowvfs.stp -G sloth=10 -c 'find /proc >/dev/null'

@@ -1,0 +1,82 @@
+// User context unwind tapset
+// Copyright (C) 2009-2013 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/**
+ * sfunction print_ubacktrace - Print stack back trace for current user-space task.
+ *
+ * Equivalent to print_ustack(ubacktrace()), except that deeper stack
+ * nesting may be supported.  Returns nothing.  See print_backtrace()
+ * for kernel backtrace.
+ *
+ * Note: To get (full) backtraces for user space applications and shared
+ * shared libraries not mentioned in the current script run stap with
+ * -d /path/to/exe-or-so and/or add --ldd to load all needed unwind data.
+ */
+function print_ubacktrace () %{ /* pragma:unwind */ /* pragma:symbols */
+/* myproc-unprivileged */ /* pragma:uprobes */ /* pragma:vma */
+    _stp_stack_user_print(CONTEXT, _STP_SYM_FULL);
+%}
+
+/**
+ * sfunction sprint_ubacktrace - Return stack back trace for current user-space task as string.
+ *
+ * Returns a simple backtrace for the current task. One line per
+ * address. Includes the symbol name (or hex address if symbol
+ * couldn't be resolved) and module name (if found). Includes the
+ * offset from the start of the function if found, otherwise the
+ * offset will be added to the module (if found, between
+ * brackets). Returns the backtrace as string (each line terminated by
+ * a newline character).  Note that the returned stack will be
+ * truncated to MAXSTRINGLEN, to print fuller and richer stacks use
+ * print_ubacktrace(). Equivalent to sprint_ustack(ubacktrace()),
+ * but more efficient (no need to translate between hex strings and
+ * final backtrace string).
+ *
+ * Note: To get (full) backtraces for user space applications and shared
+ * shared libraries not mentioned in the current script run stap with
+ * -d /path/to/exe-or-so and/or add --ldd to load all needed unwind data.
+ */
+function sprint_ubacktrace:string () %{ /* pragma:unwind */ /* pragma:symbols */
+/* pure */ /* stable */ /* myproc-unprivileged */ /* pragma:uprobes */ /* pragma:vma */
+    _stp_stack_user_sprint (STAP_RETVALUE, MAXSTRINGLEN, CONTEXT,
+			    _STP_SYM_SIMPLE);
+%}
+
+/**
+ * sfunction print_ubacktrace_brief- Print stack back trace for current user-space task.
+ *
+ * Equivalent to print_ubacktrace(), but output for each symbol is
+ * shorter (just name and offset, or just the hex address of no symbol
+ * could be found).
+ *
+ * Note: To get (full) backtraces for user space applications and shared
+ * shared libraries not mentioned in the current script run stap with
+ * -d /path/to/exe-or-so and/or add --ldd to load all needed unwind data.
+ */
+function print_ubacktrace_brief () %{ /* pragma:unwind */ /* pragma:symbols */
+/* myproc-unprivileged */ /* pragma:uprobes */ /* pragma:vma */
+    _stp_stack_user_print(CONTEXT, _STP_SYM_BRIEF);
+%}
+
+/**
+ * sfunction ubacktrace - Hex backtrace of current user-space task stack.
+ *
+ * Return a string of hex addresses that are a backtrace of the 
+ * stack of the current task.  Output may be truncated as per maximum
+ * string length. Returns empty string when current probe point cannot
+ * determine user backtrace.  See backtrace() for kernel traceback.
+ *
+ * Note: To get (full) backtraces for user space applications and shared
+ * shared libraries not mentioned in the current script run stap with
+ * -d /path/to/exe-or-so and/or add --ldd to load all needed unwind data.
+ */
+function ubacktrace:string () %{ /* pragma:unwind */
+/* pure */ /* stable */ /* myproc-unprivileged */ /* pragma:uprobes */ /* pragma:vma */
+    _stp_stack_user_sprint (STAP_RETVALUE, MAXSTRINGLEN, CONTEXT,
+			    _STP_SYM_NONE);
+%}

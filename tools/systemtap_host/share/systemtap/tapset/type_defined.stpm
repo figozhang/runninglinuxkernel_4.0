@@ -1,0 +1,15 @@
+@define type_defined(type) %(
+    @defined(& @cast(0, @type))
+%)
+
+@define type_member_defined(type, member) %(
+    @defined(& @cast(0, @type) -> @member)
+%)
+
+@define module_type_defined(module, type) %(
+    @defined(& @cast(0, @type, @module))
+%)
+
+@define module_type_member_defined(module, type, member) %(
+    @defined(& @cast(0, @type, @module) -> @member)
+%)

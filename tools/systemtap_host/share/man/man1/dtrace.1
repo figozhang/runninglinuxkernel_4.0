@@ -1,0 +1,137 @@
+.\" -*- nroff -*-
+.TH DTRACE 1 
+.SH NAME
+dtrace \- Dtrace compatible user application static probe generation tool.
+
+.\" macros
+.\" do not nest SAMPLEs
+.de SAMPLE
+.br
+
+.nr oldin \\n(.i
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH SYNOPSIS
+
+.br
+.B dtrace \-s \fIfile\fR [\fBOPTIONS\fR]
+
+.SH DESCRIPTION
+
+The dtrace command converts probe descriptions defined in \fIfile.d\fR
+into a probe header
+file via the \fB\-h\fR option
+or a probe description file via the \fB\-G\fR option.
+
+.SH OPTIONS
+.PP
+.TP
+.B \-h
+generate a systemtap header file.
+
+.TP
+.B \-G
+generate a systemtap probe definition object file.
+
+.TP
+.B \-o \fIfile\fR
+is the name of the output file.  If the \fB\-G\fR option is given then
+the output file will be called \fIfile.o\fR; if the \fB\-h\fR option is
+given then the output file will be called \fIfile.h\fR.
+
+.TP
+.B \-C
+run the cpp preprocessor on the input file when the \fB\-h\fR option
+is given.
+
+.TP
+.B \-I \fIfile\fR
+give this include path to cpp when the \fB\-C\fR option is given.
+
+.TP
+.B \-k
+keep temporary files, for example the C language source for the
+\fB\-G\fR option.
+
+.SH EXAMPLES
+
+Systemtap is source compatible with dtrace user application static
+probe support.
+Given a file \fItest.d\fR containing:
+.SAMPLE
+provider sdt_probes 
+{
+  probe test_0 (int type);
+  probe test_1 (struct astruct node);
+};
+struct astruct {int a; int b;};
+.ESAMPLE
+Then the command \fI"dtrace\ \-s\ test.d\ \-G"\fR will create the
+probe definition file \fItest.o\fR and the command \fI"dtrace\ \-s\
+test.d\ \-h"\fR will create the probe header file \fItest.h\fR
+Subsequently the application can use the generated macros this way:
+.SAMPLE
+#include "test.h"
+ \.\.\.
+struct astruct s;
+ \.\.\.
+SDT_PROBES_TEST_0(value);
+ \.\.\.
+if (SDT_PROBES_TEST_1_ENABLED())
+    SDT_PROBES_TEST_1(expensive_function(s));
+.ESAMPLE
+
+.SH SEMAPHORES
+
+Semaphores are flag variables used by probes as a way of bypassing
+potentially costly processing to prepare arguments for probes that may
+not even be active.  They are automatically set/cleared by systemtap
+when a relevant script is running, so the argument setup cost is only
+paid when necessary.  These semaphore variables are defined within the
+the \fI"test.o"\fR object file, which must therefore be linked into an
+application.
+.PP
+Sometimes, semaphore variables are not necessary nor helpful.  Skipping
+them can simplify the build process, by omitting the extra \fI"test.o"\fR
+file.  To skip dependence upon semaphore variables, include \fI"<sys/sdt.h>"\fR
+within the application before \fI"test.h"\fR:
+.SAMPLE
+#include <sys/sdt.h>
+#include "test.h"
+ \.\.\.
+struct astruct s;
+ \.\.\.
+SDT_PROBES_TEST_0(value);
+ \.\.\.
+if (SDT_PROBES_TEST_1_ENABLED())
+   SDT_PROBES_TEST_1(cheap_function(s));
+.ESAMPLE
+In this mode, the ENABLED() test is fixed at 1.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR stappaths (7)
+
+
+.SH BUGS
+Use the Bugzilla link of the project web page or our mailing list.
+.nh
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .
+.hy
+.PP
+.IR error::reporting (7stap),
+.nh
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs
+.hy

@@ -1,0 +1,13 @@
+title: Periodically Print Process Information With History
+name: proctop.stp
+version: 1.0
+author: Abegail Jakop
+keywords: process scheduler _best
+subsystem: process
+status: production
+exit: user-controlled
+output: timed
+scope: system-wide
+description: Every 5 seconds, print out a list of 25 processes that took the most system time with information about the processes. Includes information on processes that may have exited while the script was running. The script contains configuration options listed in the script source.
+test_check: stap -p4 proctop.stp
+test_installcheck: stap proctop.stp -c "sleep 1"

@@ -1,0 +1,438 @@
+.\" -*- nroff -*-
+.TH SYSTEMTAP 8
+.SH JMÉNO
+systemtap \- systemtap initskript služba
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POUŽITÍ
+.B service systemtap
+.IR COMMAND " [" OPTIONS "] [" SCRIPT ...]
+
+.SH POPIS
+SystemTap initskript služba umožňuje spouštět systemtap skripty jako systémové služby a
+pohodlně je ovládat.  Skripty mohou být nastartovány na individuální žádost, nebo
+při startu systému.  Na systémech, které využívají dracut je také možné umístit
+skripty do initramfs a mít je spuštěné během boot procesu.
+
+Existují volby a parametry, které ovlivňují globální chování služby nebo
+jednotlivých skriptů.  Mezi skripty lze vytvořit závislosti, tak že nastartování
+jednoho automaticky způsobí nastartování jiného.
+
+Konfigurační soubor initskriptu se nachází v
+\fB${prefix}/etc/systemtap/config\fR.  Přijatelné parametry jsou detailně popsány
+v sekci GLOBÁLNÍ PARAMETRY.
+
+Skript musí být umístěn v adresáři \fB${prefix}/etc/systemtap/script.d\fR a musí
+mít příponu \fB.stp\fR.  Poznamenejme, že když se systemtap skripty pouštějí z
+příkazové řádky, jak je obvyklé, není přípona \fB.stp\fR povinná.  Jméno skriptu
+smí obsahovat jen alfanumerické znaky a '_', a nesmí začínat číslem.  Adresář pro
+skripty lze změnit nastavením parametru SCRIPT_PATH v konfiguračním souboru.
+
+.SH PŘÍKAZY
+Musí být uveden jeden z následující příkazů:
+
+.TP
+.B start
+Start skriptů.  Pokud žádné skripty nebyly určeny, nastartují se skripty určené
+nastavením DEFAULT_START.  Pokud DEFAULT_START není nastaveno, nastartují se
+všechny skripty v adresáři skriptů.  Pro skripty, které již běží se příkaz "start"
+ignoruje.  Příkaz "start" selže, pokud start skriptů selže (viz též nastavení
+PASSALL).
+
+Pokud je zapnutá volba AUTOCOMPILE, příkaz se pokusí sestavit (nebo obnovit
+sestavení) skriptů v případě, že je platná jedna z následujících podmínek:
+.RS
+.IP - 2
+Cache se zkompilovanými skripty neexistuje.
+.IP -
+Čas modifikace (mtime) původního skriptu se změnil.
+.IP -
+Skript se spouští s jinými volbami.
+.IP -
+Změnil se výstup `uname -a`.
+.RE
+
+.TP
+.B stop
+Zastavit skripty.  Pokud žádné skripty nebyly určeny, zastaví se všechny běžící
+skripty.  Pro skripty, které neběží, se tento příkaz bude ignorovat.  Příkaz selže
+pokud selže zastavení některého ze skriptů (viz též nastavení PASSALL).
+
+.TP
+.B restart
+Zastavit a opět nastartovat skripty.
+
+.TP
+.B status
+Zobrazit stav skriptů a jejich závislosti.
+
+.TP
+.B compile
+Přeložit skripty, ale nestartovat je.  Pokud skripty již byly přeloženy, dotázat
+se na potvrzení dříve, než dojde k přepsání cache.  Kompilovat pro běžící jádro,
+nebo pro jádro určené prostřednictvím volby \fB-r\fR.
+
+.TP
+.B onboot
+Učinit určené skripty součástí initramfs, aby mohly být spuštěny během startu stroje.
+Tento příkaz je dostupný jen na systémech, které používají dracut.  Pokud se neurčí
+žádný skript, všechny systemtap skripty se z initramfs odstraní.
+
+Initramfs se vytváří pro aktuální jádro, nebo pro jádro určené volbou \fB-r\fR.
+Výchozí umístění initramfs je \fB/boot/initramfs-KVER.img\fR, kde KVER odpovídá
+výstupu `uname -r`.  Příkaz "onboot" dále obnoví nastavení zavaděče systému tak,
+aby byl použit nový initramfs.  Pokud se má vytvořit initramfs v jiném umístění,
+použijte volbu \fB-o\fR.  V tomto případě se nastavení zavaděče systému nezmění.
+
+Pokud výstupní soubor již existuje, bude přepsán pokud není dán přepínač \fB-b\fR
+, kdy se původnímu souboru přidá přípona \fB.bak\fR namísto přepsání.  Pokud ale
+\fB.bak\fR soubor již existuje, nebude přepsán.
+
+UPOZORNĚNÍ: Nepoužívejte volbu \fB-o\fR příkazu \fIstap\fR(1) u "onboot" skriptů,
+protože skript poběží dříve, než se namountuje kořenový souborový systém.  Pokud
+potřebujete více místa pro výstup, zvětšete velikost bufferu.
+
+.TP
+.B cleanup
+Odstranit specifikované skripty z cache.  Pokud není specifikován žádný skript,
+budou smazány všechny.  Smaže se jen cache pro aktuální jádro, nebo pro jádro
+určené volbou \fB-r\fR.  Před smazáním cache bude požadováno potvrzení.
+
+.SH VOLBY
+Některé příkazy přijímají volby.  Nicméně, protože uživatelé nemohou předávat
+volby při zavádění OS, jsou volby určeny pouze pro ovládání skriptů běžících až
+po nabootování systému a pro testování.
+
+.TP
+.BI "-c " CONFIG_FILE
+Určuje alternativní konfigurační soubor.
+
+.TP
+.B -R
+Při použití s \fBstart\fR a \fBstop\fR příkazy značí, že mají být vzaty v potaz
+závislosti mezi skripty a to rekurzivně.
+
+.TP
+.BI "-r " KERNEL_RELEASE
+Při použití s \fBcompile\fR, \fBonboot\fR, a \fBcleanup\fR příkazy, určuje cílové
+jádro.  Formát KERNEL_RELEASE musí odpovídat formátu `uname -r`.
+
+.TP
+.B -y
+Odpověz ano na všechny dotazy.
+
+.TP
+.BI "-o " PATH.IMG
+Při použití s příkazem \fBonboot\fR určuje umístění initramfs.  Pokud se určí,
+konfigurace zavaděče se nezmění.  Pokud určen není, konfigurace zavaděče se změní
+tak, aby byl při následujícím startu použit nový initramfs.
+
+.TP
+.B -b
+Při použití s příkazem \fBonboot\fR, zazálohuje existující initramfs připojením
+přípony \fB.bak\fR namísto aby existující initramfs přepsal, což se stane není-li
+tato volba použita.
+
+.SH GLOBÁLNÍ PARAMETRY
+Tyto parametry ovlivňují obecné chování služby.  Nastavují se v konfiguračním
+souboru.
+
+.TP
+.B SCRIPT_PATH
+Určuje absolutní cestu adresáře pro skripty, se kterými může služba pracovat.
+Skripty musí mít příponu \fB.stp\fR.  Výchozí hodnota je
+\fB${prefix}/etc/systemtap/script.d\fR.
+
+.TP
+.B CONFIG_PATH
+Určuje absolutní cestu adresáře pro konfigurační soubory skriptů.
+Tyto konfigurační soubory obsahují volby specifické pro jednotlivé skripty.  Musí
+mít příponu \fB.conf\fR.  Výchozí umístění je \fB${prefix}/etc/systemtap/conf.d\fR.
+
+.TP
+.B CACHE_PATH
+Umístění cache adresáře.  Výchozí umístění je \fB${prefix}/var/cache/systemtap\fR.
+
+.TP
+.B TEMP_PATH
+Umístění dočasného adresáře, kam systemtap odkládá dočasné soubory, které vznikají
+při kompilaci systemtap jaderného modulu.  Výchozí umístění je \fB/tmp\fR.
+
+.TP
+.B STAT_PATH
+Absolutní cesta k adresáři se stavovými soubory pro jednotlivé skripty.  Výchozí
+umístění je \fB${prefix}/var/run/systemtap\fR.
+
+.TP
+.B LOG_FILE
+Absolutní cesta k logovacímu souboru.  Všechny zprávy se posílají do tohoto
+souboru (včetně kompilačních chybových hlášení a hlášení o chybách běhu).
+Výchozí umístění je \fB${prefix}/var/log/systemtap.log\fR.
+
+.TP
+.B PASSALL
+Pokud tato volba je nastavena (\fByes\fR), pak systemtap služba pracující s mnoha
+skripty zahlásí chybu, pokud kterýkoliv ze skriptů zhavaruje.  Pokud tato volba
+není nastavena (\fBno\fR) vypíše systemtap služba v takovém případě jen varování.
+
+
+.TP
+.B RECURSIVE
+Pokud tato volba je nastavena (\fByes\fR), služba systemtap bude brát v potaz
+závislosti mezi skripty a to rekurzivně (odpovídá volbě \fB-R\fR).  Tato volba
+je platná jen pokud byly na příkazové řádce určeny skripty.  Výchozí hodnota je
+\fBno\fR.
+
+.TP
+.B AUTOCOMPILE
+Pokud je tato volba nastavena (\fByes\fR), služba systemtap se pokusí zkompilovat
+určené skripty pokud nenalezne odpovídající validní položky v cache.
+Jinak související příkaz selže.  Výchozí hodnota je \fByes\fR.
+
+.TP
+.B DEFAULT_START
+Určuje skripty, které se mají nastartovat jako výchozí.  Pokud je tato volba
+vynechána (nebo nastavena na prázdnou hodnotu), nastartují se všechny skripty v
+adresáři.  Výchozí hodnota je \fB""\fR.
+
+.TP
+.B ALLOW_CACHEONLY
+Pokud je tato volba nastaveba (\fByes\fR), služba umožní nastartování také
+skriptům, pro něž existují v cache validní data, ale v adresáři pro skripty jejich
+zdrojový kód chybí.  Výchozí hodnota je \fBno\fR.
+
+VAROVÁNÍ: S touto volbou může služba nastartovat neočekávané skripty nacházející
+se v cache.  Před startem služby je vhodné obsah cache zkontrolovat.
+
+.TP
+.B LOG_BOOT_ERR
+Protože "boot-time" skripty se spouštějí dříve než je namountován kořenový
+souborový systém, nelze chybový výstup programy staprun posílat do LOG_FILE
+jak je obvyklé.  Nicméně log lze přesměrovat do /var/run/systemtap/$script.log
+nastavením LOG_BOOT_ERR na \fByes\fR.  Pokud STAT_PATH je odlišná od výchozí
+hodnoty, budou logovací soubory přesunuty na požadované místo dříve, než se
+spustí jakýkoliv příkaz služby.  Výchozí hodnota je \fBno\fR.
+
+.PP
+Zde je ukázka konfiguračního souboru.
+.SAMPLE
+SCRIPT_PATH=/var/systemtap/script.d/
+PASSALL=yes
+RECURSIVE=no
+.ESAMPLE
+
+.SH PARAMETRY SKRIPTŮ
+Tyto parametry ovlivňují kompilaci skriptů, nebo jejich chování za běhu.
+Nastavují se v konfiguračních souborech umístěných v adresáři CONFIG_PATH.
+
+.TP
+.B <SCRIPT>_OPT
+Určuje volby, které se předají příkazu \fIstap\fR(1) před vykonáním skriptu.
+Zde SCRIPT je jméno skriptu bez přípony \fB.stp\fR.  Poznamenejme, že volba
+\fB-F\fR se použije vždy.
+
+Při kompilaci skriptů se ignorují následující volby: -p, -m, -r, -c, -x,
+-e, -s, -o, -h, -V, -k.
+
+Při spouštění skriptů se ignorují následující volby: -h, -V, -v, -t,
+-p, -I, -e, -R, -r, -m, -k, -g, -P, -D, -b, -u, -q, -w, -l, -d, -L, -F, a
+všechny dlouhé volby.
+
+.TP
+.B <SCRIPT>_REQ
+Určuje závislosti skriptu (t.j. určuje, který skript je vyžadován daným
+skriptem).  Pokud foo.stp vyžaduje (nebo potřebuje běžet po) bar.stp, nastavte
+.SAMPLE
+foo_REQ="bar"
+.ESAMPLE
+Více skriptů lze nastavit jako mezerami oddělený seznam.
+
+.PP
+Příklad konfiguračního souboru:
+.SAMPLE
+script1_OPT="-o /var/log/script1.out"
+script2_OPT="-o /var/log/script2.out"
+script2_REQ="script1"
+.ESAMPLE
+
+.SH PŘÍKLADY
+
+.TP
+.B INSTALACE SKRIPTŮ
+Nakopírujme SystemTap skript (např. "script1.stp") do relevantního adresáře:
+.SAMPLE
+\fB#\fR cp script1.stp /etc/systemtap/script.d/
+.ESAMPLE
+Pak můžeme nastavit volby pro daný skript.  Například:
+.SAMPLE
+\fB#\fR vi /etc/systemtap/conf.d/group1
+script1_OPT="-o /var/log/group1.out"
+.ESAMPLE
+Pokud poté nainstalujeme skript, např. "script2.stp", který má být spuštěn po
+"script1.stp", máme zde závislost mezi skripty.  Tu ošetříme následovně:
+.SAMPLE
+\fB#\fR cp script2.stp /etc/systemtap/script.d/
+\fB#\fR vi /etc/systemtap/conf.d/group1
+script2_OPT="-o /var/log/group2.out"
+script2_REQ="script1"
+.ESAMPLE
+V tomto případě, pokud \fIstap\fR(1) selže při startu, služba SystemTap se ani
+nepokusí nastartovat script2.
+
+.TP
+.B TESTOVÁNÍ
+Po nainstalování skriptů můžeme ověřit, že fungují takto:
+.SAMPLE
+\fB#\fR service systemtap start
+\fB#\fR service systemtap stop
+.ESAMPLE
+Mohli bychom být konkrétnější, například takto:
+.SAMPLE
+\fB#\fR service systemtap start script1
+\fB#\fR service systemtap stop script1
+.ESAMPLE
+Pokud nenastaly chyby, máme vše připraveno k použití.
+
+.TP
+.B ZAPNUTÍ SLUŽBY
+Jakmile jsme spokojeni se skripty a testování dopadlo úspěšně, můžeme
+SystemTap službu zapnout tak, aby se automaticky nastartovala po zavedení
+systému:
+.SAMPLE
+\fB#\fR chkconfig systemtap on
+.ESAMPLE
+
+.TP
+.B MAZÁNÍ SKRIPTŮ
+Skripty se smažou prostým jejich odstraněním z adresáře pro skripty a také
+odstraněním jejich konfiguračních souborů plus případně relevantních nastavení:
+.SAMPLE
+\fB#\fR rm /etc/systemtap/script.d/script2.stp
+\fB#\fR vi /etc/systemtap/conf.d/group1
+.ESAMPLE
+Pokud skript stále běží, měli bychom jej zastavit:
+.SAMPLE
+\fB#\fR service systemtap stop script2
+.ESAMPLE
+Také můžeme smazat relevantní cache:
+.SAMPLE
+\fB#\fR service systemtap cleanup script2
+.ESAMPLE
+
+.TP
+.B PŘÍPRAVA NA POVÝŠENÍ JÁDRA
+Obvykle není třeba dělat nic neobvyklého když se startuje nové jádro.  Služba
+SystemTap pozná, že verze jádra se liší proti obsahu cache a rekompiluje skripty.
+Kompilaci lze provést předem, abychom se vyhnuli kompilaci v době závádění
+systému:
+.SAMPLE
+\fB#\fR service systemtap compile myscript -r <NEW_KERNEL_VERSION>
+.ESAMPLE
+
+.TP
+.B IMPORT ZKOMPILOVANÝCH SKRIPTŮ
+V prostředí, kde nejsou k dispozici kompilační nástroje (např. kompilátor, nebo
+ladicí informace), jako je např. produkční systém, lze skripty přeložit na jiném
+(vývojářském) stroji:
+.SAMPLE
+\fB#\fR service systemtap compile myscript -r \\
+.br
+>   <KERNEL_VERSION_OF_TARGET_MACHINE>
+\fB#\fR tar czf stap-scripts-<kernel-version>.tar.gz \\
+.br
+>   /var/cache/systemtap/<kernel-version> \\
+.br
+>   /etc/systemtap/conf.d/<configfile>
+.ESAMPLE
+A poté je přesunout na cílový stroj.
+
+.TP
+.B STARTOVÁNÍ SKRIPTŮ V DOBĚ ZAVÁDĚNÍ SYSTÉMU (ONBOOT PROBING)
+lužba SystemTap umožňuje také nastartovat skripty poblíž začátku procesu
+zavádění OS tím, že vytvoří initramfs obsahující systemtap modul pro daný
+skript.  Tato funkcionalita je dostupná jen na systémech, které používají
+dracut.  Spuštění skriptu v této časné fázi startu OS zpřístupňuje informace,
+které je jinak obtížné získat.
+
+Nejdříve nainstalujeme skript do odpovídajícího adresáře a provedeme potřebná
+nastavení:
+.SAMPLE
+\fB#\fR cp myscript.stp /etc/systemtap/script.d
+\fB#\fR vi /etc/systemtap/conf.d/myscript.conf
+.ESAMPLE
+Pro přidání skriptu do initramfs použijeme příkaz\fBonboot\fR:
+.SAMPLE
+\fB#\fR service systemtap onboot myscript
+.ESAMPLE
+Pokud daný skript není zkompilovaný a uložený v cache, dojde ke kompilaci.
+Ve výchozím umístění bude vytvořen nový initramfs.  Mohli bychom použít volbu
+\fB-b\fR pro vytvoření zálohy původního initramfs.  Nyní můžeme restartovat
+systém.
+
+.TP
+.B POUŽITÍ ALTERNATIVNÍHO INITRAMFS
+Pokud bychom chtěli nastartovat skript během následujícího bootu, ale ne
+později, můžeme použít volbu \fB-o\fR k určení alternativního umístění
+initramfs:
+.SAMPLE
+\fB#\fR service systemtap onboot myscript \\
+>   -o /boot/special_initramfs.img
+.ESAMPLE
+Jakmile je initramfs vytvořen, je možné jej použít prostou úpravou parametrů
+jádra při startu systému.
+
+.TP
+.B VYTVOŘENÍ INITRAMFS PRO JINÉ JÁDRO
+Stejně jako u příkazu compile, můžeme i zde použít volbu \fB-r\fR, abychom
+určili jádro pro které chceme vytvořit initramfs.  To může být užitečné např.
+chceme-li se připravit na upgrade.  Například:
+.SAMPLE
+\fB#\fR service systemtap onboot myscript \\
+>   -r 3.12.6-200.fc19.x86_64
+.ESAMPLE
+
+.TP
+.B ODSTRANĚNÍ SKRIPTŮ Z INITRAMFS
+K odstranění skriptů z initramfs stačí spustit příkaz \fBonboot\fR bez parametrů:
+.SAMPLE
+\fB#\fR service systemtap onboot
+.ESAMPLE
+Takto se vytvoří nový initramfs bez SystemTap modulů.
+
+.TP
+.B HLEDÁNÍ CHYB ONBOOT MECHANIZMU
+Přidáním parametru 'rdinitdebug' mezi parametry jádra lze zvýšit upovídanost
+programu dracut.  Další informace lze získat z dmesg/journalctl -ae.  Chybový
+výstup programu staprun lze získat nastavením LOG_BOOT_ERR na \fByes\fR.
+
+.SH VIZ TÉŽ
+.IR stap (1)
+.IR dracut (8)
+.IR new-kernel-pkg (8)
+
+.SH CHYBY                                                                       
+Použijte projektovou bugzillu, nebo mailing list.                               
+.nh                                                                             
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .          
+.hy                                                                             
+.PP                                                                             
+.IR error::reporting (7stap),                                                   
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs                       
+.hy
+

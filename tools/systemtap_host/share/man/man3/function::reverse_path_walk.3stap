@@ -1,0 +1,46 @@
+'\" t
+.\"     Title: function::reverse_path_walk
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Directory-entry (dentry) Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::REVERSE_PA" "3stap" "March 2016" "SystemTap Tapset Reference" "Directory-entry (dentry) Tapse"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::reverse_path_walk \- get the full dirent path
+.SH "SYNOPSIS"
+.sp
+.nf
+    reverse_path_walk:string(dentry:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIdentry\fR
+.RS 4
+Pointer to dentry\&.
+.RE
+.SH "DESCRIPTION"
+.PP
+.PP
+Returns the path name (partial path to mount point)\&.

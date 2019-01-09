@@ -1,0 +1,56 @@
+.TH opensnoop-nd 8  "2015-01-30" "USER COMMANDS"
+.SH NAME
+opensnoop-nd \- trace process open() with arguments. Uses Linux SystemTap (non-debuginfo).
+.SH SYNOPSIS
+.B opensnoop-nd.stp
+.SH DESCRIPTION
+This traces the open() syscall system-wide, to show which files are being
+opened, and by who.
+
+This is a basic version of opensnoop.
+.SH REQUIREMENTS
+SystemTap.
+.SH EXAMPLES
+.TP
+Trace all open() syscalls, showing process and file details:
+#
+.B opensnoop-nd.stp
+.SH FIELDS
+.TP
+UID
+User ID.
+.TP
+PID
+Process ID.
+.TP
+PPID
+Parent process ID.
+.TP
+COMM
+Process name.
+.TP
+FD
+Return value of the open() syscall, which is either the resulting file descriptor
+(positive) or error code (negative).
+.TP
+PATH
+File pathname provided to the open() syscall.
+.SH OVERHEAD
+This reads and processes open() events and prints a line of output for each.
+If your applications perform a high rate of open()s, the overhead of this
+tool may become noticeable.
+.SH SOURCE
+This is from the SystemTap lwtools collection.
+.IP
+https://github.com/brendangregg/systemtap-lwtools
+.PP
+Also look under the examples directory for a text file containing example
+usage, output, and commentary for this tool.
+.SH OS
+Linux
+.SH STABILITY
+Unstable - in development.
+.SH AUTHOR
+Brendan Gregg
+.SH SEE ALSO
+strace(1)

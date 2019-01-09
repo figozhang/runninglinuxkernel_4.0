@@ -1,0 +1,155 @@
+.\" -*- nroff -*-
+.TH STAP 7  "Systemtap Team"
+.SH JMÉNO
+
+stappaths \- důležitá umístění souborů a adresářů systemtapu
+
+
+.\" macros
+.de SAMPLE
+.br
+.RS
+.nf
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+..
+
+.SH POPIS
+Tato manuálová stránka byla vygenerována 2016-11-27 pro systemtap 3.0.
+Následuje seznam důležitých umístění souborů a adresářů.
+
+.TP
+/home/figo/systemtap_host/share/systemtap/tapset/
+Adresář standardního tapsetu, pokud není předefinován prostřednictvím proměnné
+prostředí
+.I SYSTEMTAP_TAPSET
+nebo
+.I XDG_DATA_DIRS .
+Jejich dokumentace se nachází v manuálových stránkách
+.IR stapprobes (3stap),
+.IR probe::* (3stap),
+a
+.IR function::* (3stap) .
+
+.TP
+/home/figo/systemtap_host/share/systemtap/runtime/
+Zdrojové soubory pro kompilaci modulu, pokud není řečeno jinak pomocí proměnné
+prostředí
+.I SYSTEMTAP_RUNTIME
+.TP
+/home/figo/systemtap_host/bin/staprun
+Pomocný program pro zavádění systemtap modulu a interakci s ním.
+.TP
+${exec_prefix}/libexec/systemtap/stapio
+Pomocný program pro řízení vstupu a výstupu.
+.TP
+/usr/include/sys/sdt.h
+Umístění hlavočkových soubotů <sys/sdt.h>.
+.TP
+Umístění ladicích informací jádra v rámci RPM balíčku
+.IR kernel\-debuginfo:
+/usr/lib/debug/lib/modules/$(uname \-r)/
+pokud není prostřednictvím proměnné prostředí
+.I SYSTEMTAP_DEBUGINFO_PATH
+určeno jiné unístění.  Výchozí hodnota pro tuto proměnnou je
+.IR \+:.debug:/usr/lib/debug:build .
+Knihovna elfutils hledá vmlinux v tomto umístění a očekává, že uvedené umístění
+představuje kořen stromu, ve kterém se mají hledat ladicí informace pro jádro,
+jaderné moduly a uživatelské programy.  Při výchozí konfiguraci bude systemtap
+hledat vmlinux také v následujících umístěních:
+
+.SAMPLE
+/boot/vmlinux\-`uname \-r`
+/lib/modules/`uname \-r`/vmlinux
+/lib/modules/`uname \-r`/vmlinux.debug
+/lib/modules/`uname \-r`/build/vmlinux
+/lib/modules/`uname \-r`/.debug/vmlinux.debug
+/usr/lib/debug/lib/modules/`uname \-r`/vmlinux.debug
+/var/cache/abrt\-di/usr/debug/lib/modules/`uname \-r`/
+/var/cache/abrt\-di/usr/lib/debug/lib/modules/`uname \-r`/vmlinux.debug
+.PP
+.ESAMPLE
+.IP
+Odpovídající zdrojové soubory se obvykle nacházejí v podstromě /usr/src/debug/.
+Umístění ladicích informací pro uživatelské programy v rámci RPM balíčků vypíše
+příkaz rpm \-ql <package>\-debuginfo.
+.TP
+$HOME/.systemtap
+Umístění vyrovnávací paměti "cache", pokud není prostřednictvím proměnné
+prostředí
+.I SYSTEMTAP_DIR
+nastaveno jiné umístění.
+.TP
+/tmp/stapXXXXXX
+Dočasný adresář pro systmtap soubory, včetně vygenerovaného C kódu a jaderných
+objektů.
+.TP
+/lib/modules/VERSION/build
+Umístění infrastruktury pro sestavování jádra.
+.TP
+/home/figo/systemtap_host/share/doc/systemtap*/examples
+Větší množství příkladů.  Každý příklad je doplněn buďto .txt, nebo .meta
+souborem, který popisuje, co příklad demonstruje, a jak se spouští.
+Viz též
+.nh
+.IR http://sourceware.org/systemtap/examples/
+.hy
+.TP
+$SYSTEMTAP_DIR/ssl/server
+Uživatelská databáze serverových SSL certifikátů.  Pokud není nastavena proměnné
+prostředí SYSTEMTAP_DIR, pak výchozí hodnotou je $HOME/.systemtap.
+.TP
+$SYSTEMTAP_DIR/ssl/client
+Uživatelská databáze klientských SSL certifikátů.  Pokud není nastavena proměnná
+prostředí SYSTEMTAP_DIR, pak výchozí hodnotou je $HOME/.systemtap.
+.TP
+${prefix}/etc/systemtap/ssl/client
+Globální databáze klientských SSL certifikátů.
+.TP
+${prefix}/etc/systemtap/staprun/
+Databáze "trusted signer" certifikátů programu \fIstaprun\fR.
+.TP
+${prefix}/etc/sysconfig/stap\-server/
+Globální konfigurační soubor programu stap\-server.
+.TP
+${prefix}/etc/stap\-server/conf.d/*.conf
+Konfigurační soubory pro výchozí stap\-server služby.
+.TP
+/var/run/stap\-server/
+Umístění "status" souborů pro běžící stap\-server služby.
+.TP
+/var/log/stap\-server/log
+Umístění logovacích souborů pro stap\-server služby.
+
+
+.PP
+.SH SOUBORY
+.nh
+.IR /home/figo/systemtap_host/share/systemtap/tapset
+.hy
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stapprobes (3stap),
+.IR staprun (8),
+.IR stapvars (3stap),
+.IR stapex (3stap),
+.IR stap\-server (8),
+.IR awk (1),
+.IR gdb (1)
+
+.SH CHYBY                                                                       
+Použijte projektovou bugzillu, nebo mailing list.                               
+.nh                                                                             
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .          
+.hy                                                                             
+.PP                                                                             
+.IR error::reporting (7stap),                                                   
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs                       
+.hy
+
+

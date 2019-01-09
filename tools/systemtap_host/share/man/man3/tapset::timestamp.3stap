@@ -1,0 +1,47 @@
+.\" -*- nroff -*-
+.TH TAPSET::TIMESTAMP 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::timestamp \- systemtap timestamp tapset
+ 
+.SH DESCRIPTION
+
+ Each timestamp function returns a value to indicate when a function is executed. These 
+returned values can then be used to indicate when an event occurred, provide an ordering for events, 
+or compute the amount of time elapsed between two time stamps.
+
+.TP
+.P
+.TP
+.B get_cycles 
+Processor cycle count
+.IP
+See 
+.IR function::get_cycles (3stap)
+ for details.
+.P
+.TP
+.B jiffies 
+Kernel jiffies count
+.IP
+See 
+.IR function::jiffies (3stap)
+ for details.
+.P
+.TP
+.B HZ 
+Kernel HZ
+.IP
+See 
+.IR function::HZ (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::get_cycles (3stap),
+.BR
+.IR \%function::jiffies (3stap),
+.BR
+.IR \%function::HZ (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

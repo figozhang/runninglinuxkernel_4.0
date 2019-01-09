@@ -1,0 +1,52 @@
+@__private30 global java_backtrace_string
+
+/**
+ * sfunction sprint_java_backtrace - returns the java backtrace as a single string
+ *
+ * Description: This function returns the java backtrace as a single string.
+ * in the case when the backtrace is cut off, use the -DMAXSTRINGLEN
+ * option to extend the maximum string length
+ */
+
+function sprint_java_backtrace:string ()
+{
+    foreach([_tid,__thread_depth+] in java_backtrace_string){
+      if(_tid == tid()){
+	string_return .= java_backtrace_string[_tid,__thread_depth]
+	string_return .= "\n"
+      }
+    }
+  return string_return
+}
+
+/**
+ * sfunction print_java_backtrace - print the java backtrace
+ *
+ * Description: This function immediately prints the java backtrace
+ * one line at a time, avoiding any max string length issues.
+ *
+ */
+function print_java_backtrace ()
+{
+    foreach ([_tid,__thread_depth+] in java_backtrace_string){
+      if(_tid == tid()){
+	println(java_backtrace_string[_tid,__thread_depth])
+      }
+    }
+}
+
+function __delete_backtrace()
+{
+  foreach([_tid,_depth-] in java_backtrace_string){
+    if(_tid == tid() && _depth > jbs_dup){
+      jbs_dup = _depth
+    }
+  }
+  for (i = 0; i< jbs_dup; i++)
+    delete java_backtrace_string[_tid, i]
+  delete jbs_dup
+}
+
+function __assign_stacktrace(jbts:long, jstd:long){
+  java_backtrace_string[tid(), jstd] = user_string(jbts)
+}

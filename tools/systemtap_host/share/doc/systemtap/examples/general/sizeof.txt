@@ -1,0 +1,3 @@
+% stap sizeof.stp FILE '</usr/include/stdio.h>'
+
+type FILE in </usr/include/stdio.h> byte-size: 148

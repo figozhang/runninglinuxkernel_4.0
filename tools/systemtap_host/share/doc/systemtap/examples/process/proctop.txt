@@ -1,0 +1,96 @@
+proctop.stp:  Periodically print process info while keeping a history
+
+Description:
+  Every 5 seconds, print out a list of 25 processes that took the most
+  system time with information about the processes. Includes information
+  on processes that may have exited while the script was running. The
+  script contains configuration options listed in the script source.
+
+
+$ stap proctop.stp -c "sleep 12"
+
+5 seconds: showing 25 out of 54 tasks
+     PID              Process      State      VirtMem       RSSMem      ShrdMem         CPU Time        User Time
+    2236           pulseaudio          S    643694592      8724480      6864896    7094425000000    2978547000000
+    1158                 Xorg          S    223195136     28401664      9035776    5774527000000    4390357000000
+   12744      qemu-system-x86          S   4969811968   2215833600      7876608    2569998000000   62426178000000
+    2741                 tmux          S    143491072     17453056      2449408    1325262000000    2353978000000
+    9032              firefox          S   3280347136   1484169216     77258752    1281250000000  102632316000000
+    7345      qemu-system-x86          S   4983103488   2269044736      7933952    1225863000000    7366649000000
+    9145      plugin-containe          S   1173696512    121954304     41582592    1129882000000    4464864000000
+    2633                xchat          S    702238720     28114944     15888384     467695000000    2456379000000
+   24798                xfwm4          S    507027456     13905920     10489856     331524000000     732607000000
+    2140          xfce4-panel          S    598822912     16449536     11145216     187518000000    1842513000000
+    2131        xfce4-session          S    442097664      8134656      6328320      80346000000     133387000000
+       7            rcu_sched          S            0            0            0      52510000000                0
+    2239         xscreensaver          S    199114752      5754880      4874240      48930000000      43000000000
+       8              rcuos/0          S            0            0            0      42512000000                0
+       0            swapper/0          R            0            0            0      38474000000                0
+     846                 rngd          S      4468736      1282048      1253376      33684000000      69954000000
+      10              rcuos/2          S            0            0            0      33366000000                0
+    2389                 pool          S    654041088     13492224      4538368      29291000000      35436000000
+     976       NetworkManager          S    454553600      6369280      4857856      28305000000     123014000000
+    7410           vhost-7345          S   4983103488   2269044736      7933952      23621000000                0
+     869         in:imjournal          S    822587392      8859648      8499200      23447000000      13619000000
+    4284       xfce4-terminal          S    778174464     24412160     18997248      23330000000     152980000000
+   22385              python2          S   2573504512     13864960      7249920      13122000000      61526000000
+     523      systemd-journal          S    111550464     36225024     33824768      12646000000       3644000000
+    8501              python2          S   2573733888     16203776      7573504      11809000000      55554000000
+-----------------------------------------------------------------------------------------------------------------
+
+10 seconds: showing 25 out of 58 tasks
+     PID              Process      State      VirtMem       RSSMem      ShrdMem         CPU Time        User Time
+    2236           pulseaudio          S    643694592      8724480      6864896    7094446000000    2978555000000
+    1158                 Xorg          S    223195136     28401664      9035776    5774528000000    4390357000000
+   12744      qemu-system-x86          S   4969811968   2215833600      7876608    2569998000000   62426178000000
+    2741                 tmux          S    143491072     17453056      2449408    1325262000000    2353978000000
+    9032              firefox          S   3280347136   1486053376     77258752    1281262000000  102633852000000
+    7345      qemu-system-x86          S   4983103488   2269044736      7933952    1225863000000    7366649000000
+    9145      plugin-containe          S   1173696512    121954304     41582592    1129887000000    4464898000000
+    2633                xchat          S    702238720     28114944     15888384     467696000000    2456379000000
+    1021       wpa_supplicant          S     60608512     10592256      4325376     339374000000      32641000000
+   24798                xfwm4          S    507027456     13905920     10489856     331524000000     732607000000
+     849           irqbalance          S     19599360      2162688      2060288     237728000000      39968000000
+    2140          xfce4-panel          S    598822912     16449536     11145216     187518000000    1842513000000
+    2131        xfce4-session          S    442097664      8134656      6328320      80346000000     133387000000
+       7            rcu_sched          S            0            0            0      52510000000                0
+    2239         xscreensaver          S    199114752      5754880      4874240      48930000000      43000000000
+       8              rcuos/0          S            0            0            0      42512000000                0
+       0            swapper/0          R            0            0            0      38474000000                0
+     846                 rngd          S      4468736      1282048      1253376      33684000000      69954000000
+      10              rcuos/2          S            0            0            0      33366000000                0
+    2389                 pool          S    654041088     13492224      4538368      29291000000      35436000000
+     976       NetworkManager          S    454553600      6369280      4857856      28305000000     123014000000
+    7410           vhost-7345          S   4983103488   2269044736      7933952      23621000000                0
+     869         in:imjournal          S    822587392      8859648      8499200      23447000000      13619000000
+    4284       xfce4-terminal          S    778174464     24412160     18997248      23330000000     152980000000
+      39           khugepaged          S            0            0            0      18809000000                0
+-----------------------------------------------------------------------------------------------------------------
+
+
+This is the default configuration of the proctop.stp script. It sorts based
+on cpu time, and only shows a max of 25 processes.
+
+A configuration that might be useful would be to sort by the state to see a
+short list of the processes that have stopped while the script was running.
+
+
+$ stap proctop.stp -c "sleep 12" -G show=5 -G sort=state -G sortby=decrease
+
+5 seconds: showing 5 out of 61 tasks
+     PID              Process      State      VirtMem       RSSMem      ShrdMem         CPU Time        User Time
+   12319        systemd-udevd       DEAD            0            0            0                0                0
+    9032                Timer          S   3280166912   1453039616     76521472    1288175000000  104009126000000
+   12318               stapio          S    129527808       860160       782336         18000000          3000000
+       7            rcu_sched          S            0            0            0      52576000000                0
+      10              rcuos/2          S            0            0            0      33408000000                0
+-----------------------------------------------------------------------------------------------------------------
+
+10 seconds: showing 5 out of 74 tasks
+     PID              Process      State      VirtMem       RSSMem      ShrdMem         CPU Time        User Time
+   12319        systemd-udevd       DEAD            0            0            0                0                0
+   12323                 bash       DEAD            0            0            0                0                0
+   12324                  git       DEAD            0            0            0          1000000                0
+   12325                 bash       DEAD            0            0            0          1000000                0
+   12326                  git       DEAD            0            0            0                0                0
+-----------------------------------------------------------------------------------------------------------------

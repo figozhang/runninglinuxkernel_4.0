@@ -1,0 +1,216 @@
+// User context symbols tapset
+// Copyright (C) 2009-2012 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// <tapsetdescription>
+// User context symbol functions provide additional information about
+// addresses from an application. These functions can provide
+// information about the user space map (library) that the event occurred or
+// the function symbol of an address.
+// </tapsetdescription>
+
+@__private30 function __ustack_raw:long (n:long) %{ /* pragma:unwind */ /* pure */
+         /* myproc-unprivileged */ /* pragma:uprobes */
+         /* basic sanity check for bounds: */
+         if (unlikely(STAP_ARG_n < 0 || STAP_ARG_n >= MAXBACKTRACE))
+                  STAP_RETVALUE = 0;
+         else
+                  STAP_RETVALUE = _stp_stack_user_get (CONTEXT, (unsigned)STAP_ARG_n);
+%}
+
+/**
+ *  sfunction ustack - Return address at given depth of user stack backtrace
+ *  @n: number of levels to descend in the stack.
+ *
+ *  Description: Performs a simple (user space) backtrace, and returns the
+ *  element at the specified position. The results of the backtrace itself
+ *  are cached, so that the backtrace computation is performed at most once
+ *  no matter how many times ustack() is called, or in what order.
+ */
+function ustack:long (n:long) {
+         __r = __ustack_raw(n);
+         if (__r != 0) return __r
+
+         /* fallback: parse backtrace() to go deeper in the stack */
+         __b = ubacktrace (); __orig_n = n;
+         __sym = tokenize (__b, " ");
+         if (__sym == "") @__context_unwind_error(__orig_n);
+         while (__n > 0) {
+               __sym = tokenize ("", " ");
+               if (__sym == "") @__context_unwind_error(__orig_n);
+               __n--;
+         }
+         return strtol(__sym, 16)
+}
+
+/**
+ * sfunction usymname - Return the symbol of an address in the current task.
+ * @addr: The address to translate.
+ *
+ * Description: Returns the (function) symbol name associated with the
+ * given address if known. If not known it will return the hex string
+ * representation of addr.
+ */
+function usymname:string (addr: long) %{
+/* pure */ /* myproc-unprivileged */ /* pragma:vma */ /* pragma:symbols */
+	 _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+			   _STP_SYM_SYMBOL, current);
+%}
+
+/**
+ * sfunction usymdata - Return the symbol and module offset of an address.
+ * @addr: The address to translate.
+ *
+ * Description: Returns the (function) symbol name associated with the
+ * given address in the current task if known, the offset from the
+ * start and the size of the symbol, plus the module name (between
+ * brackets).  If symbol is unknown, but module is known, the offset
+ * inside the module, plus the size of the module is added.  If any
+ * element is not known it will be omitted and if the symbol name is
+ * unknown it will return the hex string for the given address.
+ */
+function usymdata:string (addr: long) %{
+/* pure */ /* myproc-unprivileged */ /* pragma:vma */ /* pragma:symbols */
+	 _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+			   _STP_SYM_DATA, current);
+%}
+
+/**
+ * sfunction print_ustack - Print out stack for the current task from string.
+ * @stk: String with list of hexadecimal addresses for the current task.
+ *
+ *  Perform a symbolic lookup of the addresses in the given string,
+ *  which is assumed to be the result of a prior call to 
+ *  ubacktrace() for the current task.
+ * 
+ *  Print one line per address, including the address, the
+ *  name  of the function containing the address, and an estimate of
+ *  its position within that function.  Return nothing.
+ *
+ * NOTE: it is recommended to use print_usyms() instead of this function.
+ */
+function print_ustack(stk:string) { print_usyms(stk) }
+
+/**
+ * sfunction print_usyms - Print out user stack from string
+ * @callers: String with list of hexadecimal (user) addresses
+ *
+ *  Description: This function performs a symbolic lookup of the addresses
+ *  in the given string,
+ *  which are assumed to be the result of prior calls to ustack(),
+ *  ucallers(), and similar functions.
+ * 
+ *  Prints one line per address, including the address, the
+ *  name of the function containing the address, and an estimate of
+ *  its position within that function, as obtained by usymdata().
+ *  Returns nothing.
+ */
+function print_usyms (callers:string) {
+         __sym = tokenize (callers, " ");
+         while (__sym != "") {
+               printf (" %s : %s\n", __sym, usymdata (strtol(__sym,16)));
+               __sym = tokenize ("", " ");
+         }
+}
+
+/**
+ * sfunction sprint_ustack - Return stack for the current task from string.
+ * @stk: String with list of hexadecimal addresses for the current task.
+ *
+ * Perform a symbolic lookup of the addresses in the given string,
+ * which is assumed to be the result of a prior call to
+ * ubacktrace() for the current task.
+ *
+ * Returns a simple backtrace from the given hex string. One line per
+ * address. Includes the symbol name (or hex address if symbol
+ * couldn't be resolved) and module name (if found). Includes the
+ * offset from the start of the function if found, otherwise the
+ * offset will be added to the module (if found, between
+ * brackets). Returns the backtrace as string (each line terminated by
+ * a newline character).  Note that the returned stack will be
+ * truncated to MAXSTRINGLEN, to print fuller and richer stacks use
+ * print_ustack.
+ *
+ * NOTE: it is recommended to use sprint_usyms() instead of this function.
+ */
+function sprint_ustack:string(stk:string) { sprint_usyms(stk) }
+
+/**
+ * sfunction sprint_usyms - Return stack for user addresses from string
+ *
+ * @callers: String with list of hexadecimal (user) addresses
+ *
+ * Perform a symbolic lookup of the addresses in the given string,
+ * which are assumed to be the result of a prior calls to ustack(),
+ * ucallers(), and similar functions.
+ *
+ * Returns a simple backtrace from the given hex string. One line per
+ * address. Includes the symbol name (or hex address if symbol
+ * couldn't be resolved) and module name (if found), as obtained from
+ * usymdata(). Includes the offset from the start of the function if
+ * found, otherwise the offset will be added to the module (if found, between
+ * brackets). Returns the backtrace as string (each line terminated by
+ * a newline character).  Note that the returned stack will be
+ * truncated to MAXSTRINGLEN, to print fuller and richer stacks use
+ * print_usyms().
+ */
+function sprint_usyms (callers:string) {
+         __sym = tokenize (callers, " ");
+         __foo = ""; __l = 0
+         while (__sym != "") {
+               // cleanly handle overflow instead of printing partial line:
+               __line = sprintf (" %s : %s\n", __sym,
+                usymdata (strtol(__sym,16)));
+               __l += strlen(__line)
+               if (__l > @MAXSTRINGLEN) break
+               __foo .= __line
+               __sym = tokenize ("", " ")
+         }
+         return __foo
+}
+
+/**
+ * sfunction usymfileline - Return the file name and line number of an address.
+ * @addr: The address to translate.
+ *
+ * Description: Returns the file name and the (approximate) line number of the
+ * given address, if known. If the file name or the line number cannot be
+ * found, the hex string representation of the address will be returned.
+ */
+function usymfileline:string (addr:long) %{
+/* pure */ /* myproc-unprivileged */ /* pragma:symbols */ /* pragma:vma */ /* pragma:lines */
+  _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+                    _STP_SYM_LINENUMBER + _STP_SYM_FILENAME, current);
+%}
+
+/**
+ * sfunction usymfile - Return the file name of a given address.
+ * @addr: The address to translate.
+ *
+ * Description: Returns the file name of the  given address, if known. If the
+ * file name cannot be found, the hex string representation of the address
+ * will be returned.
+ */
+function usymfile:string (addr:long) %{
+/* pure */ /* myproc-unprivileged */ /* pragma:symbols */ /* pragma:vma */ /* pragma:lines */
+  _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+                    _STP_SYM_FILENAME, current);
+%}
+
+/**
+ * sfunction usymline - Return the line number of an address.
+ * @addr: The address to translate.
+ *
+ * Description: Returns the (approximate) line number of the given address, if
+ * known. If the line number cannot be found, the hex string representation of
+ * the address will be returned.
+ */
+function usymline:string (addr:long) %{
+/* pure */ /* myproc-unprivileged */ /* pragma:symbols */ /* pragma:vma */ /* pragma:lines */
+  _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+                    _STP_SYM_LINENUMBER, current);
+%}

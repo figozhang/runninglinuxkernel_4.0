@@ -1,0 +1,13 @@
+title: Track Creation of Processes by process and execname
+name: spawn_seeker.stp
+version: 0.1
+author: William Cohen at Red Hat
+keywords: process scheduler 
+subsystem: scheduler
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The spawn_seeker.stp script every minute (and on exit) prints out the local time and sorted lists of which processes and executables spawned tasks during the previous minute. This can be useful to determine what process is creating a flurry of short-lived processes.  When a process exits its count of tasks created is added to its parent's count to better account for the indirect task creation by children processes.  For more detailed examination of task creation consider using forktracker.stp.
+test_check: stap -p4 spawn_seeker.stp
+test_installcheck: stap spawn_seeker.stp -c "sleep 1"

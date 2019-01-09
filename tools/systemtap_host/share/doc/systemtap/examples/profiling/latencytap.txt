@@ -1,0 +1,32 @@
+latencytap.stp - Show Reasons and Durations for Processes Sleeping
+
+  The latencytap.stp script collects data on the intervals processes
+  are deactivated (sleeping).  The script categorizes the reasons for
+  the sleeps by analyzing the backtraces and displays a sorted list of
+  the top 20 causes from largest total sum time sleeping to smallest.
+  The output is updated every 30 seconds. The script needs to be
+  compiled with the '--all-modules' option to produce reasons for
+  sleeps caused by modules.  Optionally, this script can be used with
+  the '-c' or '-x' options to focus on a specific PID.
+
+
+$ stap latencytap.stp --all-modules -w
+
+Reason                                            Count  Average(us)  Maximum(us) Percent%
+kernel workqueue thread                             109      1232008     14462131      44%
+Waiting for event (poll)                              3     13340013     20020024      13%
+Waiting for event (poll)                            148       200224       200381       9%
+RCU grace period kernel thread                        7      4010912      9997792       9%
+                                                      5      5615087      9997712       9%
+
+jdb2() kernel thread                                  2     10716824     14449748       7%
+Application requested delay                           2      9999829      9999833       6%
+jdb2() kernel thread                                  3       288906       541672       0%
+RCU grace period kernel thread                        8         2542         2994       0%
+                                                      7         2519         2958       0%
+Creating block layer request                          1         1599         1599       0%
+Submitting block IO                                  15          103          118       0%
+jdb2() kernel thread                                  3          333          395       0%
+Waiting for event (epoll)                             1          342          342       0%
+Creating block layer request                          1          271          271       0%
+

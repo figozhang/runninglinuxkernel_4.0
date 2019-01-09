@@ -1,0 +1,40 @@
+/* Some functions from libc <arpa/inet.h> */
+
+/* NB: functionally equivalent to linux/inet.stp
+ * ... but we have the advantage of using (mostly) direct equivalents!
+ */
+
+%{
+#include <arpa/inet.h>
+#include <endian.h>
+%}
+
+function htonll:long (x:long)
+%{
+	/* pure */ STAP_RETVALUE = htobe64 ((uint64_t) STAP_ARG_x);
+%}
+
+function htonl:long (x:long)
+%{
+	/* pure */ STAP_RETVALUE = htonl ((uint32_t) STAP_ARG_x);
+%}
+
+function htons:long (x:long)
+%{
+	/* pure */ STAP_RETVALUE = htons ((uint16_t) STAP_ARG_x);
+%}
+
+function ntohll:long (x:long)
+%{
+	/* pure */ STAP_RETVALUE = be64toh ((uint64_t) STAP_ARG_x);
+%}
+
+function ntohl:long (x:long)
+%{
+	/* pure */ STAP_RETVALUE = ntohl ((uint32_t) STAP_ARG_x);
+%}
+
+function ntohs:long (x:long)
+%{
+	/* pure */ STAP_RETVALUE = ntohs ((uint16_t) STAP_ARG_x);
+%}

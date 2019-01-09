@@ -1,0 +1,6 @@
+title: Trace threads sending network traffic to given host and/or port
+name: who_sent_it.stp
+keywords: network trace traffic simple
+description: This script traces outgoing network packets using the netfilter probes (not requiring debuginfo), printing the source thread name/id and destination host:port.  It may be filtered with the_dport and the_daddr globals, e.g., to watch only for DNS traffic (port 53), and/or only to the localhost (127.0.0.1).
+test_check: stap -p4 who_sent_it.stp
+test_installcheck: stap who_sent_it.stp -G the_dport=53 -c "ping -c 1 sourceware.org || true"

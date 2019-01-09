@@ -1,0 +1,48 @@
+'\" t
+.\"     Title: function::ipmib_get_proto
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: SNMP Information Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::IPMIB_GET_" "3stap" "March 2016" "SystemTap Tapset Reference" "SNMP Information Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::ipmib_get_proto \- Get the protocol value
+.SH "SYNOPSIS"
+.sp
+.nf
+    ipmib_get_proto:long(skb:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIskb\fR
+.RS 4
+pointer to a struct sk_buff
+.RE
+.SH "DESCRIPTION"
+.PP
+Returns the protocol value from
+\fIskb\fR\&.
+.SH SEE ALSO\n 
+.IR tapset::ipmib (3stap)

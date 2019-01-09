@@ -1,0 +1,54 @@
+#!/usr/bin/stap
+/*
+ * bitesize-nd.stp	Measure storage (bio) I/O size distribution.
+ *			For Linux, uses SystemTap (non-debuginfo).
+ *
+ * USAGE: ./bitesize-nd.stp
+ *
+ * This script uses the kernel tracepoint block_rq_insert. The output includes
+ * the name of the process or thread that was on-CPU when the I/O request was
+ * inserted on the issue queue.
+ *
+ * From systemtap-lwtools: https://github.com/brendangregg/systemtap-lwtools
+ *
+ * See the corresponding man page (in systemtap-lwtools) for more info.
+ *
+ * Copyright (C) 2015 Brendan Gregg.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * 01-Feb-2015	Brendan Gregg	Created this.
+ */
+
+global sz;
+
+probe begin
+{
+	printf("Tracing block I/O... Hit Ctrl-C to end.\n");
+}
+
+probe kernel.trace("block_rq_insert") {
+	/*
+	 * You aren't supposed to access __data_len directly as it is internal,
+	 * but I don't see another way...
+	 */
+	sz[execname()] <<< $rq->__data_len;
+}
+
+probe end
+{
+	printf("\nI/O size (bytes):\n\n");
+	foreach (name in sz+) {
+		printf("process name: %s\n", name);
+		print(@hist_log(sz[name]));
+	} 
+	delete sz;
+}

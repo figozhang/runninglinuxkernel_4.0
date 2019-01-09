@@ -1,0 +1,57 @@
+'\" t
+.\"     Title: function::register
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Context Functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::REGISTER" "3stap" "March 2016" "SystemTap Tapset Reference" "Context Functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::register \- Return the signed value of the named CPU register
+.SH "SYNOPSIS"
+.sp
+.nf
+    register:long(name:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIname\fR
+.RS 4
+Name of the register to return
+.RE
+.SH "DESCRIPTION"
+.PP
+Return the value of the named CPU register, as it was saved when the current probe point was hit\&. If the register is 32 bits, it is sign\-extended to 64 bits\&.
+.PP
+For the i386 architecture, the following names are recognized\&. (name1/name2 indicates that name1 and name2 are alternative names for the same register\&.) eax/ax, ebp/bp, ebx/bx, ecx/cx, edi/di, edx/dx, eflags/flags, eip/ip, esi/si, esp/sp, orig_eax/orig_ax, xcs/cs, xds/ds, xes/es, xfs/fs, xss/ss\&.
+.PP
+For the x86_64 architecture, the following names are recognized: 64\-bit registers: r8, r9, r10, r11, r12, r13, r14, r15, rax/ax, rbp/bp, rbx/bx, rcx/cx, rdi/di, rdx/dx, rip/ip, rsi/si, rsp/sp; 32\-bit registers: eax, ebp, ebx, ecx, edx, edi, edx, eip, esi, esp, flags/eflags, orig_eax; segment registers: xcs/cs, xss/ss\&.
+.PP
+For powerpc, the following names are recognized: r0, r1, \&.\&.\&. r31, nip, msr, orig_gpr3, ctr, link, xer, ccr, softe, trap, dar, dsisr, result\&.
+.PP
+For s390x, the following names are recognized: r0, r1, \&.\&.\&. r15, args, psw\&.mask, psw\&.addr, orig_gpr2, ilc, trap\&.
+.PP
+For AArch64, the following names are recognized: x0, x1, \&.\&.\&. x30, fp, lr, sp, pc, and orig_x0\&.
+.SH SEE ALSO\n 
+.IR tapset::registers (3stap)

@@ -1,0 +1,1256 @@
+// rpc tapset
+// Copyright (C) 2006 IBM Corp.
+// Copyright (C) 2007 Bull S.A.S
+// Copyright (C) 2008, 2010-2014 Red Hat
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+%{
+// Includes everything needed for __rpc_prot_from_protocol().
+#include <linux/sunrpc/clnt.h>
+%}
+
+probe sunrpc.entry =
+	sunrpc.clnt.entry,
+	sunrpc.svc.entry,
+	sunrpc.sched.entry
+{}
+
+probe sunrpc.return = 
+	sunrpc.clnt.return,
+	sunrpc.svc.return,
+	sunrpc.sched.return
+{}
+
+/******************************************************************
+ *                Probe points on RPC client functions            *  
+ ******************************************************************/
+
+probe sunrpc.clnt.entry = 
+	sunrpc.clnt.create_client,
+	sunrpc.clnt.clone_client,
+	sunrpc.clnt.bind_new_program,
+	sunrpc.clnt.shutdown_client,
+	sunrpc.clnt.call_sync,
+	sunrpc.clnt.call_async,
+	sunrpc.clnt.restart_call
+{}
+
+probe sunrpc.clnt.return = 
+	sunrpc.clnt.create_client.return,
+	sunrpc.clnt.clone_client.return,
+	sunrpc.clnt.bind_new_program.return,
+	sunrpc.clnt.shutdown_client.return,
+	sunrpc.clnt.call_sync.return,
+	sunrpc.clnt.call_async.return,
+	sunrpc.clnt.restart_call.return
+{}
+
+/*
+ * Fires when an RPC client is to be created
+ * 
+ * kernels > 2.6.18
+ *
+ *  struct rpc_clnt *
+ *  rpc_create(struct rpc_create_args *args)
+ *	The rpc_create() function is used to create an RPC client.  It
+ *	calculates some arguments (such as args->servername), then
+ *	calls rpc_new_client().  We need the calculated arguments, so
+ *	we'll probe rpc_new_client().  But, see discussion of
+ *	sunrpc.clnt.create_client.return below.
+ *
+ *  static struct rpc_clnt *
+ *  rpc_new_client(const struct rpc_create_args *args, struct rpc_xprt *xprt)
+ *
+ * kernels <= 2.6.18
+ *
+ *  static struct rpc_clnt * 
+ *  rpc_new_client(struct rpc_xprt *xprt, char *servname, 
+ *	struct rpc_program *program, u32 vers, 
+ *	rpc_authflavor_t flavor)
+ * 
+ *  struct rpc_clnt * 
+ *  rpc_create_client(struct rpc_xprt *xprt, char *servname, 
+ *  	struct rpc_program *info, u32 version, 
+ * 	rpc_authflavor_t authflavor)
+ */
+
+/**
+ * probe sunrpc.clnt.create_client - Create an RPC client
+ *
+ *  @servername: the server machine name
+ *  @progname:   the RPC program name
+ *  @prog:       the RPC program number
+ *  @vers:	 the RPC program version number
+ *  @prot:	 the IP protocol number
+ *  @port:	 the port number
+ *  @authflavor: the authentication flavor
+ */
+probe sunrpc.clnt.create_client =
+	_sunrpc.clnt.create_client.rpc_new_client_inline !,
+	_sunrpc.clnt.create_client.rpc_new_client ?,
+	_sunrpc.clnt.create_client.rpc_create_client ?
+{
+	name = "sunrpc.clnt.create_client"
+	argstr = sprintf("%s %s %d %d %d %d %d", servername, progname, 
+		prog, vers, prot, port, authflavor)
+}
+
+/*
+ * Newer kernels (> 2.6.18) compiled with gcc less than version
+ * 4.4.3-16, tend to have debuginfo that doesn't include location
+ * information for inline function arguments.  This is a problem, since
+ * we need the arguments to rpc_new_client(), which is inline.  Since
+ * we can't get them for those kernels, we stash (and delete) the value
+ * of the 'args' parameter of rpc_create().  We then use this value
+ * when probing the inline version of rpc_new_client() (if we don't
+ * have the real arguments to that inline function).
+ */
+
+@__private30 global __rpc_create_args
+
+probe kernel.function("rpc_create").call !,
+	module("sunrpc").function("rpc_create").call ?
+{
+	__rpc_create_args[tid()] = $args
+}
+	
+probe kernel.function("rpc_create").return !,
+	module("sunrpc").function("rpc_create").return ?
+{
+	delete __rpc_create_args[tid()]
+}
+
+
+/*
+ * This function could be written in script language, but we'd need
+ * embedded-C functions for XPRT_TRANSPORT_{UDP,TCP,BC_TCP} and
+ * IPPROTO_{UDP,TCP}.  So, do it all in embedded-C.
+ */
+
+@__private30 function __rpc_prot_from_protocol:long(protocol:long)
+%{
+	switch (STAP_ARG_protocol) {
+#ifdef XPRT_TRANSPORT_BC
+	case XPRT_TRANSPORT_UDP:
+		STAP_RETVALUE = IPPROTO_UDP;
+		break;
+	case XPRT_TRANSPORT_TCP:
+	case XPRT_TRANSPORT_BC_TCP:
+		STAP_RETVALUE = IPPROTO_TCP;
+		break;
+#endif
+	default:
+		STAP_RETVALUE = -1;
+		break;
+	}
+%}
+
+/*
+ * The probe for the inline version of "rpc_new_client" (kernels >
+ * 2.6.18) and the non-inline version of "rpc_new_client" (kernels <=
+ * 2.6.18) could be combined.  However, the optimizer isn't smart
+ * enough to optimize away the '__rpc_create_args' global then.
+ */
+
+probe _sunrpc.clnt.create_client.rpc_new_client_inline =
+	kernel.function("rpc_new_client").inline !,
+	module("sunrpc").function("rpc_new_client").inline
+{
+	if (@defined($args)) {		# kernel > 2.6.18 (with good debuginfo)
+%(systemtap_v <= "1.7" %?
+		args = $args
+%)
+		__args = $args
+		servername = __rpc_format_servername($args->servername,
+						     $args->address)
+		progname = kernel_string($args->program->name)
+		prog = $args->prognumber
+		vers = vers_from_prog($args->program, $args->version)
+		authflavor = $args->authflavor
+
+		prot = $xprt->prot
+		port = @choose_defined($xprt->port, port_from_xprt($xprt))
+	}
+	else {				# kernel > 2.6.18 (with bad debuginfo)
+%(systemtap_v <= "1.7" %?
+		args = __rpc_create_args[tid()]
+%)
+		__args = __rpc_create_args[tid()]
+		servername = __rpc_format_servername(@cast(__args, "rpc_create_args", "kernel:sunrpc")->servername,
+						     @cast(__args, "rpc_create_args", "kernel:sunrpc")->address)
+
+		progname = kernel_string(@cast(__args, "rpc_create_args", "kernel:sunrpc")->program->name)
+		prog = @cast(__args, "rpc_create_args", "kernel:sunrpc")->prognumber
+		vers = vers_from_prog(@cast(__args, "rpc_create_args", "kernel:sunrpc")->program, @cast(__args, "rpc_create_args", "kernel:sunrpc")->version)
+		authflavor = @cast(__args, "rpc_create_args", "kernel:sunrpc")->authflavor
+
+		prot = __rpc_prot_from_protocol(@cast(__args, "rpc_create_args", "kernel:sunrpc")->protocol)
+		# Since we can't find $xprt, we can't know the port
+		port = -1
+	}
+}
+
+probe _sunrpc.clnt.create_client.rpc_new_client =
+	kernel.function("rpc_new_client").call !,
+	module("sunrpc").function("rpc_new_client").call ?
+{
+	if (@defined($args)) {
+		# kernel > 2.6.18
+		servername = __rpc_format_servername($args->servername,
+						     $args->address)
+		progname = kernel_string($args->program->name)
+		prog = $args->prognumber
+		vers = vers_from_prog($args->program, $args->version)
+		authflavor = $args->authflavor
+	}
+	else {
+		# kernel <= 2.6.18
+		servername = __rpc_format_servername($servname, &$xprt->addr)
+		progname = kernel_string($program->name)
+		prog = $program->number
+		vers = vers_from_prog($program, $vers)
+		authflavor = $flavor
+	}
+
+	prot = $xprt->prot
+	port = @choose_defined($xprt->port, port_from_xprt($xprt))
+}
+
+probe _sunrpc.clnt.create_client.rpc_create_client =
+	kernel.function("rpc_create_client") !,
+	module("sunrpc").function("rpc_create_client") ?
+{
+	servername = __rpc_format_servername($servname, &$xprt->addr)
+	if (@defined($info)) {
+		progname = kernel_string($info->name)
+		prog = $info->number
+		vers = vers_from_prog($info, $version)
+		authflavor = $authflavor
+	}
+	else {
+		progname = kernel_string($program->name)
+		prog = $program->number
+		vers = vers_from_prog($program, $vers)
+		authflavor = $flavor
+	}
+
+	prot = $xprt->prot
+	port = @choose_defined($xprt->port, port_from_xprt($xprt))
+}
+
+/*
+ * On newer kernels, we want to probe the return of rpc_new_client()
+ * here.  But because of problems with return probes on inline
+ * functions (PR 4413), we have to probe the return of rpc_create()
+ * instead.  So, if we find the return of rpc_create() (the only
+ * caller of rpc_new_client()), we're done.
+ */
+probe sunrpc.clnt.create_client.return =
+	_sunrpc.clnt.create_client.return.rpc_create !,
+	_sunrpc.clnt.create_client.return.rpc_new_client ?,
+	_sunrpc.clnt.create_client.return.rpc_create_client ?
+{
+	name = "sunrpc.clnt.create_client.return"
+	retstr = return_str(2, $return)
+}
+
+probe _sunrpc.clnt.create_client.return.rpc_create =
+	kernel.function("rpc_create").return !,
+	module("sunrpc").function("rpc_create").return
+{
+}
+
+probe _sunrpc.clnt.create_client.return.rpc_new_client =
+	kernel.function("rpc_new_client").return !,
+	module("sunrpc").function("rpc_new_client").return ?
+{
+}
+
+probe _sunrpc.clnt.create_client.return.rpc_create_client = 
+	kernel.function("rpc_create_client").return !,
+	module("sunrpc").function("rpc_create_client").return ?
+{
+}
+
+/**
+ * probe sunrpc.clnt.clone_client - Clone an RPC client structure
+ *
+ *  @servername: the server machine name
+ *  @progname:   the RPC program name
+ *  @prog:       the RPC program number
+ *  @vers:	 the RPC program version number
+ *  @prot:	 the IP protocol number
+ *  @port:	 the port number
+ *  @authflavor: the authentication flavor
+ */
+probe sunrpc.clnt.clone_client = kernel.function("rpc_clone_client") !,
+      	module("sunrpc").function("rpc_clone_client")
+{
+	if (@defined($clnt->cl_server))
+		servername = __rpc_format_servername($clnt->cl_server,
+						     &$clnt->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($clnt->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
+	prog = prog_from_clnt($clnt)
+	vers = vers_from_clnt($clnt)
+	prot = prot_from_clnt($clnt)
+	port = port_from_clnt($clnt)
+	authflavor = $clnt->cl_auth->au_flavor
+	
+	name = "sunrpc.clnt.clone_client"
+	argstr = sprintf("%s %s %d %d %d %d %d", servername, progname, 
+			prog, vers, prot, port, authflavor)
+}
+
+probe sunrpc.clnt.clone_client.return = 
+	kernel.function("rpc_clone_client").return !,
+      	module("sunrpc").function("rpc_clone_client").return
+{
+	name = "sunrpc.clnt.clone_client.return"
+	retstr = return_str(2, $return)
+}
+
+/**
+ * probe sunrpc.clnt.shutdown_client - Shutdown an RPC client
+ *
+ *  @servername: the server machine name
+ *  @progname:   the RPC program name
+ *  @prog:       the RPC program number
+ *  @vers:	 the RPC program version number
+ *  @prot:	 the IP protocol number
+ *  @port:	 the port number
+ *  @authflavor: the authentication flavor
+ *  @clones:     the number of clones
+ *  @tasks:      the number of references
+ *  @netreconn:  the count of reconnections
+ *  @rpccnt:     the count of RPC calls
+ *  @om_ops:      the count of operations
+ *  @om_ntrans:   the count of RPC transmissions
+ *  @om_bytes_sent: the count of bytes out
+ *  @om_bytes_recv: the count of bytes in
+ *  @om_queue:    the jiffies queued for xmit
+ *  @om_rtt:      the RPC RTT jiffies
+ *  @om_execute:  the RPC execution jiffies
+ */
+probe sunrpc.clnt.shutdown_client = kernel.function("rpc_shutdown_client") !,
+      	module("sunrpc").function("rpc_shutdown_client")
+{
+	if (@defined($clnt->cl_server))
+		servername = __rpc_format_servername($clnt->cl_server,
+						     &$clnt->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($clnt->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
+	prog = prog_from_clnt($clnt)
+	vers = vers_from_clnt($clnt)
+	prot = prot_from_clnt($clnt)
+	port = port_from_clnt($clnt)
+	authflavor = $clnt->cl_auth->au_flavor
+	clones = clones_from_clnt($clnt)
+	tasks = tasks_from_clnt($clnt)
+
+	/* per-program statistics */
+	netreconn = $clnt->cl_stats->netreconn
+	rpccnt = $clnt->cl_stats->rpccnt
+
+	/* per-client statistics */
+	if (@defined($clnt->cl_metrics)) {
+		om_ops = $clnt->cl_metrics->om_ops
+		om_ntrans = $clnt->cl_metrics->om_ntrans
+		om_bytes_sent = $clnt->cl_metrics->om_bytes_sent
+		om_bytes_recv = $clnt->cl_metrics->om_bytes_recv
+		if (@defined($clnt->cl_metrics->om_queue->tv64)) {
+  		      om_queue = $clnt->cl_metrics->om_queue->tv64
+		      om_rtt = $clnt->cl_metrics->om_rtt->tv64
+		      om_execute = $clnt->cl_metrics->om_execute->tv64
+		}
+		else
+		{
+  		      om_queue = $clnt->cl_metrics->om_queue
+		      om_rtt = $clnt->cl_metrics->om_rtt
+		      om_execute = $clnt->cl_metrics->om_execute
+		}
+	}
+	else {
+		om_ops = -1
+		om_ntrans = -1
+		om_bytes_sent = -1
+		om_bytes_recv = -1
+		om_queue = -1
+		om_rtt = -1
+		om_execute = -1
+	}
+
+	name = "sunrpc.clnt.shutdown_client"
+	argstr = sprintf("%s %s %d %d %d %d %d %d %d", servername, progname, 
+			prog, vers, prot, port, authflavor, clones, tasks)
+}
+
+probe sunrpc.clnt.shutdown_client.return = 
+	kernel.function("rpc_shutdown_client").return !,
+      	module("sunrpc").function("rpc_shutdown_client").return
+{
+	name = "sunrpc.clnt.shutdown_client.return"
+	retstr = (@defined($return) ? return_str(1, $return) : "N/A")
+}
+
+/**
+ * probe sunrpc.clnt.bind_new_program - Bind a new RPC program to an existing client
+ *
+ *  @servername:     the server machine name
+ *  @old_progname:   the name of old RPC program
+ *  @old_prog:       the number of old RPC program
+ *  @old_vers:	     the version of old RPC program
+ *  @progname:       the name of new RPC program
+ *  @prog:           the number of new RPC program
+ *  @vers:	     the version of new RPC program
+ */
+probe sunrpc.clnt.bind_new_program = 
+	kernel.function("rpc_bind_new_program") !,
+      	module("sunrpc").function("rpc_bind_new_program")
+{
+	if (@defined($old->cl_server))
+		servername = __rpc_format_servername($old->cl_server,
+						     &$old->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($old->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
+	old_progname = kernel_string(@choose_defined($old->cl_program->name,
+						     $old->cl_protname))
+	old_prog = prog_from_clnt($old)
+	old_vers = vers_from_clnt($old)
+	progname = kernel_string($program->name)
+	prog = $program->number
+	vers = vers_from_prog($program, $vers)
+
+	name = "sunrpc.clnt.bind_new_program"
+	argstr = sprintf("%s %s %d %s %d", servername, old_progname, 
+			old_vers, progname, vers)
+}
+
+probe sunrpc.clnt.bind_new_program.return = 
+	kernel.function("rpc_bind_new_program").return !,
+      	module("sunrpc").function("rpc_bind_new_program").return
+{
+	name = "sunrpc.clnt.bind_new_program.return"
+	retstr = return_str(2, $return)
+}
+
+/**
+ * probe sunrpc.clnt.call_sync - Make a synchronous RPC call
+ *
+ *  @servername: the server machine name
+ *  @progname:   the RPC program name
+ *  @prog:       the RPC program number
+ *  @vers:	 the RPC program version number
+ *  @prot:	 the IP protocol number
+ *  @port:	 the port number
+ *  @xid:        current transmission id
+ *  @dead:       whether this client is abandoned
+ *  @procname:   the procedure name in this RPC call
+ *  @proc:       the procedure number in this RPC call
+ *  @flags:      flags
+ */
+probe sunrpc.clnt.call_sync = kernel.function("rpc_call_sync") !,
+      	module("sunrpc").function("rpc_call_sync")
+{
+	if (@defined($clnt->cl_server))
+		servername = __rpc_format_servername($clnt->cl_server,
+						     &$clnt->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($clnt->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
+	prog = prog_from_clnt($clnt)
+	vers = vers_from_clnt($clnt)
+	prot = prot_from_clnt($clnt)
+	port = port_from_clnt($clnt)
+	xid  = xid_from_clnt($clnt)
+	dead = @choose_defined($clnt->cl_dead,
+		atomic_read(@choose_defined(&$clnt->cl_kref->refcount,
+					    &$clnt->cl_count)) == 0)
+
+	proc = proc_from_msg($msg)
+	procname = kernel_string(@choose_defined($msg->rpc_proc->p_name, 0), "NULL")
+	flags = $flags
+	
+	name = "sunrpc.clnt.call_sync"
+	argstr = sprintf("%s %d %s %d %s %d", servername, xid, progname, 
+			vers, procname, flags)
+}
+
+probe sunrpc.clnt.call_sync.return = kernel.function("rpc_call_sync").return !,
+      	module("sunrpc").function("rpc_call_sync").return
+{
+	name = "sunrpc.clnt.call_sync.return"
+	retstr = return_str(1, $return)
+}
+
+/**
+ * probe sunrpc.clnt.call_async - Make an asynchronous RPC call
+ *
+ *  @servername: the server machine name
+ *  @progname:   the RPC program name
+ *  @prog:       the RPC program number
+ *  @vers:	 the RPC program version number
+ *  @prot:	 the IP protocol number
+ *  @port:	 the port number
+ *  @xid:        current transmission id
+ *  @dead:       whether this client is abandoned
+ *  @procname:   the procedure name in this RPC call
+ *  @proc:       the procedure number in this RPC call
+ *  @flags:      flags
+ */
+probe sunrpc.clnt.call_async = kernel.function("rpc_call_async") !,
+      	module("sunrpc").function("rpc_call_async")
+{
+	if (@defined($clnt->cl_server))
+		servername = __rpc_format_servername($clnt->cl_server,
+						     &$clnt->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($clnt->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
+	prog = prog_from_clnt($clnt)
+	vers = vers_from_clnt($clnt)
+	prot = prot_from_clnt($clnt)
+	port = port_from_clnt($clnt)
+	xid  = xid_from_clnt($clnt)
+	dead = @choose_defined($clnt->cl_dead,
+		atomic_read(@choose_defined(&$clnt->cl_kref->refcount,
+					    &$clnt->cl_count)) == 0)
+
+	proc = proc_from_msg($msg)
+	procname = kernel_string(@choose_defined($msg->rpc_proc->p_name, 0), "NULL")
+	flags = $flags
+	
+	name = "sunrpc.clnt.call_async"
+	argstr = sprintf("%s %d %s %d %s %d", servername, xid, progname, 
+			vers, procname, flags)
+}
+
+probe sunrpc.clnt.call_async.return = 
+	kernel.function("rpc_call_async").return !,
+      	module("sunrpc").function("rpc_call_async").return
+{
+	name = "sunrpc.clnt.call_async.return"
+	retstr = return_str(1, $return)
+}
+
+/**
+ * probe sunrpc.clnt.restart_call - Restart an asynchronous RPC call
+ *
+ * @servername:   the server machine name
+ * @prog:         the RPC program number
+ * @xid:          the transmission id
+ * @tk_pid:	  the debugging aid of task
+ * @tk_flags:     the task flags
+ * @tk_priority:  the task priority
+ * @tk_runstate:  the task run status
+ */
+probe sunrpc.clnt.restart_call = kernel.function("rpc_restart_call") !,
+      	module("sunrpc").function("rpc_restart_call")
+{
+	if (@defined($task->tk_client->cl_server))
+		servername = __rpc_format_servername($task->tk_client->cl_server,
+						     &$task->tk_client->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($task->tk_client->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
+	prog = prog_from_clnt($task->tk_client)
+	xid = $task->tk_rqstp->rq_xid
+	tk_pid = $task->tk_pid
+	tk_flags = $task->tk_flags
+	tk_priority = $task->tk_priority
+	tk_runstate = $task->tk_runstate
+
+	name = "sunrpc.clnt.restart_call"
+	argstr = sprintf("%s %d %d %d %d %d %d", servername, prog, xid, tk_pid, 
+			tk_flags, tk_priority, tk_runstate)
+}
+
+probe sunrpc.clnt.restart_call.return = 
+	kernel.function("rpc_restart_call").return !,
+      	module("sunrpc").function("rpc_restart_call").return
+{
+	name = "sunrpc.clnt.restart_call.return"
+	retstr = "N/A"
+}
+
+/*********************************************
+ *    Probe points on RPC server interface   *
+ ********************************************/
+probe sunrpc.svc.entry =
+	sunrpc.svc.register,
+	sunrpc.svc.create,
+	sunrpc.svc.destroy,
+	sunrpc.svc.process,
+	sunrpc.svc.authorise,
+	sunrpc.svc.recv,
+	sunrpc.svc.send,
+	sunrpc.svc.drop
+{}
+
+probe sunrpc.svc.return =
+	sunrpc.svc.register.return,
+	sunrpc.svc.create.return,
+	sunrpc.svc.destroy.return,
+	sunrpc.svc.process.return,
+	sunrpc.svc.authorise.return,
+	sunrpc.svc.recv.return,
+	sunrpc.svc.send.return,
+	sunrpc.svc.drop.return
+{}
+
+/**
+ * probe sunrpc.svc.register - Register an RPC service with the local portmapper
+ *
+ * @sv_name:     the service name
+ * @progname:    the name of the program
+ * @prog:        the number of the program
+ * @prot:	 the IP protocol number
+ * @port:	 the port number
+ *
+ * If @proto and @port are both 0, then unregister a service.
+ */
+probe sunrpc.svc.register = kernel.function("svc_register") !,
+      	module("sunrpc").function("svc_register")
+{
+	sv_name = kernel_string($serv->sv_name)
+	progname = kernel_string($serv->sv_program->pg_name)
+	prog = $serv->sv_program->pg_prog
+	prot = $proto
+	port = $port
+
+	name = "sunrpc.svc.register"
+	argstr = sprintf("%s %s %d %d", sv_name, progname, prot, port)
+}
+
+probe sunrpc.svc.register.return = kernel.function("svc_register").return !,
+      	module("sunrpc").function("svc_register").return
+{
+	name = "sunrpc.svc.register.return"
+	retstr = return_str(1, $return)
+}
+
+/**
+ * probe sunrpc.svc.create - Create an RPC service
+ *
+ * @progname:    the name of the program
+ * @prog:        the number of the program
+ * @pg_nvers:	 the number of supported versions
+ * @bufsize:     the buffer size
+ */
+probe sunrpc.svc.create = kernel.function("svc_create") !,
+      	module("sunrpc").function("svc_create")
+{
+	progname = kernel_string($prog->pg_name)
+	prog = $prog->pg_prog
+	pg_nvers  = $prog->pg_nvers
+	bufsize = $bufsize
+	
+	name = "sunrpc.svc.create"
+	argstr = sprintf("%s %d %d %d", progname, prog, pg_nvers, bufsize)
+}
+
+probe sunrpc.svc.create.return = kernel.function("svc_create").return !,
+      	module("sunrpc").function("svc_create").return
+{
+	name = "sunrpc.svc.create.return"
+	retstr = return_str(2, $return)
+}
+
+/**
+ * probe sunrpc.svc.destroy - Destroy an RPC service
+ *
+ * @sv_name:     the service name
+ * @sv_progname: the name of the program
+ * @sv_prog:     the number of the program
+ * @sv_nrthreads:the number of concurrent threads
+ * @netcnt:      the count of received RPC requests
+ * @nettcpconn:  the count of accepted TCP connections
+ * @rpccnt:      the count of valid RPC requests
+ * @rpcbadfmt:   the count of requests dropped for bad formats
+ * @rpcbadauth:  the count of requests drooped for authentication failure
+ */
+probe sunrpc.svc.destroy = kernel.function("svc_destroy") !,
+      	module("sunrpc").function("svc_destroy")
+{
+	sv_name = kernel_string($serv->sv_name) /* service name */
+	sv_progname = kernel_string($serv->sv_program->pg_name)
+	sv_prog = $serv->sv_program->pg_prog
+	sv_nrthreads = $serv->sv_nrthreads
+
+	/* RPC statistics */
+	netcnt = $serv->sv_stats->netcnt
+	netcpconn = $serv->sv_stats->nettcpconn
+	rpccnt = $serv->sv_stats->rpccnt
+	rpcbadfmt = $serv->sv_stats->rpcbadfmt
+	rpcbadauth = $serv->sv_stats->rpcbadauth
+	
+	name = "sunrpc.svc.destroy"
+	argstr = sprintf("%s %d %d", sv_name, sv_prog, sv_nrthreads)
+}
+
+probe sunrpc.svc.destroy.return = kernel.function("svc_destroy").return !,
+      	module("sunrpc").function("svc_destroy").return
+{
+	name = "sunrpc.svc.destroy.return"
+	retstr = "N/A"
+}
+
+/**
+ * probe sunrpc.svc.process - Process an RPC request
+ *
+ * @sv_name:     the service name
+ * @sv_prog:     the number of the program
+ * @sv_nrthreads:the number of concurrent threads
+ * @peer_ip:     the peer address where the request is from
+ * @rq_xid:      the transmission id in the request
+ * @rq_prog:     the program number in the request
+ * @rq_vers:     the program version in the request
+ * @rq_proc:     the procedure number in the request
+ * @rq_prot:     the IP protocol of the reqeust
+ */
+probe sunrpc.svc.process = kernel.function("svc_process") !,
+      	module("sunrpc").function("svc_process")
+{
+	if (! @defined($serv)) {
+		sv_name = kernel_string($rqstp->rq_server->sv_name)
+		sv_prog = $rqstp->rq_server->sv_program->pg_prog
+		sv_nrthreads = $rqstp->rq_server->sv_nrthreads
+	}
+	else {
+		sv_name = kernel_string($serv->sv_name) /* service name */
+		sv_prog = $serv->sv_program->pg_prog
+		sv_nrthreads = $serv->sv_nrthreads
+	}
+	peer_ip = addr_from_rqst($rqstp)
+	rq_xid = $rqstp->rq_xid
+	rq_prog = $rqstp->rq_prog
+	rq_vers = $rqstp->rq_vers
+	rq_proc = $rqstp->rq_proc
+	rq_prot = $rqstp->rq_prot
+	
+	name = "sunrpc.svc.process"
+	argstr = sprintf("%s %d %d %d %d %d %d", sv_name, sv_prog, peer_ip,
+			rq_xid, rq_prog, rq_vers, rq_proc)
+}
+
+probe sunrpc.svc.process.return = kernel.function("svc_process").return !,
+      	module("sunrpc").function("svc_process").return
+{
+	name = "sunrpc.svc.process.return"
+	retstr = return_str(1, $return)
+}
+
+/* 
+ * probe sunrpc.svc.authorise - An RPC request is to be authorised
+ *
+ * @sv_name:     the service name
+ * @peer_ip:     the peer address where the request is from
+ * @rq_xid:      the transmission id in the request
+ * @rq_prog:     the program number in the request
+ * @rq_vers:     the program version in the request
+ * @rq_proc:     the procedure number in the request
+ * @rq_prot:     the IP protocol of the reqeust
+ */
+probe sunrpc.svc.authorise = kernel.function("svc_authorise") !,
+      	module("sunrpc").function("svc_authorise")
+{
+	sv_name = kernel_string($rqstp->rq_server->sv_name)
+	peer_ip = addr_from_rqst($rqstp)
+	rq_xid  = $rqstp->rq_xid
+	rq_prog = $rqstp->rq_prog
+	rq_vers = $rqstp->rq_vers
+	rq_proc = $rqstp->rq_proc
+	rq_prot = $rqstp->rq_prot
+
+	name = "sunrpc.svc.authorise"
+	argstr = sprintf("%d %d %d %d %d %d", peer_ip, rq_xid, rq_prog, 
+			rq_vers, rq_proc, rq_prot)
+}
+
+probe sunrpc.svc.authorise.return = kernel.function("svc_authorise").return !,
+      	module("sunrpc").function("svc_authorise").return
+{
+	name = "sunrpc.svc.authorise.return"
+	retstr = return_str(1, $return)
+}
+
+/**
+ * probe sunrpc.svc.recv - Listen for the next RPC request on any socket
+ *
+ * @sv_name:     the service name
+ * @sv_prog:     the number of the program
+ * @sv_nrthreads:the number of concurrent threads
+ * @timeout:     the timeout of waiting for data
+ */
+probe sunrpc.svc.recv = kernel.function("svc_recv") !,
+      	module("sunrpc").function("svc_recv")
+{
+	if (! @defined($serv)) {
+	        sv_name = kernel_string($rqstp->rq_server->sv_name) 
+        	sv_prog = $rqstp->rq_server->sv_program->pg_prog
+	        sv_nrthreads = $rqstp->rq_server->sv_nrthreads
+	}
+	else {
+		sv_name = kernel_string($serv->sv_name)	
+		sv_prog = $serv->sv_program->pg_prog
+		sv_nrthreads = $serv->sv_nrthreads
+	}
+	timeout = $timeout
+
+	name = "sunrpc.svc.recv"
+	argstr = sprintf("%s %d", sv_name, timeout)
+}
+
+probe sunrpc.svc.recv.return = kernel.function("svc_recv").return !,
+      	module("sunrpc").function("svc_recv").return
+{
+	name = "sunrpc.svc.recv.return"
+	retstr = return_str(1, $return)
+}
+
+/**
+ * probe sunrpc.svc.send  - Return reply to RPC client
+ *
+ * @sv_name:     the service name
+ * @peer_ip:     the peer address where the request is from
+ * @rq_xid:      the transmission id in the request
+ * @rq_prog:     the program number in the request
+ * @rq_vers:     the program version in the request
+ * @rq_proc:     the procedure number in the request
+ * @rq_prot:     the IP protocol of the reqeust
+ */
+probe sunrpc.svc.send = kernel.function("svc_send") !,
+      	module("sunrpc").function("svc_send")
+{
+	sv_name = kernel_string($rqstp->rq_server->sv_name)
+	peer_ip = addr_from_rqst($rqstp)
+	rq_xid  = $rqstp->rq_xid
+	rq_prog = $rqstp->rq_prog
+	rq_vers = $rqstp->rq_vers
+	rq_proc = $rqstp->rq_proc
+	rq_prot = $rqstp->rq_prot
+	
+	name = "sunrpc.svc.send"
+	argstr = sprintf("%s %d %d %d %d %d %d", sv_name, peer_ip, 
+			rq_xid, rq_prog, rq_vers, rq_proc, rq_prot)
+}
+
+probe sunrpc.svc.send.return = kernel.function("svc_send").return !,
+      	module("sunrpc").function("svc_send").return
+{
+	name = "sunrpc.svc.send.return"
+	retstr = return_str(1, $return)
+}
+
+/**
+ * probe sunrpc.svc.drop - Drop RPC request
+ *
+ * @sv_name:     the service name
+ * @peer_ip:     the peer address where the request is from
+ * @rq_xid:      the transmission id in the request
+ * @rq_prog:     the program number in the request
+ * @rq_vers:     the program version in the request
+ * @rq_proc:     the procedure number in the request
+ * @rq_prot:     the IP protocol of the reqeust
+ */
+probe sunrpc.svc.drop = kernel.function("svc_drop") !,
+      	module("sunrpc").function("svc_drop")
+{
+	sv_name = kernel_string($rqstp->rq_server->sv_name)
+	peer_ip = addr_from_rqst($rqstp)
+	rq_xid  = $rqstp->rq_xid
+	rq_prog = $rqstp->rq_prog
+	rq_vers = $rqstp->rq_vers
+	rq_proc = $rqstp->rq_proc
+	rq_prot = $rqstp->rq_prot
+	
+	name = "sunrpc.svc.drop"
+	argstr = sprintf("%s %d %d %d %d %d %d", sv_name, peer_ip, 
+			rq_xid, rq_prog, rq_vers, rq_proc, rq_prot)
+}
+
+probe sunrpc.svc.drop.return = kernel.function("svc_drop").return !,
+      	module("sunrpc").function("svc_drop").return
+{
+	name = "sunrpc.svc.drop.return"
+	retstr = "N/A"
+}
+
+/*******************************************************************
+ *                  Probe points on RPC scheduler                  *
+ ******************************************************************/
+probe sunrpc.sched.entry =
+	sunrpc.sched.new_task,
+	sunrpc.sched.release_task ?,
+	sunrpc.sched.execute,
+	sunrpc.sched.delay
+{}
+
+probe sunrpc.sched.return =
+	sunrpc.sched.new_task.return,
+	sunrpc.sched.release_task.return ?,
+	sunrpc.sched.execute.return,
+	sunrpc.sched.delay.return
+{}
+
+/**
+ * probe sunrpc.sched.new_task - Create new task for the specified client
+ *
+ * @xid:         the transmission id in the RPC call
+ * @prog:        the program number in the RPC call
+ * @vers:        the program version in the RPC call
+ * @prot:        the IP protocol in the RPC call
+ * @tk_flags:    the flags of the task
+ */
+probe sunrpc.sched.new_task = kernel.function("rpc_new_task") !,
+      	module("sunrpc").function("rpc_new_task")
+{
+	if (@defined($setup_data)) {
+		xid = xid_from_clnt($setup_data->rpc_client)
+		prog = prog_from_clnt($setup_data->rpc_client)
+		vers = vers_from_clnt($setup_data->rpc_client)
+		prot = prot_from_clnt($setup_data->rpc_client)
+		flags = $setup_data->flags
+	}
+	else {
+		xid = xid_from_clnt($clnt)
+		prog = prog_from_clnt($clnt)
+		vers = vers_from_clnt($clnt)
+		prot = prot_from_clnt($clnt)
+		flags = $flags
+	}
+
+	name = "sunrpc.sched.new_task"
+	argstr = sprintf("%d %d %d %d %d", xid, prog, vers, prot, flags)
+}
+
+probe sunrpc.sched.new_task.return = kernel.function("rpc_new_task").return !,
+      	module("sunrpc").function("rpc_new_task").return
+{
+	name = "sunrpc.sched.new_task.return"
+	retstr = return_str(2, $return)
+}
+
+/**
+ * probe sunrpc.sched.release_task - Release all resources associated with a task
+ *
+ * @xid:         the transmission id in the RPC call
+ * @prog:        the program number in the RPC call
+ * @vers:        the program version in the RPC call
+ * @prot:        the IP protocol in the RPC call
+ * @tk_flags:    the flags of the task
+ *
+ * rpc_release_task() function might not be found for a particular kernel.
+ *  So, if we can't find it, just return '-1' for everything.
+ */
+/*
+ * The '.call' here is so that we're sure to grab the non-inline
+ * version of rpc_release_task() (assuming it exists).  We can't find
+ * the return of rpc_release_task() if it is inline (PR 4413).
+ */
+probe sunrpc.sched.release_task = kernel.function("rpc_release_task").call !,
+      	module("sunrpc").function("rpc_release_task").call !,
+	never
+{
+	if (@defined($task)) {
+		xid = xid_from_clnt($task->tk_client)
+		prog = prog_from_clnt($task->tk_client)
+		vers = vers_from_clnt($task->tk_client)
+		prot = prot_from_clnt($task->tk_client)
+		tk_flags  = $task->tk_flags
+	}
+	else {
+		xid = -1
+		prog = -1
+		vers = -1
+		prot = -1
+		tk_flags  = -1
+	}
+	name = "sunrpc.sched.release_task"
+	argstr = sprintf("%d %d %d %d %d", xid, prog, vers, prot, tk_flags)
+}
+
+probe sunrpc.sched.release_task.return = 
+	kernel.function("rpc_release_task").return !,
+      	module("sunrpc").function("rpc_release_task").return ?
+{
+	name = "sunrpc.sched.release_task.return"
+	retstr = "N/A"
+}
+
+/**
+ * probe sunrpc.sched.execute - Execute the RPC `scheduler' 
+ *
+ * @xid:         the transmission id in the RPC call
+ * @prog:        the program number in the RPC call
+ * @vers:        the program version in the RPC call
+ * @prot:        the IP protocol in the RPC call
+ * @tk_pid:      the debugging id of the task
+ * @tk_flags:    the flags of the task
+ */
+probe sunrpc.sched.execute = kernel.function("__rpc_execute") !,
+      	module("sunrpc").function("__rpc_execute")
+{
+	xid = xid_from_clnt($task->tk_client)
+	prog = prog_from_clnt($task->tk_client)
+	vers = vers_from_clnt($task->tk_client)
+	prot = prot_from_clnt($task->tk_client)
+	tk_pid = $task->tk_pid
+	tk_flags = $task->tk_flags
+
+	name = "sunrpc.sched.execute"
+	argstr = sprintf("%d %d %d %d %d %d", xid, prog, vers, prot, 
+			tk_pid, tk_flags)
+}
+
+probe sunrpc.sched.execute.return = kernel.function("__rpc_execute").return !,
+      	module("sunrpc").function("__rpc_execute").return
+{
+	name = "sunrpc.sched.execute.return"
+
+	# On kernels > 2.6.20, __rpc_execute() is a void function.
+	if (@defined($return)) {
+		retstr = return_str(1, $return)
+	}
+	else {
+		retstr = "N/A"
+	}
+}
+
+/**
+ * probe sunrpc.sched.delay - Delay an RPC task
+ *
+ * @xid:         the transmission id in the RPC call
+ * @prog:        the program number in the RPC call
+ * @vers:        the program version in the RPC call
+ * @prot:        the IP protocol in the RPC call
+ * @tk_pid:      the debugging id of the task
+ * @tk_flags:    the flags of the task
+ * @delay:       the time delayed
+ */
+probe sunrpc.sched.delay = kernel.function("rpc_delay") !,
+      module("sunrpc").function("rpc_delay") 
+{
+	xid = xid_from_clnt($task->tk_client)
+	prog = prog_from_clnt($task->tk_client)
+	vers = vers_from_clnt($task->tk_client)
+	prot = prot_from_clnt($task->tk_client)
+	tk_pid = $task->tk_pid
+	tk_flags = $task->tk_flags
+	delay = $delay
+
+	name = "sunrpc.sched.delay"
+	argstr = sprintf("%d %d %d %d %d %d %d", xid, prog, vers, 
+			prot, tk_pid, tk_flags, delay)
+}
+
+probe sunrpc.sched.delay.return = kernel.function("rpc_delay").return !,
+      module("sunrpc").function("rpc_delay").return
+{
+	name = "sunrpc.sched.delay.return"
+	retstr = "N/A"
+}
+
+/******************************************************************
+ *                       Helper functions                        *
+ *****************************************************************/
+
+function xid_from_clnt:long(clnt:long)
+{
+	if (clnt == 0)
+		return 0
+	return @cast(clnt, "rpc_clnt", "kernel:sunrpc")->cl_xprt->xid
+}
+
+function prog_from_clnt:long(clnt:long)
+{
+	if (clnt == 0)
+		return 0
+	return @choose_defined(@cast(clnt, "rpc_clnt", "kernel:sunrpc")->cl_prog,
+		@cast(clnt, "rpc_clnt", "kernel:sunrpc")->cl_pmap->pm_prog)
+}
+
+function vers_from_clnt:long(clnt:long)
+{
+	if (clnt == 0)
+		return 0
+	return @choose_defined(@cast(clnt, "rpc_clnt", "kernel:sunrpc")->cl_vers,
+		@cast(clnt, "rpc_clnt", "kernel:sunrpc")->cl_pmap->pm_vers)
+}
+
+function prot_from_clnt:long(clnt:long)
+{
+	if (clnt == 0)
+		return 0
+	return @cast(clnt, "rpc_clnt", "kernel:sunrpc")->cl_xprt->prot
+}
+
+function port_from_xprt:long(cl_xprt:long)
+{
+	if (cl_xprt == 0)
+		return 0
+
+	addr = &@cast(cl_xprt, "rpc_xprt", "kernel:sunrpc")->addr
+	if (addr == 0)
+		return 0
+
+	/* In reality, 'cl_xprt->addr' is of 'sockaddr_storage' type
+	 * (since 2.6.19). But when used, you cast it to what is
+	 * inside that buffer. The 'struct sockaddr', 'struct
+	 * sockaddr_in', and 'sockaddr_in6' structures all have a
+	 * family type as their 1st member. */
+	if (@cast(addr, "sockaddr")->sa_family
+		== %{ /* pure */ /* unprivileged */ AF_INET %}) {
+		return ntohs(@cast(addr, "sockaddr_in")->sin_port)
+	}
+	else if (@cast(addr, "sockaddr")->sa_family
+		 == %{ /* pure */ /* unprivileged */ AF_INET6 %}) {
+		return ntohs(@cast(addr, "sockaddr_in6")->sin6_port)
+	}
+	return 0
+}
+
+function port_from_clnt:long(clnt:long)
+{
+	if (clnt == 0)
+		return 0
+
+	cl_xprt = @cast(clnt, "rpc_clnt", "kernel:sunrpc")->cl_xprt
+	return port_from_xprt(cl_xprt)
+}
+
+function clones_from_clnt:long(clnt:long)
+{
+    return (@defined(@cast(clnt, "rpc_clnt", "kernel:sunrpc")->cl_count)
+	    ? atomic_read(&@cast(clnt, "rpc_clnt", "kernel:sunrpc")->cl_count)
+	    : -1)
+}
+
+function tasks_from_clnt:long(clnt:long)
+{
+    return (@defined(@cast(clnt, "rpc_clnt", "kernel:sunrpc")->cl_users)
+	    ? atomic_read(&@cast(clnt, "rpc_clnt", "kernel:sunrpc")->cl_users)
+	    : -1)
+}
+
+function proc_from_msg:long(msg:long)
+{
+	if (msg == 0)
+		return 0
+	return @cast(msg, "rpc_message", "kernel:sunrpc")->rpc_proc->p_proc
+}
+
+function vers_from_prog:long(program:long, vers:long)
+{
+    if (program
+	&& vers < @cast(program, "rpc_program", "kernel:sunrpc")->nrvers)
+	return @cast(program, "rpc_program", "kernel:sunrpc")->version[vers]->number
+    return 0
+}
+
+function addr_from_rqst:long(rqstp:long)
+{
+    if (rqstp) {
+	addr = &@cast(rqstp, "svc_rqst", "kernel:nfs")->rq_addr
+	if (addr == 0)
+		return 0
+
+	/* In reality, 'rq_addr' is of 'sockaddr_storage' type
+	 * (since 2.6.19). But when used, you cast it to what is
+	 * inside that buffer. The 'struct sockaddr', 'struct
+	 * sockaddr_in', and 'sockaddr_in6' structures all have a
+	 * family type as their 1st member. */
+	if (@cast(addr, "sockaddr")->sa_family
+		== %{ /* pure */ /* unprivileged */ AF_INET %}) {
+		return @cast(addr, "sockaddr_in")->sin_addr->s_addr
+	}
+	else if (@cast(addr, "sockaddr")->sa_family
+		 == %{ /* pure */ /* unprivileged */ AF_INET6 %}) {
+		return &@cast(addr, "sockaddr_in6")->sin6_addr
+	}
+    }
+    return 0
+}
+
+function addr_from_rqst_str:string(rqstp:long)
+{
+	if (rqstp == 0)
+		return "Null"
+
+	addr = &@cast(rqstp, "svc_rqst", "kernel:nfs")->rq_addr
+	if (addr == 0)
+		return "Null"
+
+	s_addr = addr_from_rqst(rqstp)
+	if (s_addr == 0)
+		return "Unsupported Address Family"
+	if (@cast(addr, "sockaddr_in")->sin_family
+		  == %{ /* pure */ /* unprivileged */ AF_INET %}) {
+		return sprintf("%s:%d",
+			       format_ipaddr(s_addr,
+				  %{ /* pure */ /* unprivileged */ AF_INET %}), 
+				  @cast(addr, "sockaddr_in")->sin_port)
+	}
+	return sprintf("[%s]:%d",
+		       format_ipaddr(s_addr,
+			  %{ /* pure */ /* unprivileged */ AF_INET6 %}),
+			  @cast(addr, "sockaddr_in6")->sin6_port)
+}
+
+%{
+#include <linux/un.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+%}
+
+@__private30 function __rpc_format_servername:string(servername:long, address:long)
+{
+	printf("__rpc_format_servername: %p\n", servername)
+	if (servername != 0)
+		return kernel_string(servername)
+
+	// If 'servername' is NULL, create a string representation of
+	// the passed-in address.
+	// 
+	// Note that 'address' is a generic 'struct sockaddr'. When
+	// you use it you have to cast it to the more specific
+	// structure based on the family type.
+	if (@cast(address, "sockaddr")->sa_family == %{ /* pure */ /* unprivileged */ AF_LOCAL %}) {
+		return kernel_string(@cast(address, "sockaddr_un")->sun_path)
+	}
+	else if (@cast(address, "sockaddr")->sa_family == %{ /* pure */ /* unprivileged */ AF_INET %}) {
+		return format_ipaddr(&@cast(address, "sockaddr_in")->sin_addr->s_addr, %{ /* pure */ /* unprivileged */ AF_INET %})
+	}
+	else if (@cast(address, "sockaddr")->sa_family == %{ /* pure */ /* unprivileged */ AF_INET6 %}) {
+		return format_ipaddr(&@cast(address, "sockaddr_in6")->sin6_addr,
+				     %{ /* pure */ /* unprivileged */ AF_INET6 %})
+	}
+	return "*unknown address family*"
+}

@@ -1,0 +1,444 @@
+/*
+ *      Copyright (C) 2009 IBM Corp.
+ *      Copyright (C) 2010 Red Hat Inc.
+ *
+ *      This file is part of systemtap, and is free software.  You can
+ *      redistribute it and/or modify it under the terms of the GNU General
+ *      Public License (GPL); either version 2, or (at your option) any
+ *      later version.
+ *      
+ *      Version 1.0     wilder@us.ibm.com     2009-07-06
+ */
+
+%{ /* pure */
+#include <net/route.h>
+#include <linux/skbuff.h>
+#include <linux/icmp.h>
+#include <linux/rtnetlink.h>
+#include <linux/tcp.h>
+%}
+
+
+/* Commented globals represent statistics that are not supported in this
+ * version. 
+ */
+global InReceives
+// global InHdrErrors
+// global InTooBigErrors
+global InNoRoutes  
+global InAddrErrors
+global InUnknownProtos
+// global InTruncatedPkts
+global InDiscards // included counts of InHdrErrors InTruncatedPkts
+// global InDelivers
+%( kernel_v >= "2.6.24" %?
+global ForwDatagrams
+%)
+global OutRequests
+// global OutDiscards
+// global OutNoRoutes
+global ReasmTimeout
+global ReasmReqds
+//global ReasmOKs
+// global ReasmFails
+global FragOKs
+global FragFails
+// global FragCreates
+// global InMcastPkts
+// global OutMcastPkts
+// global InBcastPkts
+// global OutBcastPkts
+
+/**
+ * sfunction ipmib_remote_addr - Get the remote ip address
+ * @skb: pointer to a struct sk_buff
+ * @SourceIsLocal: flag to indicate whether local operation
+ *
+ * Returns the remote ip address from @skb.
+ */
+function ipmib_remote_addr:long (skb:long, SourceIsLocal:long)
+{
+	iphdr = __get_skb_iphdr(skb);
+	if ( SourceIsLocal )
+		return ntohl(__ip_skb_daddr(iphdr));
+	return ntohl(__ip_skb_saddr(iphdr));
+}
+
+/**
+ * sfunction ipmib_local_addr - Get the local ip address
+ * @skb: pointer to a struct sk_buff
+ * @SourceIsLocal: flag to indicate whether local operation
+ *
+ * Returns the local ip address @skb.
+ */
+function ipmib_local_addr:long (skb:long, SourceIsLocal:long)
+{
+	iphdr = __get_skb_iphdr(skb);
+	if ( SourceIsLocal )
+		return ntohl(__ip_skb_saddr(iphdr));
+	return ntohl(__ip_skb_daddr(iphdr));
+}
+
+/**
+ * sfunction ipmib_tcp_remote_port - Get the remote tcp port
+ * @skb: pointer to a struct sk_buff
+ * @SourceIsLocal: flag to indicate whether local operation
+ *
+ * Returns the remote tcp port from @skb.
+ */
+function ipmib_tcp_remote_port:long (skb:long, SourceIsLocal:long)
+{
+	th = _plunge_into_tcphdr(skb);
+	if ( SourceIsLocal )
+		return __tcp_skb_dport(th);
+	return __tcp_skb_sport(th);
+}
+
+/**
+ * sfunction ipmib_tcp_local_port - Get the local tcp port
+ * @skb: pointer to a struct sk_buff
+ * @SourceIsLocal: flag to indicate whether local operation
+ *
+ * Returns the local tcp port from @skb.
+ */
+function ipmib_tcp_local_port:long (skb:long, SourceIsLocal:long)
+{
+	th = _plunge_into_tcphdr(skb);
+	if ( SourceIsLocal )
+		return __tcp_skb_sport(th);
+	return __tcp_skb_dport(th);
+}
+
+/**
+ * sfunction ipmib_get_proto - Get the protocol value
+ * @skb: pointer to a struct sk_buff
+ *
+ * Returns the protocol value from @skb.
+ */
+function ipmib_get_proto:long (skb:long)
+{
+	iphdr = __get_skb_iphdr(skb);
+	return __ip_skb_proto(iphdr);
+}
+
+/* Internal functions */
+
+/*
+ * We can't assume the pointer to the sk_buff->transport_header 
+ * has been updated, so we must calculate the value from the network_header.
+ * The caller must verify the skb is for a tcpip packet.
+ */
+@__private30 function _plunge_into_tcphdr:long (skb:long)
+%{
+	struct sk_buff *skb = (struct sk_buff *)(long)STAP_ARG_skb;
+	/* as done by skb_network_header() */
+	#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,21)
+		STAP_RETVALUE=(long)kread(&(skb->nh.raw)) +
+			(long)sizeof(struct tcphdr);
+	#else
+	#ifdef NET_SKBUFF_DATA_USES_OFFSET
+		STAP_RETVALUE=(long)kread(&(skb->network_header)) +
+		(long)(kread(&(skb->head))) +
+		(long)sizeof(struct tcphdr);
+	#else
+		STAP_RETVALUE=(long)kread(&(skb->network_header)) +
+		(long)sizeof(struct tcphdr);
+	#endif
+	#endif
+	CATCH_DEREF_FAULT();
+%}
+
+@__private30 function _ehostunreach:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+	STAP_RETVALUE = EHOSTUNREACH;
+%}
+
+@__private30 function _enetunreach:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+	STAP_RETVALUE = ENETUNREACH;
+%}
+
+@__private30 function _icmp_dest_unreach:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+	STAP_RETVALUE = ICMP_DEST_UNREACH;
+%}
+
+@__private30 function _icmp_prot_unreach:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+	STAP_RETVALUE = ICMP_PROT_UNREACH;
+%}
+
+@__private30 function _net_rx_drop:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+	STAP_RETVALUE = NET_RX_DROP;
+%}
+
+@__private30 function _icmp_time_exceeded:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+	STAP_RETVALUE = ICMP_TIME_EXCEEDED;
+%}
+
+@__private30 function _icmp_exc_fragtime:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+	STAP_RETVALUE = ICMP_EXC_FRAGTIME;
+%}
+
+@__private30 function _rtn_multicast:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+	STAP_RETVALUE = RTN_MULTICAST;
+%}
+
+@__private30 function _rtn_broadcast:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+	STAP_RETVALUE = RTN_BROADCAST;
+%}
+
+/**
+ * probe ipmib.InReceives - Count an arriving packet
+ * @skb: pointer to the struct sk_buff being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * ipmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @InReceives (equivalent to SNMP's MIB
+ * IPSTATS_MIB_INRECEIVES)
+ */
+probe ipmib.InReceives=kernel.function("ip_rcv")
+{
+	skb = $skb;
+	op = 1;
+	SourceIsLocal = 0;
+	key = ipmib_filter_key(skb,op,SourceIsLocal);
+	if ( key ) InReceives[key] += op;
+}
+
+/**
+ * probe ipmib.InNoRoutes - Count an arriving packet with no matching socket
+ * @skb: pointer to the struct sk_buff being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * ipmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @InNoRoutes (equivalent to SNMP's MIB
+ * IPSTATS_MIB_INNOROUTES)
+ */
+probe ipmib.InNoRoutes=kernel.function("ip_route_input_noref").return!,
+		       kernel.function("ip_route_input_common").return!,
+                       kernel.function("ip_route_input").return
+{
+	skb = $skb;
+	op = 1;
+	SourceIsLocal = 0;
+	if ( $return != -_enetunreach()) next;
+	key = ipmib_filter_key(skb,op,SourceIsLocal);
+	if ( key ) InNoRoutes[key] += op;
+}
+
+/**
+ * probe ipmib.InAddrErrors - Count arriving packets with an incorrect address
+ * @skb: pointer to the struct sk_buff being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * ipmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @InAddrErrors (equivalent to SNMP's MIB
+ * IPSTATS_MIB_INADDRERRORS)
+ */
+probe ipmib.InAddrErrors=kernel.function("ip_route_input_noref").return!,
+			 kernel.function("ip_route_input_common").return!,
+                         kernel.function("ip_route_input").return
+{
+	skb = $skb;
+	op = 1;
+	SourceIsLocal = 0;
+	if ( $return != -_ehostunreach()) next;
+	key = ipmib_filter_key(skb,op,SourceIsLocal);
+	if ( key ) InAddrErrors[key] += op;
+}
+
+/**
+ * probe ipmib.InUnknownProtos - Count arriving packets with an unbound proto
+ * @skb: pointer to the struct sk_buff being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * ipmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @InUnknownProtos (equivalent to SNMP's MIB
+ * IPSTATS_MIB_INUNKNOWNPROTOS)
+ */
+/* icmp_send() is called by ip_local_deliver_finish() */
+probe ipmib.InUnknownProtos=kernel.function("icmp_send")
+{
+	skb = $skb_in;
+	op = 1;
+	SourceIsLocal = 0;
+	if (($type==_icmp_dest_unreach())&&($code==_icmp_prot_unreach())){ 
+		key = ipmib_filter_key(skb,op,SourceIsLocal);
+		if ( key ) InUnknownProtos[key] += op;
+	}
+}
+
+/**
+ * probe ipmib.InDiscards - Count discarded inbound packets
+ * @skb: pointer to the struct sk_buff being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * ipmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @InDiscards (equivalent to SNMP's MIB
+ * STATS_MIB_INDISCARDS)
+ */
+
+/*
+   This stat combines all instances of IPSTATS_MIB_INHDRERRORS,
+   IPSTATS_MIB_INTRUNCATEDPKTS, and STATS_MIB_INDISCARDS.
+*/
+probe ipmib.InDiscards=kernel.function("ip_rcv").return
+{
+	skb = $skb;
+	op = 1;
+	SourceIsLocal = 0;
+	if ( $return != _net_rx_drop() ) next;
+	key = ipmib_filter_key(skb,op,SourceIsLocal);
+	if ( key ) InDiscards[key] += op;
+}
+
+/**
+ * probe ipmib.ForwDatagrams - Count forwarded packet
+ * @skb: pointer to the struct sk_buff being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * ipmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @ForwDatagrams (equivalent to SNMP's MIB
+ * IPSTATS_MIB_OUTFORWDATAGRAMS)
+ */
+%( kernel_v >= "2.6.24" %?
+probe ipmib.ForwDatagrams=kernel.function("ip_forward_finish")
+{
+	skb = $skb;
+	op = 1;
+	SourceIsLocal = 0;
+	key = ipmib_filter_key(skb,op,SourceIsLocal);
+	if ( key ) ForwDatagrams[key] += op;
+}
+%)
+
+/**
+ * probe ipmib.OutRequests - Count a request to send a packet
+ * @skb: pointer to the struct sk_buff being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * ipmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @OutRequests (equivalent to SNMP's MIB
+ * IPSTATS_MIB_OUTREQUESTS)
+ */
+probe ipmib.OutRequests=kernel.function("ip_output"),
+			kernel.function("ip_mc_output")
+{
+	skb = @choose_defined($skb, kernel_pointer($pskb));
+	op = 1;
+	SourceIsLocal = 1;
+	key = ipmib_filter_key(skb,op,SourceIsLocal);
+	if ( key ) OutRequests[key] += op;
+}
+
+/**
+ * probe ipmib.ReasmTimeout - Count Reassembly Timeouts
+ * @skb: pointer to the struct sk_buff being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * ipmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @ReasmTimeout (equivalent to SNMP's MIB
+ * IPSTATS_MIB_REASMTIMEOUT)
+ */
+probe ipmib.ReasmTimeout=kernel.function("icmp_send")
+{
+	skb = $skb_in;
+	op = 0;
+	SourceIsLocal = 1;
+	if(($type==_icmp_time_exceeded())&&($code==_icmp_exc_fragtime())){
+		key = ipmib_filter_key(skb,op,SourceIsLocal);
+		if ( key ) ReasmTimeout[key] += op;
+	}
+}
+
+/**
+ * probe ipmib.ReasmReqds - Count number of packet fragments reassembly requests
+ * @skb: pointer to the struct sk_buff being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * ipmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @ReasmReqds (equivalent to SNMP's MIB
+ * IPSTATS_MIB_REASMREQDS)
+ */
+probe ipmib.ReasmReqds=kernel.function("ip_defrag")
+{
+	skb = $skb;
+	op = 0;
+	SourceIsLocal = 1;
+	key = ipmib_filter_key(skb,op,SourceIsLocal);
+	if ( key ) ReasmReqds[key] += op;
+}
+
+/**
+ * probe ipmib.FragOKs - Count datagram fragmented successfully
+ * @skb: pointer to the struct sk_buff being acted on
+ * @op: value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * ipmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @FragOKs (equivalent to SNMP's MIB
+ * IPSTATS_MIB_FRAGOKS)
+ */
+probe ipmib.FragOKs=kernel.function("ip_fragment").return
+{
+	skb = $skb;
+	op = 1;
+	SourceIsLocal = 1;
+	if ( $return ) next
+	key = ipmib_filter_key(skb,op,SourceIsLocal);
+	if ( key ) FragOKs [key] += op;
+}
+
+/**
+ * probe ipmib.FragFails - Count datagram fragmented unsuccessfully
+ * @skb: pointer to the struct sk_buff being acted on
+ * @op: Value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * ipmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @FragFails (equivalent to SNMP's MIB
+ * IPSTATS_MIB_FRAGFAILS)
+ */
+probe ipmib.FragFails=kernel.function("ip_fragment").return
+{
+	skb = $skb;
+	op = 1;
+	SourceIsLocal = 1;
+	if (!$return ) next
+	key = ipmib_filter_key(skb,op,SourceIsLocal);
+	if ( key ) FragFails [key] += op;
+}
+
+@__private30 function _rtn_unspec:long ()
+%{ /* pure */ /* stable */ /* unprivileged */
+	STAP_RETVALUE = RTN_UNSPEC;
+%}
+
+function _input_route_type:long (skb:long)
+{
+	rt = @choose_defined(@cast(skb, "sk_buff")->_skb_dst,
+		@choose_defined(@cast(skb, "sk_buff")->rtable, 0))
+	return rt ? @cast(rt, "rtable")->rt_type : _rtn_unspec()
+}
+
+@__private30 function _output_route_type:long (skb:long)
+{
+	rt = @choose_defined(@cast(skb, "sk_buff")->_skb_dst,
+		@choose_defined(@cast(skb, "sk_buff")->dst, 0))
+	return rt ? @cast(rt, "rtable")->rt_type : _rtn_unspec()
+}

@@ -1,0 +1,105 @@
+.\" -*- nroff -*-
+.TH STAP\-MERGE 1
+.SH NAME
+stap\-merge \- systemtap per-cpu binary merger
+
+.\" macros
+.\" do not nest SAMPLEs
+.de SAMPLE
+.br
+
+.nr oldin \\n(.i
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH SYNOPSIS
+
+.br
+.B stap\-merge
+[
+.I OPTIONS
+]
+[
+.I INPUT FILENAMES
+]
+
+.SH DESCRIPTION
+
+The stap\-merge executable applies when the \-b option has been used 
+while running a 
+.IR stap 
+script.  The \-b option will generate files 
+per\-cpu, based on the timestamp field. Then stap\-merge will 
+merge and sort through the per-cpu files based on the timestamp
+field.
+
+.SH OPTIONS
+
+The systemtap merge executable supports the following options.
+.TP
+.B \-v
+Verbose mode, displays three extra fields per set of collected data.
+.SAMPLE
+.BR [cpu number, sequence number of data, the length of the data set]
+.ESAMPLE
+.TP
+.BI \-o " OUTPUT_FILENAME"
+
+Specify the name of the file you would like the output to be 
+redirected into.  If this option is not specified than the
+output will be pushed to standard out.
+
+.SH EXAMPLES
+.SAMPLE
+$ stap \-v \-b \-e 'probe syscall.open { printf("%s(%d) open\\n",
+execname(), pid()) }' 
+
+.ESAMPLE
+
+This should result in several
+.I stpd_cpu
+files (each labled with a number 
+representing which cpu the file was produced from).
+
+.SAMPLE
+$ stap\-merge \-v stpd_cpu0 stpd_cpu1
+
+.ESAMPLE
+
+Running the stap\-merge program in the same directory as the stap 
+script earlier in the example, will produce an ordered sequence of 
+packets with the three part label for each set of data.  This
+result will be pushed through the standard output.  An output file 
+could have been specified using the "\-o" option.
+
+.SH FILES
+
+.TP
+Important files and their corresponding paths can be located in the 
+stappaths (7) manual page.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stapprobes (3stap),
+.IR stappaths (7),
+.IR staprun (8),
+.IR stapvars (3stap),
+.IR stapex (3stap),
+.IR stap\-server (8),
+.IR gdb (1)
+
+.SH BUGS
+Use the Bugzilla link of the project web page or our mailing list.
+.nh
+.BR http://sourceware.org/systemtap/ , <systemtap@sourceware.org> .
+.hy

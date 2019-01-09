@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::string_quoted
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: A collection of standard string functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::STRING_QUO" "3stap" "March 2016" "SystemTap Tapset Reference" "A collection of standard strin"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::string_quoted \- Quotes a given string
+.SH "SYNOPSIS"
+.sp
+.nf
+    string_quoted:string(str:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIstr\fR
+.RS 4
+The kernel address to retrieve the string from
+.RE
+.SH "DESCRIPTION"
+.PP
+Returns the quoted string version of the given string, with characters where any ASCII characters that are not printable are replaced by the corresponding escape sequence in the returned string\&. Note that the string will be surrounded by double quotes\&.
+.SH SEE ALSO\n 
+.IR tapset::string (3stap)

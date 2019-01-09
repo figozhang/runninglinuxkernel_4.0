@@ -1,0 +1,31 @@
+# ARM system calls
+
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). It was just a wrapper around generic
+# do_execve(), but the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+#  int sys_execve(char __user *filenamei, char __user * __user *argv,
+#		  char __user * __user *envp, struct pt_regs *regs)
+probe nd_syscall.execve = kprobe.function("sys_execve").call
+{
+	name = "execve"
+	filename = user_string_quoted(pointer_arg(1))
+	args = __get_argv(pointer_arg(2), 0)
+	env_str = __count_envp(pointer_arg(3))
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe nd_syscall.execve.return = kprobe.function("sys_execve").return
+{
+	name = "execve"
+	retstr = returnstr(1)
+}
+%:
+# We want to make sure this file isn't empty, so we'll add a "never"
+# probe. Otherwise, the translator gives a warning.
+probe never {}
+%)

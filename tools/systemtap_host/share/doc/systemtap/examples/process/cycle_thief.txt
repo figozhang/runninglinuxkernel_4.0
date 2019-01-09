@@ -1,0 +1,145 @@
+cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task
+
+Description:
+  The cycle_thief.stp script instruments the scheduler and IRQ handler
+  to determine which processes and interrupts are competing with the
+  specified task for the cpu cycles. This script uses the '-c' or '-x'
+  options to focus on a specific task. The script output the number of
+  times the task migrates between processors, histograms showing the
+  length of time on and off processor, lists of processes running while
+  the task is off the processor, and the interrupts that occurred while
+  the task was running.
+
+
+$ stap cycle_thief.stp
+
+task 0 migrated: 1
+
+task 0 on processor (us):
+ value |-------------------------------------------------- count
+     2 |                                                    0
+     4 |                                                    0
+     8 |@                                                   1
+    16 |                                                    0
+    32 |                                                    0
+    64 |                                                    0
+   128 |@@@@@@@@                                            8
+   256 |@                                                   1
+   512 |                                                    0
+  1024 |@                                                   1
+  2048 |@@@@@@@@                                            8
+  4096 |@@@@@@@@@@@                                        11
+  8192 |@@                                                  2
+ 16384 |@@                                                  2
+ 32768 |@@@@@@@@@@@@                                       12
+ 65536 |@@@@@                                               5
+131072 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                     30
+262144 |                                                    0
+524288 |                                                    0
+
+
+task 0 off processor (us)
+value |-------------------------------------------------- count
+    1 |                                                    0
+    2 |                                                    0
+    4 |@@@@                                                4
+    8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@                        27
+   16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                 34
+   32 |@@@@                                                4
+   64 |@@@@@                                               5
+  128 |@@@@@                                               5
+  256 |                                                    0
+  512 |@                                                   1
+ 1024 |                                                    0
+ 2048 |                                                    0
+
+
+other pids taking processor from task 0
+   PID      count command
+ 25145         33 stapio
+ 19189         17 kworker/0:3
+     7         13 rcu_sched
+ 22717          9 kworker/1:1
+   380          8 jbd2/dm-0-8
+     9          8 rcuos/1
+   570          6 kworker/0:1H
+     8          3 rcuos/0
+   478          3 systemd-journal
+ 24747          3 kworker/0:1
+   491          2 systemd-udevd
+ 19120          2 sshd
+ 25142          2 stapio
+   615          1 alsactl
+   625          1 irqbalance
+ 25144          1 stapio
+ 31816          1 kworker/u4:1
+ 25141          1 stap
+   724          1 NetworkManager
+ 25143          1 systemd-udevd
+
+irq taking processor from task 0
+   irq      count    min(us)    avg(us)    max(us)
+    44          9          3          8         19
+
+The output from running the script for ~10 seconds.
+
+The histograms provide a visual of the time a process spent on, or off. The
+sampled processes are listed below the histograms to give a sense of what
+was running at the time.
+
+As mentioned in the description, the script can be focused on a certain process
+with -c/-x.
+
+$ stap cycle_thief.stp -c "sleep 10"
+
+task 29018 migrated: 2
+
+task 29018 on processor (us):
+value |-------------------------------------------------- count
+    2 |                                                   0
+    4 |                                                   0
+    8 |@                                                  1
+   16 |                                                   0
+   32 |@                                                  1
+   64 |@                                                  1
+  128 |                                                   0
+  256 |@                                                  1
+  512 |                                                   0
+ 1024 |                                                   0
+
+
+task 29018 off processor (us)
+   value |-------------------------------------------------- count
+       2 |                                                   0
+       4 |                                                   0
+       8 |@                                                  1
+      16 |@                                                  1
+      32 |                                                   0
+      64 |                                                   0
+         ~
+ 2097152 |                                                   0
+ 4194304 |                                                   0
+ 8388608 |@                                                  1
+16777216 |                                                   0
+33554432 |                                                   0
+
+
+other pids taking processor from task 29018
+   PID      count command
+     0         41 swapper/0
+ 19189         24 kworker/0:3
+     7         12 rcu_sched
+     8          8 rcuos/0
+ 29002          5 kworker/0:0
+   380          4 jbd2/dm-0-8
+   570          3 kworker/0:1H
+     6          3 kworker/u4:0
+   491          2 systemd-udevd
+ 29016          2 stapio
+ 29017          1 systemd-udevd
+   478          1 systemd-journal
+   625          1 irqbalance
+    14          1 migration/1
+
+irq taking processor from task 29018
+   irq      count    min(us)    avg(us)    max(us)

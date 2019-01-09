@@ -1,0 +1,162 @@
+#! /usr/bin/env stap
+
+// NOTE: a popup mutex is one that is seen in contention but the init
+// of it was not detected not sure why there are popups - static mutex
+// init?
+
+// stack trace where mutex was initialized, if known
+global mutex_init_stack
+// stack trace where mutex was first referenced, if init stack not known
+global mutex_uninit
+// stats about the contention on this mutex
+global mutex_contention
+// usymdata for this mutex
+global mutex_names
+// stack trace of last contention for this mutex
+global mutex_last_cont_stack
+
+// NOTE: the way 389 works is that many common mutexes are initialized
+// in the same place.  For example - each connection object has its
+// own mutex - there may be thousands of these.  They are all
+// initialized in the same place - same with entry objects, where
+// there may be millions.  So, if we want to get aggregate contention
+// statistics for _all_ connection objects, not just each individual
+// one, we have to keep track of each unique call stack.  This is what
+// mutex_cont_stack is used for.
+
+// stats about unique stacks
+global mutex_cont_stack
+// report mutexes that had more than this many contentions
+global cont_count_threshold = 1
+// usec - report mutexes that had a max time more than this
+global cont_max_threshold = 100000
+global verbose = 0
+global keep_stats = 1
+
+/* ... and a variant of the futexes.stp script: */
+global FUTEX_WAIT = 0 /*, FUTEX_WAKE = 1 */
+global FUTEX_PRIVATE_FLAG = 128 /* linux 2.6.22+ */
+global FUTEX_CLOCK_REALTIME = 256 /* linux 2.6.29+ */
+
+function process_mutex_init(mutex, ppfunc)
+{
+  if (verbose && (mutex in mutex_init_stack)) {
+    printf("error: %s: mutex %p is already initialized at\n%s\n",
+	   ppfunc, mutex, mutex_init_stack[mutex])
+  }
+  if (keep_stats) {
+    mutex_init_stack[mutex] = sprint_ubacktrace()
+    mutex_names[mutex] = usymdata (mutex)
+  }
+  else {
+    printf("init %p at\n%s\n", mutex, sprint_ubacktrace())
+  }
+  if (verbose) {
+    printf("%s: mutex %p %s\n", ppfunc, mutex, mutex_names[mutex])
+  }
+}
+
+function show_contention(mutex, stack, type)
+{
+  count = @count(mutex_contention[mutex])
+  max = @max(mutex_contention[mutex])
+  if ((count > cont_count_threshold) || (max > cont_max_threshold)) {
+    printf("=======================================\nmutex %p (%s) contended %d times, %d avg usec, %d max usec, %d total usec, %s at\n%s\n",
+	   mutex, mutex_names[mutex], count, @avg(mutex_contention[mutex]),
+	   max, @sum(mutex_contention[mutex]), type, stack)
+    if (mutex in mutex_last_cont_stack) {
+      printf("\nmutex was last contended at\n%s\n",
+	     mutex_last_cont_stack[mutex])
+    }
+  }
+}
+
+// we use @defined($muex) and @defined($rwlock) here because
+// on 64 bit systems, the wildcard search takes us through
+// both 64 bit and 32 bit libc (which doesn't have debuginfo),
+// this means the probe point resolved from the 32 bit library
+// has no context info
+probe process("/lib*/libc.so*").function("pthread_mutex_init")
+{
+  if(@defined($mutex))
+    process_mutex_init($mutex, ppfunc())
+}
+probe process("/lib*/libpthread.so*").function("__pthread_mutex_init")
+{
+  if(@defined($mutex))
+    process_mutex_init($mutex, ppfunc())
+}
+probe process("/lib*/libpthread.so*").function("__pthread_rwlock_init")
+{
+  if(@defined($rwlock))
+    process_mutex_init($rwlock, ppfunc())
+}
+
+probe syscall.futex.return
+{
+  if (($op & ~(FUTEX_PRIVATE_FLAG|FUTEX_CLOCK_REALTIME)) != FUTEX_WAIT) next
+  if (pid() != target()) next		// skip irrelevant processes
+
+  elapsed = gettimeofday_us() - @entry(gettimeofday_us())
+  if (keep_stats) {
+    mutex_contention[$uaddr] <<< elapsed
+    stack = sprint_ubacktrace()
+    mutex_last_cont_stack[$uaddr] = stack
+    mutex_cont_stack[stack] <<< elapsed
+    if ($uaddr in mutex_init_stack) {
+      if (verbose) {
+        printf("contention time %d on mutex %p initialized at\n%s\n",
+	       elapsed, $uaddr, mutex_init_stack[$uaddr])
+      }
+    }
+    else if ($uaddr in mutex_uninit) {
+      if (verbose) {
+        printf("contention time %d on popup mutex %p at\n%s\n",
+	       elapsed, $uaddr, stack)
+      }
+    }
+    else {
+      if (verbose) {
+        printf("contention time %d on popup mutex %p at\n%s\n",
+	       elapsed, $uaddr, stack)
+      }
+      mutex_uninit[$uaddr] = stack
+      mutex_names[$uaddr] = usymdata ($uaddr)
+    }
+  }
+  else {
+    printf("contention %p elapsed %d at\n%s\n", $uaddr, elapsed,
+	   sprint_ubacktrace())
+  }
+}
+
+probe end
+{
+  if (!keep_stats) {
+    printf("======== END\n")
+    next
+  }
+  printf("<<<<<<<< aggregate stats\n")
+  foreach (stack in mutex_cont_stack-) {
+    count = @count(mutex_cont_stack[stack])
+    max = @max(mutex_cont_stack[stack])
+    if ((count > cont_count_threshold) || (max > cont_max_threshold)) {
+      printf("=======================================\nstack contended %d times, %d avg usec, %d max usec, %d total usec, at\n%s\n",
+	     @count(mutex_cont_stack[stack]), @avg(mutex_cont_stack[stack]),
+	     @max(mutex_cont_stack[stack]), @sum(mutex_cont_stack[stack]),
+	     stack)
+    }
+  }
+  printf(">>>>>>>> aggregate stats\n")
+  foreach (mutex in mutex_contention-) {
+    if (mutex in mutex_init_stack) {
+      stack = mutex_init_stack[mutex]
+      type = "init"
+    }
+    else if (mutex in mutex_uninit) {
+      stack = mutex_uninit[mutex]
+      type = "popup"
+    }
+    show_contention(mutex, stack, type)
+  }
+}

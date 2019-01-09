@@ -1,0 +1,61 @@
+.\" t
+.TH WARNING::PROCESS-TRACKING 7stap
+.SH JMÉNO
+warning::process-tracking \- chyby při analýze uživatelských procesů
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POPIS
+Tyto chyby a varování se vyskytují obvykle v případech, kdy systemetap běží
+nad jádrem, které nepodporuje analýzu uživatelských procesů.
+
+.SS CHYBY PŘEKLADU
+Chyba
+.SAMPLE
+ERROR: user-space process-tracking facilities not available
+.ESAMPLE
+nastává, když skript používá sondy typu "uprobes", které běžící jádro
+nepodporuje.
+
+.SS VAROVÁNÍ ZA BĚHU
+.PP
+Varování
+.SAMPLE
+WARNING: process-tracking facilities are not available in this kernel
+.ESAMPLE
+and the related message,
+.SAMPLE
+WARNING: cannot track target in process '...'
+.ESAMPLE
+nastávají v případě, kdy jádro (obvykle starší verze) neobsahuje
+funkcionalitu "utrace" ani žádnou přijatelnou náhradu.
+.PP
+Skript by měl stále běžet.  Nicméně sondy spoléhající na dostupnost
+nástrojů pro analýzu uživatelských procesů nebudou aktivovány (tiše se
+přeskočí).
+
+.SH ŘEŠENÍ
+Pokud je analýza uživatelských procesů nezbytná, je buďto třeba povýšit
+linuxové jádro alespoň na 3.5, nebo případně je též možné sestavit starší
+jádro s aplikovaným "utrace" patchem.
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR error::reporting (7stap)

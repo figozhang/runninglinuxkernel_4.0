@@ -1,0 +1,13 @@
+title: Summarize Process Misses across NUMA Nodes
+name: numa_faults.stp
+version: 1.0
+author: IBM
+keywords: memory numa
+subsystem: memory
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description: The numa_faults.stp script tracks the read and write pages faults for each process. When the script exits it prints out the total read and write pages faults for each process. The script also provide a break down of page faults per node for each process. This script is useful for determining whether the program has good locality (page faults limited to a single node) on a NUMA computer.
+test_check: stap -p4 numa_faults.stp
+test_installcheck: stap numa_faults.stp -c "sleep 1"

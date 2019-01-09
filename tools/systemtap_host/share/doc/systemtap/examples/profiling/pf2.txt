@@ -1,0 +1,21 @@
+From: http://sourceware.org/systemtap/wiki/WSKernelProfile
+
+# stap pf2.stp
+
+--- 109 samples recorded:
+mwait_idle      71
+check_poison_obj        4
+_spin_unlock_irqrestore 2
+dbg_redzone1    1
+kfree   1
+kmem_cache_free 1
+_spin_unlock_irq        1
+end_buffer_write_sync   1
+lock_acquire    1
+
+--- 108 samples recorded:
+mwait_idle      91
+check_poison_obj        3
+_spin_unlock_irq        2
+delay_tsc       1
+

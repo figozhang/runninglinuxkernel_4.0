@@ -1,0 +1,58 @@
+.TH biolatency-nd 8  "2015-01-30" "USER COMMANDS"
+.SH NAME
+biolatency-nd \- Measure block I/O latency distribution. Uses Linux SystemTap (non-debuginfo).
+.SH SYNOPSIS
+.B biolatency-nd.stp
+[interval [count]]
+.SH DESCRIPTION
+This measures block I/O latency (storage I/O, ie, disk I/O), and shows the
+distribution as a histogram. This can be useful to identify the characteristics
+of I/O latency, beyond the averages shown by iostat(1). For example, to study
+I/O latency outliers, or multi-modal distributions.
+
+This script uses the kernel tracepoints block_rq_issue and block_rq_complete,
+to trace the time from storage request to completion. To include extra time
+spent queued in the kernel, change block_rq_issue to block_rq_insert.
+.SH REQUIREMENTS
+SystemTap.
+.SH OPTIONS
+.TP
+interval
+Interval for reports, in seconds.
+.TP
+count
+Number of reports to output.
+.SH EXAMPLES
+.TP
+Measure block I/O latency, and show a distribution histogram on Ctrl-C:
+#
+.B biolatency-nd.stp
+.TP
+Measure block I/O latency, and show a report every second, five times:
+#
+.B biolatency-nd.stp 1 5
+.SH FIELDS
+.TP
+value
+The minimum value, in nanoseconds, for this histogram bucket. Read this value
+as "I/O latency was at least xxx".
+.TP
+count
+How many I/O fell into this latency range.
+.SH OVERHEAD
+Should be low, relative to the rate of disk I/O. Test first.
+.SH SOURCE
+This is from the SystemTap lwtools collection.
+.IP
+https://github.com/brendangregg/systemtap-lwtools
+.PP
+Also look under the examples directory for a text file containing example
+usage, output, and commentary for this tool.
+.SH OS
+Linux
+.SH STABILITY
+Unstable - in development.
+.SH AUTHOR
+Brendan Gregg
+.SH SEE ALSO
+iostat(1)

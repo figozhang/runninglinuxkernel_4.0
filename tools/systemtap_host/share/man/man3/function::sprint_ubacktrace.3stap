@@ -1,0 +1,49 @@
+'\" t
+.\"     Title: function::sprint_ubacktrace
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Context Functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::SPRINT_UBA" "3stap" "March 2016" "SystemTap Tapset Reference" "Context Functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::sprint_ubacktrace \- Return stack back trace for current user\-space task as string\&.
+.SH "SYNOPSIS"
+.sp
+.nf
+    sprint_ubacktrace:string()
+.fi
+.SH "ARGUMENTS"
+.PP
+None
+.SH "DESCRIPTION"
+.PP
+.PP
+Returns a simple backtrace for the current task\&. One line per address\&. Includes the symbol name (or hex address if symbol couldn\*(Aqt be resolved) and module name (if found)\&. Includes the offset from the start of the function if found, otherwise the offset will be added to the module (if found, between brackets)\&. Returns the backtrace as string (each line terminated by a newline character)\&. Note that the returned stack will be truncated to MAXSTRINGLEN, to print fuller and richer stacks use
+\fBprint_ubacktrace\fR\&. Equivalent to sprint_ustack(\fBubacktrace\fR), but more efficient (no need to translate between hex strings and final backtrace string)\&.
+.SH "NOTE"
+.PP
+To get (full) backtraces for user space applications and shared shared libraries not mentioned in the current script run stap with \-d /path/to/exe\-or\-so and/or add \-\-ldd to load all needed unwind data\&.
+.SH SEE ALSO\n 
+.IR tapset::ucontext-unwind (3stap)

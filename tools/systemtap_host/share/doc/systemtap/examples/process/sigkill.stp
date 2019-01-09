@@ -1,0 +1,23 @@
+#! /usr/bin/env stap
+# sigkill.stp
+# Copyright (C) 2007 Red Hat, Inc., Eugene Teo <eteo@redhat.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+# /usr/share/systemtap/tapset/signal.stp:
+# [...]
+# probe signal.send = _signal.send.*
+# {
+# 	sig=$sig
+# 	sig_name = _signal_name($sig)
+# 	sig_pid = task_pid(task)
+# 	pid_name = task_execname(task)
+# [...]
+
+probe signal.send {
+  if (sig_name == "SIGKILL")
+    printf("%s was sent to %s (pid:%d) by %s uid:%d\n",
+           sig_name, pid_name, sig_pid, execname(), uid())
+}

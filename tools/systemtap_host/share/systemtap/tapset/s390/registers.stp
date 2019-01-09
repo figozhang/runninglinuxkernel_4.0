@@ -1,0 +1,310 @@
+/* Dwarfless register access for s390x */
+
+@__private30 global _reg_offsets[22]
+
+%{
+#include <asm/ptrace.h>
+
+/*
+ * The following routines help with getting arguments off the s390x
+ * stack. For more details see:
+ *
+ * "S/390 ELF Application Binary Interface Supplement"
+ * <http://refspecs.linuxfoundation.org/ELF/zSeries/lzsabi0_s390/x414.html>
+ */
+
+/*
+ * This is a copy of the kernel's kernel_stack_pointer(), which is
+ * only available on newer kernels.
+ */
+static inline unsigned long _stp_kernel_stack_pointer(struct pt_regs *regs)
+{
+	return regs->gprs[15] & PSW_ADDR_INSN;
+}
+
+/*
+ * This is a copy of the kernel's unexported regs_within_kernel_stack().
+ */
+static int
+_stp_regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
+{
+        unsigned long ksp = _stp_kernel_stack_pointer(regs);
+
+        return (addr & ~(THREAD_SIZE - 1)) == (ksp & ~(THREAD_SIZE - 1));
+}
+%}
+
+/*
+ * _stp_get_kernel_stack_param() - get Nth parameter from the stack
+ * n:stack parameter number (starts from 0)
+ *
+ * _stp_get_kernel_stack_param() returns nth parameter from
+ * the kernel stack. If the nth entry is NOT in the kernel stack, this
+ * returns 0. 
+ *
+ * This is based on the kernel's (unexported)
+ * regs_get_kernel_stack_nth() function.
+ */
+function _stp_get_kernel_stack_param:long(n:long)
+%{
+        unsigned long addr;
+	struct pt_regs *regs;
+
+	regs = CONTEXT->kregs;
+	if (!regs) {
+		CONTEXT->last_error = "No registers available in this context";
+		return;
+	}
+
+        // The parameters start just after the stack frame.
+        addr = (_stp_kernel_stack_pointer(regs) + sizeof(struct stack_frame)
+		+ STAP_ARG_n * sizeof(long));
+        if (!_stp_regs_within_kernel_stack(regs, addr)) {
+		STAP_RETVALUE = 0;
+                return;
+	}
+        STAP_RETVALUE = kread((unsigned long *)addr);
+	return;
+
+	if (0) {
+deref_fault: /* branched to from kread() */
+		snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+        		"kernel fault at %#lx accessing stack param(%d)",
+			addr, (int)STAP_ARG_n);
+    		CONTEXT->last_error = CONTEXT->error_buffer;
+	}
+%}
+
+probe init {
+	/* Same order as pt_regs */
+	_reg_offsets["args"] = 0
+	_reg_offsets["psw.mask"] = 8
+	_reg_offsets["psw.addr"] = 16
+	_reg_offsets["r0"] = 24
+	_reg_offsets["r1"] = 32
+	_reg_offsets["r2"] = 40
+	_reg_offsets["r3"] = 48
+	_reg_offsets["r4"] = 56
+	_reg_offsets["r5"] = 64
+	_reg_offsets["r6"] = 72
+	_reg_offsets["r7"] = 80
+	_reg_offsets["r8"] = 88
+	_reg_offsets["r9"] = 96
+	_reg_offsets["r10"] = 104
+	_reg_offsets["r11"] = 112
+	_reg_offsets["r12"] = 120
+	_reg_offsets["r13"] = 128
+	_reg_offsets["r14"] = 136
+	_reg_offsets["r15"] = 144
+
+	_reg_offsets["orig_gpr2"] = 152
+	_reg_offsets["ilc"] = 160
+	_reg_offsets["trap"] = 162
+
+	/*
+	 * If we ever need to support s390 (31-bit arch), we can
+	 * get to the register offsets by using just a
+	 * reg32_offset = _reg_offsets["reg"]/2
+	 * or somesuch
+	 */
+}
+
+
+/*
+ * Though the flag says 31bit, asm-s390/thread_info.h comment
+ * says "32bit process"
+ */
+function probing_32bit_app:long() %{ /* pure */
+	if (CONTEXT->user_mode_p && _stp_is_compat_task())
+		STAP_RETVALUE = 1;
+	else
+		STAP_RETVALUE = 0;
+%}
+
+function _stp_probing_kernel: long () {
+	return !user_mode();
+}
+
+function arch_bytes:long() %{ /* pure */
+  STAP_RETVALUE = sizeof(long);
+%}
+
+function uarch_bytes:long() {
+  assert(user_mode(), "requires user mode")
+  return probing_32bit_app() ? 4 : 8
+}
+
+function _stp_get_register_by_offset:long (offset:long) %{ /* pure */
+	long value;
+	struct pt_regs *regs;
+	regs = (CONTEXT->user_mode_p ? CONTEXT->uregs : CONTEXT->kregs);
+	if (!regs) {
+		CONTEXT->last_error = "No registers available in this context";
+		return;
+	}
+	if (STAP_ARG_offset < 0 || STAP_ARG_offset > sizeof(struct pt_regs) - sizeof(unsigned short)) {
+		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+				"Bad register offset: %lld",
+				(long long)STAP_ARG_offset);
+		CONTEXT->last_error = CONTEXT->error_buffer;
+		return;
+	}
+
+	if (STAP_ARG_offset < sizeof(struct pt_regs) - 2 * sizeof(unsigned short))
+		memcpy(&value, ((char *)regs) + STAP_ARG_offset,
+				sizeof(value));
+	else {
+		/* ilc or trap */
+		unsigned short us_value;
+		memcpy(&us_value, ((char *)regs) + STAP_ARG_offset,
+				sizeof(us_value));
+		value = us_value;	// not sign-extended
+	}
+	STAP_RETVALUE = value;
+%}
+
+function _stp_sign_extend32:long (value:long) {
+	if (value & 0x80000000)
+		value |= (0xffffffff << 32)
+	return value
+}
+
+function _stp_register:long (name:string, sign_extend:long) {
+  assert(registers_valid(), "cannot access CPU registers in this context")
+	offset = _reg_offsets[name]
+  assert(offset != 0 || (name in _reg_offsets), "Unknown register: " . name)
+	value = _stp_get_register_by_offset(offset)
+	if (probing_32bit_app()) {
+		if (sign_extend)
+			value = _stp_sign_extend32(value)
+		else
+			value &= 0xffffffff
+	}
+	return value
+}
+
+/* Return the named register value as a signed value. */
+function register:long (name:string) {
+	return _stp_register(name, 1)
+}
+
+/*
+ * Return the named register value as an unsigned value.  Specifically,
+ * don't sign-extend the register value when promoting it to 64 bits.
+ */
+function u_register:long (name:string) {
+	return _stp_register(name, 0)
+}
+
+/*
+ * Return the value of function arg #argnum (1=first arg).
+ * If truncate=1, mask off the top 32 bits.
+ * If sign_extend=1 and (truncate=1 or the probepoint we've hit is in a
+ * 32-bit app), sign-extend the 32-bit value.
+ * If force64=1, return a 64-bit value even if we're in a 32-bit app.
+ */
+function _stp_arg:long (argnum:long, sign_extend:long, truncate:long)
+{
+	return _stp_arg2(argnum, sign_extend, truncate, 0)
+}
+function _stp_arg2:long (argnum:long, sign_extend:long, truncate:long,
+			 force64:long)
+{
+	val = 0
+  assert(!(argnum < 1 || argnum > 8), sprintf("Cannot access arg(%d)", argnum))
+
+	/*
+	 * Why not use syscall_get_arguments() here? On the s390x,
+	 * syscall_get_arguments() is only defined to work on the
+	 * pt_regs structure that gets intialized when a context
+	 * switch from user space to kernel space happens due to a
+	 * system call. This pt_regs structure is returned by
+	 * 'task_pt_regs(current)'.
+	 *
+	 * This function is designed to get the argument of the
+	 * current kernel function, which may or may not be a
+	 * syscall. So, we have to roll our own.
+	 */
+
+	if (argnum == 1)
+		val = u_register("r2")
+	else if (argnum == 2)
+		val = u_register("r3")
+	else if (argnum == 3)
+		val = u_register("r4")
+	else if (argnum == 4)
+		val = u_register("r5")
+	else if (argnum == 5)
+		val = u_register("r6")
+	else if (argnum >= 6)
+		val = _stp_get_kernel_stack_param(argnum - 6)
+
+	if ((truncate || @__compat_task) && !force64) {
+		/* High bits may be garbage. */
+		val = (val & 0xffffffff)
+		if (sign_extend)
+			val = _stp_sign_extend32(val)
+	}
+	return val
+}
+
+/* Return the value of function arg #argnum (1=first arg) as a signed int. */
+function int_arg:long (argnum:long) {
+	return _stp_arg2(argnum, 1, 1, 0)
+}
+
+/* Return the value of function arg #argnum (1=first arg) as an unsigned int. */
+function uint_arg:long (argnum:long) {
+	return _stp_arg2(argnum, 0, 1, 0)
+}
+
+function long_arg:long (argnum:long) {
+	return _stp_arg2(argnum, 1, 0, 0)
+}
+
+function ulong_arg:long (argnum:long) {
+	return _stp_arg2(argnum, 0, 0, 0)
+}
+
+function longlong_arg:long (argnum:long) {
+	if (probing_32bit_app()) {
+		highbits = _stp_arg2(argnum, 0, 1, 0)
+		lowbits = _stp_arg2(argnum+1, 0, 1, 0)
+		return ((highbits << 32) | lowbits)
+	} else
+		return _stp_arg2(argnum, 0, 0, 1)
+}
+
+function ulonglong_arg:long (argnum:long) {
+	return longlong_arg(argnum)
+}
+
+function pointer_arg:long (argnum:long) {
+	return _stp_arg2(argnum, 0, 0, 0)
+}
+
+function s32_arg:long (argnum:long) {
+	return int_arg(argnum)
+}
+
+function u32_arg:long (argnum:long) {
+	return uint_arg(argnum)
+}
+
+function s64_arg:long (argnum:long) {
+	return longlong_arg(argnum)
+}
+
+function u64_arg:long (argnum:long) {
+	return ulonglong_arg(argnum)
+}
+
+function asmlinkage() %{ /* pure */ %}
+
+function fastcall() %{ /* pure */ %}
+
+function regparm(n:long) %{
+	snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+		"regparm is invalid on s390.");
+	CONTEXT->last_error = CONTEXT->error_buffer;
+%}

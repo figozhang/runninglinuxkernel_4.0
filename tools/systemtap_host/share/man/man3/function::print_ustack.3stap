@@ -1,0 +1,56 @@
+'\" t
+.\"     Title: function::print_ustack
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Context Functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::PRINT_USTA" "3stap" "March 2016" "SystemTap Tapset Reference" "Context Functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::print_ustack \- Print out stack for the current task from string\&.
+.SH "SYNOPSIS"
+.sp
+.nf
+    print_ustack(stk:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIstk\fR
+.RS 4
+String with list of hexadecimal addresses for the current task\&.
+.RE
+.SH "DESCRIPTION"
+.PP
+Perform a symbolic lookup of the addresses in the given string, which is assumed to be the result of a prior call to
+\fBubacktrace\fR
+for the current task\&.
+.PP
+Print one line per address, including the address, the name of the function containing the address, and an estimate of its position within that function\&. Return nothing\&.
+.SH "NOTE"
+.PP
+it is recommended to use
+\fBprint_usyms\fR
+instead of this function\&.
+.SH SEE ALSO\n 
+.IR tapset::ucontext-symbols (3stap)

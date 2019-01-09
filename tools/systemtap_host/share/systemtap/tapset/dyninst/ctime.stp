@@ -1,0 +1,40 @@
+/* ctime.stp - Convert seconds to human readable date string.
+ *
+ * Copyright (C) 2012-2016 Red Hat, Inc.
+ */
+
+/* NB: functionally equivalent to linux/ctime.stp
+ * This means unlike normal userspace ctime(), this version
+ * returns time in UTC, without a final newline.
+ */
+
+%{
+#include <string.h>
+#include <time.h>
+%}
+
+function ctime:string(epochsecs:long)
+%{  /* pure */
+    struct tm gmt;
+    char buf[26];
+
+    const time_t t = STAP_ARG_epochsecs;
+
+    if (gmtime_r(&t, &gmt) && asctime_r(&gmt, buf)) {
+        char* newline = strchr(buf, '\n');
+        if (newline)
+            *newline = '\0';
+        strlcpy (STAP_RETVALUE, buf, MAXSTRINGLEN);
+    } else {
+#if STAP_COMPAT_VERSION <= STAP_VERSION(2,2)
+        strlcpy(STAP_RETVALUE, "<invalid time>", MAXSTRINGLEN);
+#else
+	CONTEXT->last_error = "Time cannot be converted";
+#endif
+    }
+%}
+
+function ctime:string()
+{
+  return ctime(gettimeofday_s())
+}

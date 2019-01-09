@@ -1,0 +1,53 @@
+'\" t
+.\"     Title: macro::json_output_numeric_value
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: JSON Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "MACRO::JSON_OUTPUT_N" "3stap" "March 2016" "SystemTap Tapset Reference" "JSON Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+macro::json_output_numeric_value \- Output a numeric value\&.
+.SH "SYNOPSIS"
+.sp
+.nf
+    @json_output_numeric_value(name,value)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIname\fR
+.RS 4
+The name of the numeric metric\&.
+.RE
+.PP
+\fIvalue\fR
+.RS 4
+The numeric value to output\&.
+.RE
+.SH "DESCRIPTION"
+.PP
+The json_output_numeric_value macro is designed to be called from the \*(Aqjson_data\*(Aq probe in the user\*(Aqs script to output a metric\*(Aqs numeric value\&. This metric should have been added with
+\fBjson_add_numeric_metric\fR\&.
+.SH SEE ALSO\n 
+.IR tapset::json (3stap)

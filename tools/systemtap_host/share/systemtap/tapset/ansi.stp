@@ -1,0 +1,145 @@
+# ANSI escape sequences tapset
+# Copyright (C) 2009 Red Hat, Inc., Eugene Teo <eteo@redhat.com>
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+# Based on some previous work done by Masami Hiramatsu for stapgames.
+# Reference: http://en.wikipedia.org/wiki/ANSI_escape_code
+#
+
+/**
+ * sfunction ansi_clear_screen - Move cursor to top left and clear screen.
+ *
+ * Description: Sends ansi code for moving cursor to top left and then the
+ * ansi code for clearing the screen from the cursor position to the end.
+ **/
+function ansi_clear_screen() {
+	print("\033[1;1H\033[J")
+}
+
+/**
+ * sfunction ansi_set_color - Set the ansi Select Graphic Rendition mode.
+ * @fg: Foreground color to set.
+ *
+ * Description: Sends ansi code for Select Graphic Rendition mode for the
+ * given forground color. Black (30), Blue (34), Green (32), Cyan (36),
+ * Red (31), Purple (35), Brown (33), Light Gray (37).
+ */
+function ansi_set_color(fg:long) {
+	printf("\033[%dm", fg)
+}
+
+/**
+ * sfunction ansi_set_color - Set the ansi Select Graphic Rendition mode.
+ * @fg: Foreground color to set.
+ * @bg: Background color to set.
+ *
+ * Description: Sends ansi code for Select Graphic Rendition mode for the
+ * given forground color, Black (30), Blue (34), Green (32), Cyan (36),
+ * Red (31), Purple (35), Brown (33), Light Gray (37) and the given
+ * background color, Black (40), Red (41), Green (42), Yellow (43),
+ * Blue (44), Magenta (45), Cyan (46), White (47).
+ */
+function ansi_set_color(fg:long, bg:long) {
+	printf("\033[%d;%dm", bg, fg)
+}
+%(systemtap_v <= "3.0" %?
+function ansi_set_color2(fg:long, bg:long) {
+	printf("\033[%d;%dm", bg, fg)
+}
+%)
+
+/**
+ * sfunction ansi_set_color - Set the ansi Select Graphic Rendition mode.
+ * @fg: Foreground color to set.
+ * @bg: Background color to set.
+ * @attr: Color attribute to set.
+ *
+ * Description: Sends ansi code for Select Graphic Rendition mode for the
+ * given forground color, Black (30), Blue (34), Green (32), Cyan (36),
+ * Red (31), Purple (35), Brown (33), Light Gray (37), the given
+ * background color, Black (40), Red (41), Green (42), Yellow (43),
+ * Blue (44), Magenta (45), Cyan (46), White (47) and the color attribute
+ * All attributes off (0), Intensity Bold (1), Underline Single (4),
+ * Blink Slow (5), Blink Rapid (6), Image Negative (7).
+ */
+function ansi_set_color(fg:long, bg:long, attr:long) {
+	attr_str = attr ? sprintf(";%dm", attr) : "m"
+	printf("\033[%d;%d%s", bg, fg, attr_str)
+}
+%(systemtap_v <= "3.0" %?
+function ansi_set_color3(fg:long, bg:long, attr:long) {
+	attr_str = attr ? sprintf(";%dm", attr) : "m"
+	printf("\033[%d;%d%s", bg, fg, attr_str)
+}
+%)
+
+/**
+ * sfunction ansi_reset_color - Resets Select Graphic Rendition mode.
+ *
+ * Description: Sends ansi code to reset foreground, background and color
+ * attribute to default values.
+ */
+function ansi_reset_color() {
+	ansi_set_color(0, 0, 0)
+}
+
+/**
+ * sfunction ansi_new_line - Move cursor to new line.
+ *
+ * Description: Sends ansi code new line.
+ */
+function ansi_new_line() {
+	printf("\12")
+}
+
+/**
+ * sfunction ansi_cursor_move - Move cursor to new coordinates.
+ * @x: Row to move the cursor to.
+ * @y: Colomn to move the cursor to.
+ *
+ * Description: Sends ansi code for positioning the cursor at row x
+ * and column y. Coordinates start at one, (1,1) is the top-left corner.
+ */
+function ansi_cursor_move(x:long, y:long) {
+	printf("\033[%d;%dH", y, x)
+}
+
+/**
+ * sfunction ansi_cursor_hide - Hides the cursor.
+ *
+ * Description: Sends ansi code for hiding the cursor.
+ */
+function ansi_cursor_hide() {
+	print("\033[>5I")
+}
+
+/**
+ * sfunction ansi_cursor_save - Saves the cursor position.
+ *
+ * Description: Sends ansi code for saving the current cursor position.
+ */
+function ansi_cursor_save() {
+	print("\033[s")
+}
+
+/**
+ * sfunction ansi_cursor_restore - Restores a previously saved cursor position.
+ *
+ * Description: Sends ansi code for restoring the current cursor position
+ * previously saved with ansi_cursor_save().
+ */
+function ansi_cursor_restore() {
+	print("\033[u")
+}
+
+/**
+ * sfunction ansi_cursor_show - Shows the cursor.
+ *
+ * Description: Sends ansi code for showing the cursor.
+ */
+function ansi_cursor_show() {
+	print("\033[>5h")
+}

@@ -1,0 +1,92 @@
+.\" -*- nroff -*-
+.TH TAPSET::TIMESTAMP_MONOTONIC 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::timestamp_monotonic \- systemtap timestamp_monotonic tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B cpu_clock_ns 
+Number of nanoseconds on the given cpu's clock
+.IP
+See 
+.IR function::cpu_clock_ns (3stap)
+ for details.
+.P
+.TP
+.B cpu_clock_us 
+Number of microseconds on the given cpu's clock
+.IP
+See 
+.IR function::cpu_clock_us (3stap)
+ for details.
+.P
+.TP
+.B cpu_clock_ms 
+Number of milliseconds on the given cpu's clock
+.IP
+See 
+.IR function::cpu_clock_ms (3stap)
+ for details.
+.P
+.TP
+.B cpu_clock_s 
+Number of seconds on the given cpu's clock
+.IP
+See 
+.IR function::cpu_clock_s (3stap)
+ for details.
+.P
+.TP
+.B local_clock_ns 
+Number of nanoseconds on the local cpu's clock
+.IP
+See 
+.IR function::local_clock_ns (3stap)
+ for details.
+.P
+.TP
+.B local_clock_us 
+Number of microseconds on the local cpu's clock
+.IP
+See 
+.IR function::local_clock_us (3stap)
+ for details.
+.P
+.TP
+.B local_clock_ms 
+Number of milliseconds on the local cpu's clock
+.IP
+See 
+.IR function::local_clock_ms (3stap)
+ for details.
+.P
+.TP
+.B local_clock_s 
+Number of seconds on the local cpu's clock
+.IP
+See 
+.IR function::local_clock_s (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::cpu_clock_ns (3stap),
+.BR
+.IR \%function::cpu_clock_us (3stap),
+.BR
+.IR \%function::cpu_clock_ms (3stap),
+.BR
+.IR \%function::cpu_clock_s (3stap),
+.BR
+.IR \%function::local_clock_ns (3stap),
+.BR
+.IR \%function::local_clock_us (3stap),
+.BR
+.IR \%function::local_clock_ms (3stap),
+.BR
+.IR \%function::local_clock_s (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

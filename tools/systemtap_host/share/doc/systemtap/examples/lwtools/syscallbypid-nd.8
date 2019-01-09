@@ -1,0 +1,47 @@
+.TH syscallbypid-nd 8  "2015-01-30" "USER COMMANDS"
+.SH NAME
+syscallbypid-nd \- trace process signals. Uses Linux SystemTap (non-debuginfo).
+.SH SYNOPSIS
+.B syscallbypid-nd.stp
+.SH DESCRIPTION
+This traces syscalls system-wide, and produces a summary report showing their
+counts by process ID, process name, and syscall types.
+.SH REQUIREMENTS
+SystemTap.
+.SH EXAMPLES
+.TP
+Count and summarize syscalls:
+#
+.B syscallbypid-nd.stp
+.SH FIELDS
+.TP
+PID
+Process ID.
+.TP
+CMD
+Process name.
+.TP
+SYSCALL
+System call name.
+.TP
+COUNT
+Number of syscalls issued during tracing.
+.SH OVERHEAD
+This uses in-kernel summaries to reduce overheads, so the overhead should be
+low (much lower than the current strace(1) implementation, for example). Test
+before use to confirm.
+.SH SOURCE
+This is from the SystemTap lwtools collection.
+.IP
+https://github.com/brendangregg/systemtap-lwtools
+.PP
+Also look under the examples directory for a text file containing example
+usage, output, and commentary for this tool.
+.SH OS
+Linux
+.SH STABILITY
+Unstable - in development.
+.SH AUTHOR
+Brendan Gregg
+.SH SEE ALSO
+strace(1)

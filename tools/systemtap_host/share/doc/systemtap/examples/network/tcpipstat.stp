@@ -1,0 +1,620 @@
+#! /usr/bin/env stap
+/*
+ *      Copyright (C) 2009 IBM Corp.
+ *      This file is part of systemtap, and is free software.  You can
+ *      redistribute it and/or modify it under the terms of the GNU General
+ *      Public License (GPL); either version 2, or (at your option) any
+ *      later version.
+ *      
+ *      Version 1.0     wilder@us.ibm.com     2009-07-06
+ *
+ *	Name:
+ *	tcpipstat.stp - Per-socket tcpip statistics collection facility.
+ *	(netstat -s on steroids)
+ *
+ *	Description:
+ *	The purpose of tcpipstat is to collect and display network statistics
+ *	related to individual TCP sockets or groups of sockets.  The statistics
+ *	that are collected are simmer to that of the command netstat -s, only
+ *	sorted and grouped by individual sockets.  The statistics collected are
+ *	based on the SNMP TCP and IP MIBS. As the name implies this command
+ *	collects data relating to TCP sockets, not UDP sockets. I plan to
+ *	support a UDP tool in a later version. The tcpipstat tool uses
+ *	systemtap to collect data from the linux kernel; see the stap command
+ *	manual page for instructions and options available in systemtap. For
+ *	more information on the systemtap project see:
+ *	http://sourceware.org/systemtap/documentation.html
+ *
+ *
+ *	Synopsis:
+ *	tcpstat.stp 	[index=laddr|raddr|lport|rport|tuple]\
+ *			[timeout=<N sec>]\
+ *			[nozeros=1|0]\
+ *			[filters...]
+ *	
+ *	index	(optional) tcpipstat collects, sorts and displays network
+ *		statistics into buckets. The buckets are indexed based on
+ *		one of several index types.  By default the index is
+ *		constructed from all four elements of the socket tuple,
+ *		providing a separate bucket for each socket.  However, any
+ *		individual element of the tuple can be used as the index.
+ *		Valid values for index are laddr (local address), raddr
+ *		(remote address) , lport, rport or tuple.  For example if
+ *		index=lport is specified network statistics will be collected
+ *		and reported based on the value of the local port thus
+ *		providing statistics related to each network service provided
+ *		by the system.
+ *
+ *	timeout (optional) When a timeout value (in seconds) is specified
+ *		tcpstat will automatically terminate it's run at the end of
+ *		the specified time and produce a report. When timeout is
+ *		omitted the script will run until the user terminates it by
+ *		typing a ^c.
+ *
+ *	onclose (optional) In onclose mode (onclose=1) statistics are reported
+ *		 only when a socket closes.  The generated report reflect
+ *		 statistics for the entire life on the socket, assuming
+ *		 tcpipstat was running at the time the socket was opened.
+ *		 The option index=tuple must be set for onclode to work 
+ *		(index=tuple is default).
+ *
+ *	nozeros (optional) When nonzero=1 is specified statistics with
+ *		a value of zero will not be printed.
+ *
+ *	filters	(optional) By default statistics are counted for every socket
+ *		on the system.  Address filters can be used to limit what
+ *		sockets data is collected for.  All filters are 
+ *		pass-through filters.  Multiple filters may be given separated
+ *		by a space.  When multiple filters are given an event only
+ *		needs to be accepted by one filter to be counted.  A wild-card
+ *		(*) value can be used for any component of the filter.        
+ *
+ *		The format of a filter is:
+ *		<local-address>:<local-port>-<remote address>:<remote-port>
+ *
+ *		Addresses are specified as ipv4 dot notation address. Ports
+ *		are specified as decimal numbers.  A "*" character can be used
+ *		in any field to indicate a wild-card value.  If no filters are
+ *		given the following wild-card filter is automatically used:
+ *		*.*.*.*:*-*.*.*.*:*
+ *
+ *	Known Bugs:
+ *		Not all MIB values are currently supported.
+ *		Ipv6 in not yet supported.
+ *
+ *	Examples:
+ *		Here are some ways that tcpipstat could be used.
+ *		
+ *		List per-socket statistics for every active socket for the
+ *		next 60 seconds.
+ *		$ tcpipstat timeout=60
+ *
+ *		Who is talking to my webserver?
+ *		$ tcpipstat.stp index=raddr *.*.*.*:80-*.*.*.*:*
+ *
+ *		What services (on this system) is host 192.168.1.103 using
+ *		$ tcpipstat.stp index=rport *.*.*.*:*-192.168.1.103:*
+ *
+ *		What hosts in the 9.0.0.0 network is this system communicating
+ *		with?
+ *		$ tcpipstat.stp index=raddr *.*.*.*:*-9.*.*.*:*
+ *
+ *		What ports are people connecting to? or which services are busy?
+ *		$ tcpipstat.stp index=lport
+ *
+ *		Show network statistics related to a single run of netperf.
+ *		$ stap -c netperf -H <server-ip>\
+ *			  tcpipstat.stp *.*.*.*:*-<server-ip>:*
+ *
+ */
+
+global filter;
+global number_of_filters;
+
+global key_list;
+global lastkey;
+
+// Command arguments and default values
+global index= "tuple";
+global timeout = -1;
+global nozeros = 1;
+global onclose = 0;
+
+probe begin {
+
+	number_of_filters=process_cmdline()
+
+	if ( 	index != "laddr" &&
+		index != "raddr" &&
+		index != "lport" &&
+		index != "rport" &&
+		index != "tuple" ) usage("Invalid index value!");
+
+	if ( onclose && (index!="tuple") )
+		 usage("onclose must be used with index=tuple!");
+
+	/* The user did not supply a filter, build a wild-card filter */
+	if ( number_of_filters == 0 ){
+		number_of_filters++;
+                j=6;
+		filter[j]   = ipv4_pton("*.*.*.*",0)
+		filter[j+1] = ipv4_pton("*.*.*.*",1)
+		filter[j+2] = ipv4_portton("*")
+		filter[j+3] = ipv4_pton("*.*.*.*",0)
+		filter[j+4] = ipv4_pton("*.*.*.*",1)
+		filter[j+5] = ipv4_portton("*")
+	}
+
+	if ( number_of_filters < 0 ){
+		usage("Bad filter format!");
+	}
+
+	printf("Indexing collected stats using %s values\n",index);
+	for (i=1; i <= number_of_filters; i++){
+		print_filter(i);
+	}
+}
+
+/* All command line arguments other than the filters are processed
+ * first and must be placed on the command line prior to any filters.
+ */
+function process_cmdline:long ()
+{
+	filter_number=0;
+	for (i=1; i <= argc; i++){
+		argument= tokenize(argv[i], "=")
+
+		if ( argument == "index" ){
+			argv[i]=""
+			index=tokenize(argv[i], "=")
+			continue;
+		}
+
+		if ( argument == "timeout" ){
+			argv[i]=""
+			timeout=strtol(tokenize(argv[i], "="),10)
+			continue;
+		}
+
+		if ( argument == "nozeros" ){
+			argv[i]=""
+			nozeros=strtol(tokenize(argv[i], "="),10)
+			continue;
+		}
+
+		if ( argument == "onclose" ){
+			argv[i]=""
+			onclose=strtol(tokenize(argv[i], "="),10)
+			continue;
+		}
+
+		/* Example: adding more option flags 
+		if ( argument == "stuff" ){
+			argv[i]=""
+			stuff=tokenize(argv[i], "=")
+			continue;
+		}
+                */
+
+		/* Anything on the command line after this point must
+ 		 * be a filter.
+ 		 */
+		local = tokenize(argv[i], "-")
+			argv[i] = ""
+		remote = tokenize(argv[i], "-")
+
+		local_addr = tokenize(local, ":")
+			local=""
+		local_port = tokenize(local, ":")
+
+		remote_addr = tokenize(remote, ":")
+			remote=""
+		remote_port = tokenize(remote, ":")
+
+		/* stap bug */
+		if ( remote_port == "fobar") i=i;
+
+		++filter_number;
+		j=filter_number*6;
+		filter[j]   = ipv4_pton(local_addr,0)	// Local address
+		filter[j+1] = ipv4_pton(local_addr,1)	// Local address mask
+		filter[j+2] = ipv4_portton(local_port)	// Local port
+		filter[j+3] = ipv4_pton(remote_addr,0)	// Remote address
+		filter[j+4] = ipv4_pton(remote_addr,1)	// Remote address mask
+		filter[j+5] = ipv4_portton(remote_port)	// Remote port
+
+		if (filter[j]< -1 ||
+			filter[j+1] < -1 ||
+			filter[j+2] < -1 ||
+			filter[j+3] < -1 ||
+			filter[j+4] < -1 ||
+			filter[j+5] < -1 ) return -1;
+		}
+		return filter_number;
+}
+
+/* 
+ * Convert an ascii integer values between 0 and 65534 to a u16 port number.
+ * "*" are treated as wildcards and will be converted to 0xffff (65535).
+ */
+function ipv4_portton:long (port:string)
+{
+	if ( port == "*" ) port="65535";
+	pport=strtol(port,10);
+	if ( pport > 0xffff ){
+		printf("Bad port number %s\n",port)
+		return -22;
+	}
+	return pport
+}
+
+/*
+ * Convert an ipv4 dot notation address into longs.
+ * Supports "*" in any field treating it as a wildcard by making the byte=0.
+ * If make_mask is set, it creates a mask based on the "*" fields. All non='*'
+ * bytes are set to 0xff all * fields are set to 0x0;.
+ */
+function ipv4_pton:long (addr:string, make_mask:long)
+{
+	i=32;
+	ip=0;
+	ips=addr;
+	while(strlen(byte = tokenize(ips, ".")) != 0) {
+		i-=8;
+		ips="";
+
+		if ( byte == "*" ){
+			 byte = "0"
+		} else {
+			 if ( make_mask ) byte = "255";
+		}
+
+		j=strtol(byte,10);
+		if ( j > 255 ){
+			printf("bad address %s\n",addr)
+			return -22;
+		}
+		ip=ip+(j<<i) // left shift the byte into the address
+	}
+	if ( i != 0 ){
+		printf("bad address %s\n",addr)
+		return -22;
+	}
+	return ip;
+}
+
+function usage (msg:string)
+{
+	printf("\nUsage:\n");
+	printf("\ttcpipstat.stp\t[index=laddr|raddr|lport|rport|tuple]\n");
+	printf("\t\t\t[timeout=<sec>] [nozeros=0|1] [onclose=0|1]\n");
+	printf("\t\t\t[filter ......]\n\n");
+	printf("\tfilter format:\n");
+	printf("\t<local ip-address>:<local-port>-<remote ip-address>:<remote-port>\n\n");
+	error(msg);
+}
+
+/* Print filter number n. This is helpful for debugging */
+function print_filter (n:long)
+{
+	j=n*6;
+	printf("Processed filter #%d = %s[0x%x]:%d --> %s[0x%x]:%d \n",
+		n,ip_ntop(htonl(filter[j])), filter[j+1], filter[j+2],
+		ip_ntop(htonl(filter[j+3])), filter[j+4], filter[j+5]);
+}
+
+/* 
+ * Returns a unique value (stored in the global key_list) based on the socket
+ * address tuple and the global collection index value. A new value is created 
+ * if one does not already exist.
+ */
+function build_key:long (laddr:long, raddr:long, lport:long, rport:long)
+{
+	if ( index == "laddr" ) raddr = lport = rport = 0
+	if ( index == "raddr" ) laddr = lport = rport = 0
+	if ( index == "lport" ) laddr = raddr = rport = 0
+	if ( index == "rport" ) laddr = raddr = lport = 0
+
+	if ( key_list[laddr, raddr, lport, rport] )
+                return  key_list[laddr, raddr, lport, rport]
+        else
+                return key_list[laddr, raddr, lport, rport] = ++lastkey
+}
+
+/*
+ * This is where the real work of the probe filtering is done.
+ * Important: this function is run for every probe hit so
+ * keep it small and fast!
+ *
+ * If the probe passes through the filters a "key" value is
+ * returned otherwise it returns zero.
+ */
+function filter_key:long (laddr:long, raddr:long, lport:long, rport:long)
+{
+       for (i=1; i <= number_of_filters; i++){
+                j=i*6;
+
+		/*
+		printf("\n %s\n",pp())
+                print_filter(i);
+                printf("local=0x%x:0x%x remote=0x%x:0x%x  ",
+                      laddr, lport, raddr, rport);
+		*/
+
+		// Local filter
+		local_filter=remote_filter=0;
+		if ( (laddr&filter[j+1]) == filter[j] ) {
+			if ( (filter[j+2] == 0xffff) || (lport == filter[j+2])) 
+				local_filter = 1;
+		}
+		// Remote filter
+		if ( (raddr&filter[j+4]) == filter[j+3] ) {
+			if ( (filter[j+5] == 0xffff) || (rport == filter[j+5]))
+				remote_filter = 1;
+		}
+
+		// printf("local=%d remote=%d  ",local_filter,remote_filter);
+
+		if(local_filter && remote_filter){
+                        // key = build_key(laddr, raddr, lport, rport);
+                        // printf("|Collected: key=%d\n",key);
+                        // return key;
+			return build_key(laddr, raddr, lport, rport);
+		}
+	}
+	// printf("\n");
+	return 0;
+}
+
+/* This function is called by every ipmib probe handler.
+ * Returns a "key" value to be used as an index into the collection arrays.
+ */
+function ipmib_filter_key:long (skb:long, op:long, SourceIsLocal:long)
+{
+	if ( !skb ) return 0;
+	// We only care about events with protocol IPPROTO_TCP(=6)
+	if( !(ipmib_get_proto(skb) == 6) ) return 0;
+	raddr = ipmib_remote_addr(skb, SourceIsLocal);
+	laddr = ipmib_local_addr(skb, SourceIsLocal);
+	rport = ipmib_tcp_remote_port(skb, SourceIsLocal);
+	lport = ipmib_tcp_local_port(skb, SourceIsLocal);
+
+	return filter_key(laddr, raddr, lport, rport);
+}
+
+/* This function is called by every tcpmib probe handler. 
+ * Returns a "key" value to be used as an index into the collection arrays.
+ */
+function tcpmib_filter_key:long (sk:long, op:long)
+{
+        if ( !sk ) return 0;
+        laddr = tcpmib_local_addr(sk);
+        raddr = tcpmib_remote_addr(sk);
+        lport = tcpmib_local_port(sk);
+        rport = tcpmib_remote_port(sk);
+        return filter_key(laddr, raddr, lport, rport);
+}
+
+/* This function is called by every linuxmib probe handler. 
+ * Returns a "key" value to be used as an index into the collection arrays.
+ * For now this is just the same as the tcpmib_filter_key.
+ */
+function linuxmib_filter_key:long (sk:long, op:long)
+{
+        return tcpmib_filter_key(sk,op);
+}
+
+function print_sockmib (key:long)
+{
+	printf("Socket:\n");
+	if (SockSendbytes[key]||!nozeros)
+		printf("\tBytes Sent = %d\n", SockSendbytes[key]);
+	if (SockSendmsg[key]||!nozeros)
+		printf("\tMessages sent = %d\n", SockSendmsg[key]);
+	if (SockRecvbytes[key]||!nozeros)
+		printf("\tBytes Received = %d\n", SockRecvbytes[key]);
+	if (SockRecvmsg[key]||!nozeros)
+		printf("\tMessages Received = %d\n", SockRecvmsg[key]);
+}
+
+
+/*
+ * Prints the collected values for the IP mib.
+ */
+function print_ipmib (key:long)
+{
+	printf("Ip:\n");
+	if (InReceives[key]||!nozeros)
+		printf("\tInReceives = %d\n", InReceives[key]);
+	if (OutRequests[key]||!nozeros) 
+		printf("\tOutRequests = %d\n", OutRequests[key]);
+	if (ReasmTimeout[key]||!nozeros) 
+		printf("\tReasmTimeout = %d\n", ReasmTimeout[key]);
+	if (ReasmReqds[key]||!nozeros) 
+		printf("\tReasmReqds = %d\n", ReasmReqds[key]);
+	if (FragOKs[key]||!nozeros) 
+		printf("\tFragOKs = %d\n", FragOKs[key]);
+	if (FragFails[key]||!nozeros) 
+		printf("\tFragFails = %d\n", FragFails[key]);
+}
+
+/*
+ * Prints the collected values for the TCP mib.
+ */
+function print_tcpmib (key:long)
+{
+	printf("Tcp:\n");
+	if (ActiveOpens[key]||!nozeros)
+		printf("\tActiveOpens = %d\n", ActiveOpens[key]);
+%( kernel_v > "2.6.21" %?
+	if (AttemptFails[key]||!nozeros)
+		printf("\tAttemptFails = %d\n", AttemptFails[key]);
+%)
+%( kernel_v > "2.6.24" %?
+	if (CurrEstab[key]||!nozeros)
+		printf("\tCurrEstab = %d\n", CurrEstab[key]);
+%)
+%( kernel_v > "2.6.24" %?
+	if (EstabResets[key]||!nozeros)
+		printf("\tEstabResets = %d\n", EstabResets[key]);
+%)
+//	if (InErrs[key]||!nozeros) 
+//		printf("\tInErrs = %d\n", InErrs[key]);
+	if (InSegs[key]||!nozeros)
+		printf("\tInSegs = %d\n", InSegs[key]);
+	if (OutRsts[key]||!nozeros)
+		printf("\tOutRsts = %d\n", OutRsts[key]);
+	if (OutSegs[key]||!nozeros)
+		printf("\tOutSegs = %d\n", OutSegs[key]);
+	if (PassiveOpens[key]||!nozeros)
+		printf("\tPassiveOpens = %d\n", PassiveOpens[key]);
+	if (RetransSegs[key]||!nozeros) 
+		printf("\tRetransSegs = %d\n", RetransSegs[key]);
+}
+
+/*
+ * Prints the collected values for the linux mib.
+ */
+function print_linuxmib (key:long)
+{
+        printf("TcpExt:\n");
+	if (DelayedACKs[key]||!nozeros)
+		printf("\tdelayed acks sent = %d\n", DelayedACKs[key]);
+	if (ListenOverflows[key]||!nozeros)
+		printf("\ttimes the listen queue of a socket overflowed = %d\n", ListenOverflows[key]);
+	if (ListenDrops[key]||!nozeros)
+		printf("\tSYNs to LISTEN sockets ignored = %d\n", ListenDrops[key]);
+	if (TCPMemoryPressures[key]||!nozeros)
+		printf("\ttcp memory pressure = %d\n", TCPMemoryPressures[key]);
+}
+
+function report ()
+{
+	number_of_keys=0
+
+	foreach ([laddr, raddr, lport, rport] in key_list) {
+		++number_of_keys;
+		_report(laddr, raddr, lport, rport);
+	}
+	if ( !number_of_keys )
+		printf("\nNo packets were accepted by the filters.\n");
+}
+
+
+function _report(laddr:long, raddr:long, lport:long, rport:long)
+{
+	printf("\n-----------------------------------------\n");
+	if ( laddr && raddr && lport && rport ) // index=tuple
+		 printf("%s:%d <-> %s:%d\n",
+			ip_ntop(htonl(laddr)), lport,
+			ip_ntop(htonl(raddr)), rport)
+	else { 
+		if ( laddr )
+			printf("Local address: %s\n",ip_ntop(htonl(laddr)));
+		if ( raddr )
+			printf("Remote address: %s\n",ip_ntop(htonl(raddr)));
+		if ( lport )
+			printf("Local port: %d\n",lport);
+		if ( rport )
+			printf("Remote port: %d\n",rport);
+	}
+
+	key = key_list[laddr, raddr, lport, rport]
+%( kernel_v > "2.6.24" %?
+	if ( onclose && (CurrEstab[key] < 0) )
+		printf("Stats were not collected for the entire socket life.\n")
+%)
+	printf("-----------------------------------------\n");
+		
+	print_sockmib(key)
+	print_ipmib(key)
+	print_tcpmib(key)
+	print_linuxmib(key)
+	printf("\n\n")
+}
+
+/* Terminates the run in timeout seconds, using global timeout value */
+probe timer.s(1) {
+	if ( timeout == -1 ) next
+	if ( !timeout-- ) exit()
+}
+
+/* We are done, print a report and exit. */
+probe end {
+	if ( !onclose )
+		report()
+}
+
+/* Enable the probes for the statictics we want to count.
+ *
+ * The impact of running this script on your system can
+ * be reduced by enabling only the probes corresponding to the
+ * statictics you are interested in.  For example, if all you care about
+ * is counting the number of incoming connections that are established use:
+ * "probe tcpmib.PassiveOpens {}"
+ */
+
+/* Collect all tcpmib stats */
+probe tcpmib.* {}
+
+/* Collect all ip stats */
+probe ipmib.* {}
+
+/* Collect the extended linux stats */
+probe linuxmib.* {}
+
+/* This probe supports the onclose option.  When a connection closes
+ * CurrEstab will return an op of -1, we use that condition to trigger
+ * the dump off all stats for this socket. This feature only makes sense
+ * when index=tuple. 
+ */
+%( kernel_v > "2.6.24" %?
+probe tcpmib.CurrEstab
+{
+	if (!onclose) next
+	if (!key) next
+	if ( op != -1 ) next;
+	if ( !sk ) next;
+
+        laddr = tcpmib_local_addr(sk);
+        raddr = tcpmib_remote_addr(sk);
+        lport = tcpmib_local_port(sk);
+        rport = tcpmib_remote_port(sk);
+
+	_report(laddr, raddr, lport, rport)
+	delete key_list[laddr, raddr, lport, rport]
+	delete CurrEstab[key]
+}
+%)
+	
+
+/* SNMP has no counter for the number of bytes sent or received by TCP.
+ * The next two probes give us these raw byte counts.
+ */
+global SockSendbytes;
+global SockSendmsg;
+probe tcp.sendmsg.return {
+	sk = @defined($sk) ? $sk : $sock->sk;
+        op = size; // $return
+	if ( op <= 0 ) next;
+        if ( !sk ) next;
+        key = tcpmib_filter_key(sk,op);
+        if ( key ) {
+		SockSendbytes[key] += op;
+		++SockSendmsg[key];
+	}
+}
+
+global SockRecvbytes;
+global SockRecvmsg;
+probe tcp.recvmsg.return{
+	sk = $sk
+	op = size // $return
+	if ( op <= 0 ) next;
+        if ( !sk ) next;
+        key = tcpmib_filter_key(sk,op);
+        if ( key ) {
+		SockRecvbytes[key] += op;
+		++SockRecvmsg[key];
+	}
+}

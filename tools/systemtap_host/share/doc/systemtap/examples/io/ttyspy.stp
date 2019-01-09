@@ -1,0 +1,46 @@
+#! /usr/bin/env stap
+# May also need --skip-badvars
+
+global activity_time, activity_log
+
+/* Concatenate head and tail, to a max of @num chars, preferring to keep the tail
+   (as if it were a recent history buffer). */
+function strcattail:string(head:string,tail:string,num:long) %{ /* pure */
+         unsigned taillen = strlen(STAP_ARG_tail);
+         unsigned headlen = strlen(STAP_ARG_head);
+         unsigned maxlen = STAP_ARG_num < MAXSTRINGLEN ? STAP_ARG_num : MAXSTRINGLEN;
+         unsigned headkeep = min(maxlen-taillen,headlen);
+         unsigned headdrop = headlen-headkeep;
+
+         if (headkeep)
+            strlcpy (STAP_RETVALUE, &STAP_ARG_head[headdrop], headkeep+1); /* includes \0 */
+         strlcat (STAP_RETVALUE, STAP_ARG_tail, maxlen);
+%}
+
+probe kernel.function("tty_audit_add_data") {
+      major=$tty->driver->major;
+      minor=$tty->driver->minor_start + $tty->index;
+      try { pgrp=$tty->pgrp %( kernel_v >= "2.6.24" %? ->numbers[0]->nr %: %) } catch { }
+      data=kernel_string_n($data,$size);
+      uid=uid()
+
+      activity_time[major,minor,pgrp,uid] = gettimeofday_s();
+      activity_log[major,minor,pgrp,uid]
+       = strcattail(activity_log[major,minor,pgrp,uid],data,40);
+}
+
+probe timer.s(3) {
+      ansi_clear_screen ()
+      printf("(%3s,%2s,%5s,%5s)\n", "maj","min","pgrp","uid");
+      foreach ([x,y,z,u] in activity_time-) {
+              printf("(%3d,%3d,%5d,%5d) %s\n", x,y,z,u,
+               text_str(activity_log[x,y,z,u]))
+      }
+
+      /* delete last record, if older than 60 seconds */
+      if (activity_time[x,y,z,u]+60 < gettimeofday_s()) {
+         delete activity_time[x,y,z,u]
+         delete activity_log[x,y,z,u]
+      }
+}
+

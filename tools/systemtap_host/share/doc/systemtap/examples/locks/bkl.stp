@@ -1,0 +1,83 @@
+#! /usr/bin/env stap
+
+/*
+ * Copyright (C) 2009 Red Hat Inc.
+ * 
+ * This copyrighted material is made available to anyone wishing to use,
+ * modify, copy, or redistribute it subject to the terms and conditions
+ * of the GNU General Public License v.2.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Description: displays which task is holding big kernel lock (BKL) when the 
+ *              number of waiting processes reaches a certain number.
+ *
+ * Run: stap bkl.stp [-G backtrace=<usecs>] <number_of_processes_waiting>
+ *
+ * Author: Flavio Leitner <fbl@redhat.com>
+ * Modified by Jose Castillo <jcastillo@redhat.com> by adding
+ * print_backtrace() to get the codepath of the function
+ * that holds the bkl and an optional backtrace value that
+ * enables/disables print_backtrace().
+ */
+
+# how many tasks waiting on big lock
+global waiting = 0
+
+# when the current holder first obtained the lock
+global holder_time
+
+# are we printing backtraces?
+global backtrace = -1
+
+probe begin { 
+  printf("stap ready\n"); 
+}
+
+probe kernel.function("_lock_kernel").call!,
+      kernel.function("lock_kernel").call
+{
+  ++waiting;
+}
+
+probe kernel.function("_lock_kernel").return!,
+      kernel.function("lock_kernel").return
+{
+  # under biglock
+  holder_time = gettimeofday_us();
+  --waiting;
+}
+
+probe kernel.function("_unlock_kernel")!,
+      kernel.function("unlock_kernel")
+{
+  # under biglock
+  backtrace_enabled = 0
+  if (waiting >= $1) {
+    if (holder_time != 0) {
+       waiting_time = gettimeofday_us() - holder_time
+       if ( backtrace != -1 && waiting_time >= backtrace ) {
+                backtrace_enabled = 1
+       }
+    }
+    else {
+       waiting_time = -1;
+    }
+
+    printf("%-25s: waiting(%d), holder: %s(%d) %dus\n",
+           ctime(gettimeofday_s()),
+           waiting,
+           execname(),
+           pid(),
+           (holder_time != 0) ? gettimeofday_us() - holder_time : -1);
+
+    if (backtrace_enabled)
+            print_backtrace()
+
+  }
+  holder_time = 0
+}
+
+probe end { printf("stap exiting\n"); }

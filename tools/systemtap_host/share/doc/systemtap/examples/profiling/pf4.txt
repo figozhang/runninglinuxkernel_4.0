@@ -1,0 +1,26 @@
+pf4.stp - Profile Kernel/User Backtraces
+
+  The pf4.stp script sets up time-based sampling. Every five seconds it
+  prints out a sorted list with the top twenty kernel and/or user stack
+  backtraces (on a per-cpu basis).  Use any of --ldd, --all-modules, -d
+  MODULE, -d /PATH/TO/EXEC to add more symbolic info.
+
+$ stap pf4.stp -c "sleep 5" --all-modules --ldd
+
+--- 1 samples recorded:
+1 hits on cpu 0
+groups_search+0x6 [kernel]
+in_group_p+0x31 [kernel]
+generic_permission+0x166 [kernel]
+__inode_permission+0x29 [kernel]
+inode_permission+0x18 [kernel]
+would_dump+0x1b [kernel]
+load_elf_binary+0x7c5 [kernel]
+search_binary_handler+0x93 [kernel]
+do_execve_common.isra.24+0x4ea [kernel]
+sys_execve+0x29 [kernel]
+stub_execve+0x69 [kernel]
+
+
+--- 0 samples recorded:
+

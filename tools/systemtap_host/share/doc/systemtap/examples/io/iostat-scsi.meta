@@ -1,0 +1,14 @@
+title: IO Statistics for SCSI Devices
+name: iostat-scsi.stp
+version: 1.0
+author: anonymous
+keywords: io profiling scsi
+subsystem: io
+status: production
+exit: user-controlled
+output: timed 
+scope: system-wide
+description: The iostat-scsi.stp script provides a breakdown of the number of blks read and written on the machine's various SCSI devices. The script takes one argument which is the number of seconds between reports.
+test_support: stap -l 'module("st").function("st_do_scsi")!,kernel.function("st_do_scsi")'
+test_check: stap -g -p4 iostat-scsi.stp 1
+test_installcheck: stap -g iostat-scsi.stp 1 -c "sleep 1"

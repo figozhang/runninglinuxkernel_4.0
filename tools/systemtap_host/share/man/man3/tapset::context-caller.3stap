@@ -1,0 +1,46 @@
+.\" -*- nroff -*-
+.TH TAPSET::CONTEXT-CALLER 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::context-caller \- systemtap context-caller tapset
+ 
+.SH DESCRIPTION
+
+ Provides caller and caller_addr function for context for kernel and user
+ space.
+
+.TP
+.P
+.TP
+.B callers 
+Return first n elements of kernel stack backtrace
+.IP
+See 
+.IR function::callers (3stap)
+ for details.
+.P
+.TP
+.B caller 
+Return name and address of calling function
+.IP
+See 
+.IR function::caller (3stap)
+ for details.
+.P
+.TP
+.B caller_addr 
+Return caller address
+.IP
+See 
+.IR function::caller_addr (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::callers (3stap),
+.BR
+.IR \%function::caller (3stap),
+.BR
+.IR \%function::caller_addr (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

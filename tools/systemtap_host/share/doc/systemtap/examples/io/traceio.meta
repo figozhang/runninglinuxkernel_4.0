@@ -1,0 +1,13 @@
+title: Track Cumulative IO Activity by Process Name
+name: traceio.stp
+version: 1.0
+author: Red Hat
+keywords: io
+subsystem: io
+status: production
+exit: user-controlled
+output: timed
+scope: system-wide
+description: Every second print out the top ten executables sorted in descending order based on cumulative I/O traffic observed.
+test_check: stap -p4 traceio.stp
+test_installcheck: stap traceio.stp -c "sleep 1"

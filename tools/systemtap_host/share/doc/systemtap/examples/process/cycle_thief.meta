@@ -1,0 +1,14 @@
+title: Track IRQ's and Other Processes Stealing Cycles from a Task
+name: cycle_thief.stp
+version: 1.0
+author: William Cohen
+keywords: _best process scheduler time tracepoint interrupt
+subsystem: scheduler
+status: experimental
+exit: user-controlled
+output: sorted-list
+scope: process
+description: The cycle_thief.stp script instruments the scheduler and IRQ handler to determine which processes and interrupts are competing with the specified task for the cpu cycles. This script uses the '-c' or '-x' options to focus on a specific task. The script output the number of times the task migrates between processors, histograms showing the length of time on and off processor, lists of processes running while the task is off the processor, and the interrupts that occurred while the task was running.
+test_support: stap -l 'kernel.trace("sched_switch")' && stap -l 'kernel.trace("irq_handler_entry")!, kernel.trace("irq_entry")' && stap -l 'kernel.trace("irq_handler_exit")!, kernel.trace("irq_exit")'
+test_check: stap -p4 cycle_thief.stp
+test_installcheck: stap cycle_thief.stp -c "sleep 1"

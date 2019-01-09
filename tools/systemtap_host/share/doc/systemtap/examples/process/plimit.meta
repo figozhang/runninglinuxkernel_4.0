@@ -1,0 +1,13 @@
+title: Print Resource Limits of Process
+name: plimit.stp
+version: 1.0
+author: anonymous
+keywords: process
+subsystem: any
+status: proposed
+exit: event-ended
+output: batch on-exit
+scope: process
+description: The script prints a variety of resource limits for a given pid, like /proc/$$/limits on recent kernels.
+test_check: stap -gp4 plimit.stp $$
+test_installcheck: stap -g plimit.stp $$

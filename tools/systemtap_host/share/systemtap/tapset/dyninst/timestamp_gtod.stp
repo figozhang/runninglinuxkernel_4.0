@@ -1,0 +1,31 @@
+// timestamp tapset -- gettimeofday variants
+// Copyright (C) 2012 Red Hat, Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// NB: functionally equivalent to linux/timestamp_gtod.stp
+
+%{
+#include <sys/time.h>
+%}
+
+function gettimeofday_ns:long () {
+  return gettimeofday_us() * 1000; // XXX available resolution isn't this high!
+}
+
+function gettimeofday_us:long () %{ /* pure */ /* unprivileged */
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) == 0)
+    STAP_RETVALUE = (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+%}
+
+function gettimeofday_ms:long () {
+  return gettimeofday_us() / 1000;
+}
+
+function gettimeofday_s:long () {
+  return gettimeofday_us() / 1000000;
+}

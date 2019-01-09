@@ -1,0 +1,13 @@
+#! /usr/bin/env stap
+
+# Print a trace of threads sending IP packets (UDP or TCP) to a given
+# destination port and/or address.  Default is unfiltered.
+
+global the_dport = 0    # override with -G the_dport=53
+global the_daddr = ""   # override with -G the_daddr=127.0.0.1
+
+probe netfilter.ip.local_out {
+    if ((the_dport == 0 || the_dport == dport) &&
+        (the_daddr == "" || the_daddr == daddr))
+	    printf("%s[%d] sent packet to %s:%d\n", execname(), tid(), daddr, dport)
+}

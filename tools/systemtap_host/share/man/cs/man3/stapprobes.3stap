@@ -1,0 +1,1362 @@
+.\" t
+.TH STAPPROBES 3stap 
+.SH JMÉNO
+stapprobes \- přehled sondážních bodů systemtapu
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POPIS
+
+Následující text přináší přehled základních druhů sondážních bodů (probe
+points) podporovaných překladačem systemtapu.  Zmíněny jsou také některé
+přezdívky (aliases) definované v tapset skriptech.  Podrobnější individuální
+informace k mnohým z nich přinášejí man stránky s prefixem 
+
+.IR probe::
+sdružené v man sekci 
+.IR 3stap .
+
+.SH SYNTAXE
+
+.PP
+.SAMPLE
+.BR probe " PROBEPOINT [" , " PROBEPOINT] " { " [STMT ...] " }
+.ESAMPLE
+.PP
+
+
+Deklarace sondy (probe) může obsahovat seznam čárkou oddělených sondážních
+bodů.  Sonda pak bude svázána se všemi takto zmíněnými sondážními body, potažmo
+událostmi v systému.
+
+.PP
+
+Jednotlivý sondážní bod se zapíše jako posloupnost tečkou oddělených komponent,
+například 'syscall.read', kde 'syscall' a 'read' jsou komponenty.  Komponenty
+odpovídají určitým třídám dělení jmenného prostoru událostí.  Připomíná to
+zápis doménového jména počítače na internetu.  Každá komponenta může být
+přesněji specifikována číselným, nebo řetězcovým parametrem uvedeným v
+závorkách, podobně jako při volání funkce.  V rámci deklarace sondy lze použít
+zástupný symbol hvězda "*", který bude expandován v rámci jedné z tečkou oddělených
+komponent, nebo symbol "**", který bude expandován přes více než jednu komponentu
+(v extrémním případě přes všechny).
+
+.PP
+Přezdívka sondy se syntakticky chová podobně jako sonda samotná.  Lze též
+pracovat s přezdívkami přezdívek.  Přezdívku sondy lze volat samostatně, nebo s
+příponou.  Přípona se při překladu připojí k sondě nad kterou je přezdívka
+definovaná.  Příklad:
+
+.SAMPLE
+syscall.read.return.maxactive(10)
+.ESAMPLE
+se expanduje na
+.SAMPLE
+kernel.function("sys_read").return.maxactive(10)
+.ESAMPLE
+kde
+.IR maxactive(10)
+se chápe jako přípona.
+.PP
+
+Každý sondážní bod se po expanzi zástupných symbolů a přezdívek mapuje na nějaký
+nízkoúrovňový prvek systému, jako například na 'kprobe' adresu, na značku
+(marker), na událost časovače a podobně.  Pokud takové mapování selže (například
+snažíme-li se odkázat na jaderný modul který není zaveden), překlad skriptu
+selže.
+.PP
+Sondážní bod může být následován znakem "?", a pak je považován za
+.IR volitelný.
+V tom případě nedojde k chybě překladu, pokud se mapování nezdaří.
+Tento příznak volitelnosti se při překladu předává níže přes přezdívky a expanze
+až k elementárním sondážním bodům překladače.
+Sondážní bod může být též následován znakem "!".  V tom případě je považován za
+.IR volitelný
+a 
+.IR dostatečný.
+Volně to připomíná 'cut' operátor známý z prologu.  Pokud se takový
+"dostatečný" sondážní bod podaří úspěšně namapovat, pak se už překladač
+nepokouší o mapování dalších (čárkou oddělených) sondážních bodů definujících
+danou sondu.  Označit sondážní bod za dostatečný tedy dává smysl jen je-li v
+definici sondy následován dalším sondážním bodem.
+
+.PP
+Dále může být sondážní bod následován výrazem podmínky "if (expr)".  Tím lze
+sondážní bod za běhu aktivovat, či deaktivovat.  Pokud 'expr' je nepravda,
+sondážní bod je neaktivní.  Podmínka se při překladu předává níže přes
+přezdívky a expanze až k elementárním sondážním bodům  překladače, takže na
+nejnižší úrovni představuje podmínka logický součin příslušných podmínek na
+elementárních sondážních bodech.  Podmínka 'expr' může zákonitě být založena
+jen na globálních proměnných a při tom nesmí měnit jejich hodnotu (např. i++
+není povoleno).
+
+.PP
+Následující sondážní body jsou
+.B syntakticky
+korektní.  (Jejich
+.B sémantika
+závisí na obsahu tapsetu, verzi jádra analyzovaného systému atd.  Pro Váš
+systém jsou pravděpodobně sémanticky nevalidní.)
+
+.SAMPLE
+kernel.function("foo").return
+process("/bin/vi").statement(0x2222)
+end
+syscall.*
+syscall.*.return.maxactive(10)
+syscall.{open,close}
+sys**open
+kernel.function("no_such_function") ?
+module("awol").function("no_such_function") !
+signal.*? if (switch)
+kprobe.function("foo")
+.ESAMPLE
+
+Sondy lze obecně klasifikovat na "synchronní" a "asynchronní".  Za synchronní
+považujeme sondu (resp. událost), kdy např. některý z procesorů vykonal danou
+instrukci.  Tím je dán referenční bod na základě kterého může sonda získat
+další kontextové informace.  Za asynchronní považujeme např. událost časovače.
+Asynchronní sonda nemá k dispozici kontextové informace.  Každá sonda může být
+definovaná na základě množství sondážních bodů například prostřednictvím
+zástupných symbolů, přezdívek, nebo dalších čárkou oddělených sondážních bodů.
+Jakmile kterýkoliv z nich detekuje událost, sonda se aktivuje (probe point is
+hit) a spustí obslužnou rutinu, což je blok kódu (probe handler).
+
+Závorková expanze je úsporný způsob zápisu většího množství sondážních bodů, které
+dohromady tvoří sondu.  Do složených závorek se uvede seznam čárkou oddělených
+subkomponent a/nebo případně dalších (vnořených) závorkových expanzí.  Expanze
+sonděhne v daném pořadí.
+
+Otazník (?), vykřičník (!) a podmínky (if (expr)) musí být uvedeny za poslední
+komponentou sondážního bodu.
+
+Příklad závorkové expanze:
+
+.SAMPLE
+syscall.{write,read}
+# Se expanduje na
+syscall.write, syscall.read
+
+{kernel,module("nfs")}.function("nfs*")!
+# Se expanduje na
+kernel.function("nfs*")!, module("nfs").function("nfs*")!
+.ESAMPLE
+
+.SH LADICÍ INFORMACE FORMÁTU DWARF
+
+Vyhodnocení některých sondážních bodů vyžaduje relevantní ladicí informace
+formátu (DWARF).  Pro některé sondážní body si umí systemtap zrekonstruovat
+potřebné ladicí informace na základě hlavičkových souborů sám.  Pro jiné
+sondážní body nejsou ladicí informace potřeba.  Vzhledem k tomu, že systemtap
+skript může obsahovat libovolný mix různých typů sond, výsledné požadavky
+celého skriptu na dostupnost ladicích informací jsou sjednocením odpovídajících
+požadavků pro jednotlivé sondážní body.  Ladicí informace jsou potřebné v
+okamžiku kdy dochází k překladu skriptu.  K té nemusí nutně dojít na systému,
+kde bude systemtap modul nakonec použit.  Viz volba \fI\-\-use\-server\fR a
+termín \fBstap-server\(8)\fR v manuálové stránce stap(1)). 
+.PP
+Následuje seznam dostupných rodin sondážních bodů rozdělený podle jejich nároků
+na dostupnost ladicích informací:
+
+.TS
+l l l.
+\fBDWARF	NON-DWARF	SYMBOL-TABLE\fP
+
+kernel.function, .statement	kernel.mark	kernel.function\fI*\fP
+module.function, .statement	process.mark, process.plt	module.function\fI*\fP
+process.function, .statement	begin, end, error, never	process.function\fI*\fP
+process.mark\fI*\fP	timer
+\.function.callee	perf
+	procfs
+\fBAUTO-GENERATED-DWARF\fP	kernel.statement.absolute
+	kernel.data
+kernel.trace	kprobe.function
+	process.statement.absolute
+	process.begin, .end
+	netfilter
+	java
+.TE
+
+.PP
+
+Pro rodiny sond označené hvězdou \fI*\fP, si dokáže systemtap za určitých
+okolností vygenerovat část ladicích informací z hlavičkových souborů sám.
+Obecně platí, že čím více relevantních ladicích informací je k dispozici,
+tím vyšší bude kvalita analýzy.
+
+.SH ODEMYKÁNÍ A ZAMYKÁNÍ SOND ZA BĚHU
+
+Následující typy sondážních bodů lze podle potřeby zamknout / odemknout za
+běhu.  Tím lze snížit zatížení systému.  Odemčená sonda je neaktivní, zamčená
+je aktivní.  Odemčená sonda nekonzumuje systémové prostředky.  
+
+
+.TS
+l l.
+\fBODEMYKATELNÉ	výjimky\fP
+kernel.function, kernel.statement
+module.function, module.statement
+process.*.function, process.*.statement
+process.*.plt, process.*.mark
+timer.	timer.profile
+java
+.TE 
+
+Odemykání lze předepsat i jiným typům sond, ale v jejich případě nedojde k
+úsporám systémových prostředků.
+
+.SH TYPY SONDÁŽNÍCH BODŮ
+
+.SS BEGIN/END/ERROR
+
+Sondážní body
+.IR begin " a " end
+jsou definovány překladačem a odkazují k okamžikům startu, resp. ukončení
+skriptu.  Obslužné rutiny svázané se všemi 'begin' sondami se v určitém pořadí
+provedou během startu systemtap sezení.  Před tím se inicializují všechny
+globální proměnné.  Obslužné rutiny svázané s 'end' sondami se provedou v daném
+pořadí během
+.I normálního
+ukončení sezení, jako například po vykonání funkce
+.I exit ()
+, nebo pokud sezení ukončí uživatel (Ctrl-C).  V případě, kdy sezení skončí v důsledku
+chyby, nebudou 'end' sondy aktivní.  V kontextu 'end' sond neexistují žádné
+cílové proměnné.
+.PP
+Pořadí vykonání jednotlivých "begin" a "end" sond, lze určit pořadovým číslem:
+
+.SAMPLE
+begin(N)
+end(N)
+.ESAMPLE
+
+Číslo M může být kladné i záporné.  Sondy budou aktivní ve vzestupném pořadí
+svých pořadových čísel.  Pořadí vykonání sond se stejným pořadovým číslem je
+nedefinované.  Kde není pořadové číslo explicitně uvedeno, pracuje se efektivně
+s nulou.
+
+Sondážní bod
+.IR error
+je podobný sondážnímu bodu
+.IR end
+až na to, že je aktivován při ukončení sezení v důsledku chyby.  V takových
+případech se 'end' sondy přeskočí, ale dojde k pokusu vykonat všechny 'error'
+sondy.  Tento typ sond lze využít k závěrečnému úklidu.  Také 'error' sondám lze
+nastavit pořadí vykonání.
+
+.SS NEVER
+Sondážní bod
+.IR never
+je speciálně definovaný překladačem a znamená "nikdy".  Obslužná rutina spojená
+s touto sondou se nikdy nevykoná, nicméně její příkazy projdou analýzou
+překladače.  Tato sonda může být užitečná v kombinaci s volitelnými (optional)
+sondami.
+
+.SS SYSCALL a ND_SYSCALL
+
+Přezdívky
+.IR syscall.* " a " nd_syscall.*
+definují několik set sond.  Příliš mnoho pro detailní popis na tomto místě.
+Zde je obecná forma:
+
+.SAMPLE
+syscall.NAME
+.br
+nd_syscall.NAME
+.br
+syscall.NAME.return
+.br
+nd_syscall.NAME.return
+.ESAMPLE
+
+Pro každé běžné systémové volání (viz
+.IR syscalls(2)
+) je definována dvojice sond: Jedna pro vstup a druhá pro opuštění systémového
+volání.  Systémová volání, která nikdy neskončí, nemají odpovídající 
+.IR .return
+sondu.  Rodina 'nd_*' sond je velmi podobná s tím rozdílem, že používá
+.B non-DWARF
+přístup, tedy nevyžaduje ke své činnosti ladicí informace.  Mohou být
+užitečné zejména není-li k dispozici RPM balíček kernel-debuginfo s ladicími
+informacemi jádra.
+.PP
+Přezdívky obvykle poskytují řadu proměnných, se kterými lze v rámci obslužné
+rutiny sondy pracovat.  Jejich kompletní seznam je obsažen v tapset skriptech.
+Tam je vhodné nahlédnout.  Například
+.IR syscall.open
+poskytuje následující proměnné:
+.IR filename ", " flags ", a " mode .
+Kromě nich jsou v každém 'syscall.*' sondážním bodu dostupné standardní proměnné
+jako:
+.TP
+.IR argstr
+Řetězec obsahující hodnoty všech argumentů.
+.TP
+.IR name
+Jméno systémového volání.
+.TP
+.IR retstr
+Řetězec obsahující návratovou hodnotu systémového volání (dostupný v sondách
+pro výstup ze systémového volání).
+.PP
+Tyto proměnné jsou inicializovány v určitém okamžiku při vstupu / výstupu do /
+ze systémového volání na základě kontextových proměnných a tudíž nereflektují
+eventuální pozdější změny těchto kontextových proměnných. 
+
+.SS ČASOVAČE
+Časové intervaly jsou v terminologii linuxového jádra definovány v jednotkách
+"jiffies" (odpovídající přibližně 1 až 60 ms). Časovač aktivuje asynchronní
+sondy 'timer'.  Překladač podporuje dvě varianty těchto sond:
+
+.SAMPLE
+timer.jiffies(N)
+timer.jiffies(N).randomize(M)
+.ESAMPLE
+
+Sonda je aktivována každých N jiffies.  Pokud je dána komponenta 'randomize',
+je k hodnotě N přičteno náhodné číslo v rozmezí -M .. +M.  Při tom N musí
+nabývat rozumných hodnot, tj. přibližně z intervalu 1 .. 1e+6, a současně M < N.
+Časovače neposkytují žádné kontextové proměnné.  Na multiprocesorových
+systémech mohou tyto sondy běžet současně.
+
+.PP
+Časové intervaly mohou být případně vyjádřeny i v jiných jednotkách.  Příklad:
+
+.SAMPLE
+timer.ms(N)
+timer.ms(N).randomize(M)
+.ESAMPLE
+
+V tomto případě jsou M a N vyjádřeny v milisekundách.  Analogicky je možno čas
+vyjadřovat v sekundách (s/sec), milisekundách (ms/msec), mikrosekundách
+(us/usec), nanosekundách (ns/nsec), a v hertzích (Hz).  Randomizace není
+podporována je-li čas vyjádřen v jednotkách Hz.
+
+Skutečná přesnost časovačů závisí na konkrétním jádru.  U jader starších než
+2.6.17 byla nejmenší jednotka času jiffie, takže zadané časové intervaly se
+zaokrouhlily na celý počet jiffies.  U novějších jader jsou časovače založeny na
+tzv. 'hrtimers' pro vyšší přesnost.  Ovšem skutečná přesnost závisí na
+architektuře.  V každém případě, pokud je dána komponenta 'randomize', pak náhodná
+složka bude přidána před případným zaokrouhlováním.
+.PP
+Existují také profilovací časovače, které tikají na všech CPU frekvencí
+CONFIG_HZ.  Na některých systémech může tento časovač používat jen jediný
+uživatel, na jiných systémech může být tento časovač nedostupný (EBUSY během
+registrace sondy).
+
+.SAMPLE
+timer.profile.tick
+timer.profile.freq.hz(N)
+.ESAMPLE
+
+Při použití tohoto časovače je k dispozici plný kontext přerušeného procesu,
+takže tento časovač je vhodný pro sbírání profilovacích vzorků.
+.PP
+Doporučujeme používat
+.IR timer.profile
+namísto timer.profile.tick.  Obě sondy se chovají podobně, pokud je dostupná
+potřebná funkcionalita jádra.  Ale timer.profile umí na novějších jádrech
+transparentně využít perf.sw.cpu_clock. Je tedy obecnější.
+.PP
+Profilovací časovače s určenou frekvencí jsou přesné jen přibližně do 100 Hz.
+
+.SS LADICÍ INFORMACE (DWARF)
+
+Tato rodina sondážních bodů používá symbolické ladicí informace k analýze
+jádra / modulu / programu.  Ladicí informace mohou být buďto přímou součástí
+zkoumaného ELF objektu (unstripped), nebo samostatně stojící (stripped) např. v
+rámci
+.I debuginfo
+RPM balíčků.  Umožňují umístit sondy do exekuční cesty programu prostřednictvím
+symbolické specifikace umístění ve zdrojovém, nebo objektovém kódu.  Jakmile se
+odpovídající příkaz na některé CPU vykoná, spustí se obslužný kód sondy v daném
+kontextu.
+.PP
+Existuje několik druhů DWARF sond založených na ladicích informacích. Mohou být
+specifické pro jádro, jaderný modul, či uživatelský proces. Mohou se odkazovat na
+zdrojový soubor, na konkrétní řádku nebo funkci v něm, anebo na nějakou kombinaci
+uvedeného.
+
+.PP
+Zde je seznam konkrétně podporovaných DWARF sond:
+.SAMPLE
+kernel.function(PATTERN)
+kernel.function(PATTERN).call
+kernel.function(PATTERN).callee(PATTERN)
+kernel.function(PATTERN).callee(PATTERN).return
+kernel.function(PATTERN).callee(PATTERN).call
+kernel.function(PATTERN).callees(DEPTH)
+kernel.function(PATTERN).return
+kernel.function(PATTERN).inline
+kernel.function(PATTERN).label(LPATTERN)
+module(MPATTERN).function(PATTERN)
+module(MPATTERN).function(PATTERN).call
+module(MPATTERN).function(PATTERN).callee(PATTERN)
+module(MPATTERN).function(PATTERN).callee(PATTERN).return
+module(MPATTERN).function(PATTERN).callee(PATTERN).call
+module(MPATTERN).function(PATTERN).callees(DEPTH)
+module(MPATTERN).function(PATTERN).return
+module(MPATTERN).function(PATTERN).inline
+module(MPATTERN).function(PATTERN).label(LPATTERN)
+kernel.statement(PATTERN)
+kernel.statement(PATTERN).nearest
+kernel.statement(ADDRESS).absolute
+module(MPATTERN).statement(PATTERN)
+process("PATH").function("NAME")
+process("PATH").statement("*@FILE.c:123")
+process("PATH").library("PATH").function("NAME")
+process("PATH").library("PATH").statement("*@FILE.c:123")
+process("PATH").library("PATH").statement("*@FILE.c:123").nearest
+process("PATH").function("*").return
+process("PATH").function("myfun").label("foo")
+process("PATH").function("foo").callee("bar")
+process("PATH").function("foo").callee("bar").return
+process("PATH").function("foo").callee("bar").call
+process("PATH").function("foo").callees(DEPTH)
+process(PID).function("NAME")
+process(PID).function("myfun").label("foo")
+process(PID).plt("NAME")
+process(PID).plt("NAME").return
+process(PID).statement("*@FILE.c:123")
+process(PID).statement("*@FILE.c:123").nearest
+process(PID).statement(ADDRESS).absolute
+.ESAMPLE
+(Viz sekce ANALÝZA UŽIVATELSKÝCH PROCESŮ níže)
+.PP
+Ve výše uvedených sondách lze používat následující modifikátory / filtry, které
+přinášejí dodatečnou funkcionalitu:
+.RS
+.TP
+\fB.function\fR
+Umístí sondu poblíž začátku uvedené funkce, takže funkční parametry jsou
+dostupné jako kontextové proměnné.
+.TP
+\fB.return\fR
+Umístí sondu hned \fBza\fR bod návratu z dané funkce, takže návratová hodnota
+funkce je dostupná jako kontextová proměnná "$return".
+.TP
+\fB.inline\fR
+Filtr propouštějící jen 'inline' funkce.  Poznamenejme, že 'inline' funkce nemají
+identifikovatelný bod návratu, takže \fB.return\fR na \fB.inline\fR funkcích
+nelze použít.
+.TP
+\fB.call\fR
+Filtr propouštějící jen funkce, které nejsou 'inline' (opak \fB.inline\fR).
+.TP
+\fB.exported\fR
+Filtr propouštějící jen exportované funkce.
+.TP
+\fB.statement\fR
+Vloží sondu na konkrétní místo a zpřístupní lokální proměnné které jsou v daném
+kontextu viditelné.
+.TP
+\fB.statement.nearest\fR
+Vloží sondu na místo nejbližší danému číslu řádku (pro každé číslo řádku předané
+jako parametr 'statement')
+.TP
+\fB.callee\fR Vloží sondu do volané funkce \fB.callee\fR, která je volána funkcí
+\fB.function\fR.  Oproti přímému umístění sondy do funkce \fB.callee\fR má tento
+způsob výhodu v tom, že sonda bude aktivní jen když volaná funkce \fB.callee\fR
+bude volána z dané funkce \fB.function\fR.  Toto chování lze potlačit direktivou
+-DSTAP_CALLEE_MATCHALL, viz \fBstap\fR(1)).
+
+Poznamenejme, že mechanizmus 'callee' lze použít jen na staticky dohledatelné
+funkce.  Mechanizmus 'callee' nelze použít například na funkce volané
+prostřednictvím ukazatele, nebo na funkce z DSO knihoven.  Další podmínkou je,
+aby kód byl překládán GCC 4.7+.
+
+.TP
+\fB.callees\fR
+Zkratka pro \fB.callee("*")\fR.  Vloží sondu do všech funkcí volaných zadanou
+funkcí.
+.TP
+\fB.callees\fR(DEPTH)
+Rekurzivně umístí sondy do volaných funkcí až do hloubky DEPTH.  Například
+\fB.callees(2)\fR vloží sondu nejen do volaných funkcí, ale i do jimi volaných
+funkcí.  Sonda v hloubce N bude aktivní jen když všechny volající funkce budou
+staticky dohledatelné.  Toto chování lze potlačit direktivou
+-DSTAP_CALLEE_MATCHALL, viz \fBstap\fR(1)).
+.RE
+.PP
+Ve výše uvedeném seznamu sondážních bodů zastupuje MPATTERN řetězcový literál,
+který určuje zkoumaný jaderný modul.  Pokud se modul nachází v obvyklém umístění
+(in-tree), stačí jej určit jménem (např. "btrfs").  Jméno může obsahovat zástupné
+symboly, jako např. "*", "[]", a "?".  Pokud se modul nachází v neobvyklém
+umístění (out-of-tree), je potřeba použít absolutní cestu.  V tomto případě
+nejsou zástupné symboly přípustné.  Jméno souboru musí vyhovovat konvenčnímu
+schématu <module_name>.ko (znaky ',' a '-' se nahradí '_').
+.PP
+LPATTERN je řetězcový literál, který odkazuje k umístění ve zdrojovém kódu.
+Může obsahovat zástupné symboly "*", "[]" a "?".  Skládá se ze tří částí:
+.IP \(bu 4
+První část je jméno funkce, tak, jak je zobrazí program
+.I nm .
+V této části lze použít zástupné symboly "*" a "?" k zadání více jmen.
+.IP \(bu 4
+Druhá část je volitelná a začíná znakem "@".  Následuje cesta ke zdrojovému
+souboru, který danou funkci obsahuje.  Cesta může obsahovat zástupné znaky jako
+např 'mm/slab*'.  Pokud zadanému zástupnému symbolu nic nevyhovuje, přidá
+překladač implicitně "*/"
+.I před
+daný zástupný symbol, takže v praxi stačí vyjmenovat několik posledních
+komponent cesty ke zdrojovému souboru.
+.IP \(bu 4
+Nakonec třetí část je volitelná a určuje číslo řádku ve zdrojovém kódu. Číslu řádku
+předchází jeden ze znaků ":", nebo "+".  Předpokládá se, že číslo řádku je
+absolutní pokud mu předchází ":", nebo relativní vzhledem k deklaraci funkce,
+pokud mu předchází "+".  Všechny řádky funkce lze vyjádřit jako ":*", rozsah
+řádků od x do y použitím ":x\-y".  Rozsahy a konkrétní řádky lze kombinovat,
+např. ":x,y\-z".
+.PP
+Jako PATTERN lze zadat paměťovou adresu.  Je to číselná konstanta odpovídající
+adrese v tabulce symbolů objektového souboru jádra, nebo jaderného
+modulu.  Taková adresa bude ověřena proti známým limitům a za běhu relokována.
+.PP
+V guru režimu lze zadat absolutní adresu jádra pomocí ".absolute".  Taková
+adresa se považuje za již relokovanou jako jsou adresy v 
+.BR /proc/kallsyms ,
+a nelze ji validovat.
+.SS KONTEXTOVÉ PROMĚNNÉ
+
+.PP
+Mnohé z kontextových proměnných, jako jsou parametry funkcí, lokální proměnné,
+globální proměnné viditelné v kompilační jednotce, můžou být viditelné v
+obslužných rutinách sond.  Jejich jména mají prefix "$".  Pomocí speciální
+syntaxe je možné do jisté míry dereferencovat ukazatele a procházet tak
+strukturami struktur a polí.  Pěkný formátovaný výpis (pretty-printing)
+proměnných a jejich skupin je také možný.  Viz
+.BR @cast .
+Poznamenejme, že proměnné mohou být nedostupné kvůli stránkování paměti, nebo i
+z jiných důvodů.  Viz též manuálovou stránku
+.IR error::fault (7stap).
+.TP
+$var
+se odkazuje k proměnné "var".  Pokud jde o nějaký celočíselný typ, bude
+přetypován na typ 64-bit int pro použití v systemtap skriptech.  Ukazatele na
+řetězce (char *), mohou být zkopírovány do řetězcových proměnných pomocí funkcí
+.IR kernel_string " nebo " user_string. 
+.TP
+@var("varname")
+je alternativní syntaxe pro 
+.IR $varname .
+.TP
+@var("varname@src/file.c")
+se odkazuje ke globální (jak 'file local', tak 'external') proměnné
+.IR varname
+definované v souboru
+.IR src/file.c .
+Za relevantní kompilační jednotku se považuje ta, která má odpovídající jméno
+souboru a při tom nejkratší cestu.  Např. máme-li
+.IR @var("foo@bar/baz.c")
+a kompilační jednotky
+.IR src/sub/module/bar/baz.c
+a
+.IR src/bar/baz.c,
+pak druhá z kompilačních jednotek bude považovaná za relevantní pro proměnnou
+.IR foo .
+.TP
+Syntaxe $var\->field slouží k procházení strukturou ukazatelů.  Tento obecný
+dereferenční operátor lze opakovat a procházet tak více úrovněmi zanoření.
+Poznamenejme, že operátor
+.IR .
+se nepoužívá pro odkaz na člena struktury.  Jak pro odkaz na člena struktury, tak pro
+dereferenci ukazatele se používá symbol
+.IR \->
+neboť operátor "." je vyhrazen pro spojení řetězců.
+.TP
+$return
+je přístupný jen v .return sondách funkcí, které mají deklarovanou návratovou
+hodnotu.  To lze detekovat pomocí @defined($return).
+.TP
+$var[N]
+slouží k odkazu do pole podle daného indexu (číselný literál, nebo číselný
+výraz).
+.PP
+Pro kontextové proměnné existuje řada operátorů:
+.TP
+$$vars
+se expanduje na znakový řetězec následujícího formátu:
+.SAMPLE
+sprintf("parm1=%x ... parmN=%x var1=%x ... varN=%x",
+        parm1, ..., parmN, var1, ..., varN)
+.ESAMPLE
+pro každou proměnnou v rozsahu (scope) sondážního bodu.  Některé proměnné mohou
+mít hodnotu označenou jako
+.IR =?
+v případě, že nebyly úspěšně lokalizovány v paměťovém prostoru.
+.TP
+$$locals
+se expanduje na podmnožinu $$vars pouze pro lokální proměnné.
+.TP
+$$parms
+se expanduje na podmnožinu $$vars pouze pro funkční parametry.
+.TP
+$$return
+je dostupný jen v .return sondách.  Expanduje se na řetězec, který je
+ekvivalentní sprintf("return=%x", $return) pokud zkoumaná funkce má návratovou
+hodnotu (jinak bude roven prázdnému řetězci)
+.TP
+& $EXPR
+expanduje se na adresu dané kontextové proměnné (pokud je adresovatelná).
+.TP
+@defined($EXPR)
+Expanduje se na 1 nebo 0, pokud je daná kontextová proměnná nalezitelná.  Použít
+lze v podmínkách jako např.:
+.SAMPLE
+@defined($foo\->bar) ? $foo\->bar : 0
+.ESAMPLE
+.TP
+$EXPR$
+Se expanduje na řetězec se všemi členy $EXPR.  Formát:
+.SAMPLE
+sprintf("{.a=%i, .b=%u, .c={...}, .d=[...]}",
+         $EXPR\->a, $EXPR\->b)
+.ESAMPLE
+.TP
+$EXPR$$
+Se expanduje na řetězec se všemi členy $EXPR včetně vnořených členů.  Formát:
+.SAMPLE
+sprintf("{.a=%i, .b=%u, .c={.x=%p, .y=%c}, .d=[%i, ...]}",
+        $EXPR\->a, $EXPR\->b, $EXPR\->c\->x, $EXPR\->c\->y, $EXPR\->d[0])
+.ESAMPLE
+
+.SS NÁVRATOVÉ SONDY (RETURN PROBES)
+
+.PP
+V jaderných 'return' sondách může být zpracován jen relativně malý počet návratů
+".return" z funkce.  Výchozí počet je malé číslo, přibližně jen několikanásobek
+počtu fyzických CPU.  Pokud danou funkci volá současně více vláken (jako např.
+futex(), nebo read()), může být tento limit snadno překročen.  V tom případě bude
+"stap \-t" hlásit přeskočené sondy 'kretprobe'.  Obejít tento problém je možno
+použitím přípony
+.SAMPLE
+probe FOO.return.maxactive(NNN)
+.ESAMPLE
+s dostatečně velkým NNN.  Případně lze na příkazové řádce zadat
+.SAMPLE
+stap \-DKRETACTIVE=NNNN
+.ESAMPLE
+čímž se tento problém obejde pro všechny ".return" sondy ve skriptu.
+.PP
+Pro pohodlí uživatele jsou v ".return" sondách přístupné i jiné kontextové
+proměnné, než jen $return.  Jde zejména o parametry volání funkce.  V tomto
+případě ale jde o \fBkopie\fP (snapshot) vytvořené v momentě vstupu do funkce.
+Lokální proměnné funkce obecně \fBnejsou\fP dostupné, neboť ty v době vytváření
+"snapshotu" neexistovaly.
+.PP
+Při vstupu do funkce je možno uložit pomocné hodnoty pro pozdější využití v
+.return sondách pomocí operátoru
+.IR @entry(expr) .
+Například tak lze změřit dobu běhu funkce:
+.SAMPLE
+probe kernel.function("do_filp_open").return {
+    println( get_timeofday_us() \- @entry(get_timeofday_us()) )
+}
+.ESAMPLE
+
+.PP
+Následující tabulka ukazuje, jak lze přistoupit ke kontextovým proměnným
+funkčních hodnot.  Ukazatel s názvem \fBaddr\fP je použitelný v 
+.IR .return
+sondě.
+.\" viz http://sourceware.org/ml/systemtap/2012-q1/msg00025.html
+.TS
+l l l.
+\fBvstupní hodnota	hodnota po výstupu z funkce\fP
+
+$addr	\fInot available\fP
+$addr->x->y	@cast(@entry($addr),"struct zz")->x->y
+$addr[0]	{kernel,user}_{char,int,...}(& $addr[0])
+.TE
+
+
+.SS SONDY NEZÁVISLÉ NA LADICÍCH INFORMACÍCH (DWARFLESS PROBES)
+V případech, kdy ladicí informace nejsou k dispozici, lze do míst volání a
+výstupu do/z funkcí vkládat sondy z rodiny 'kprobe'.  Ty ovšem neumožňují
+vyhledávání lokálních proměnných a/nebo parametrů funkcí.  Podporovány jsou
+následující konstrukce:
+.SAMPLE
+kprobe.function(FUNCTION)
+kprobe.function(FUNCTION).call
+kprobe.function(FUNCTION).return
+kprobe.module(NAME).function(FUNCTION)
+kprobe.module(NAME).function(FUNCTION).call
+kprobe.module(NAME).function(FUNCTION).return
+kprobe.statement(ADDRESS).absolute
+.ESAMPLE
+.PP
+Pro jaderné funkce doporučujeme použít sondy typu 
+.B function
+zatímco pro analýzu modulů jsou vhodné sondy 
+.B module
+V případech, kdy je známa absolutní adresa v jádře, nebo v modulu, lze použít
+sondy typu
+.B statement.
+.PP
+Poznamenejme, že
+.I FUNCTION
+a
+.I MODULE
+.B nesmí
+obsahovat zástupné symboly, jinak sonda nebude zaregistrována.
+Dále pozn., že ".statement" funguje jen v guru režimu.
+
+
+.SS UŽIVATELSKÉ PROCESY (USER-SPACE)
+Analýza uživatelských procesů je dostupná nad jádry, která jsou konfigurována s 'utrace',
+nebo 'uprobes' (3.5+) rozšířeními (jde o širokou sadu konfiguračních
+voleb, které musí být zapnuty, systemtap bude jejich nedostupnost ohlašovat).
+.PP
+Existuje několik syntaktických podob sond pro uživatelské procesy.  První forma:
+.SAMPLE
+process(PID).statement(ADDRESS).absolute
+.ESAMPLE
+je analogická
+.IR
+kernel.statement(ADDRESS).absolute
+v tom, že obě používají syrové (raw), tj. neverifikované adresy a
+nezpřístupňují kontextové proměnné.  Musí být zadán PID běžícího procesu a daná
+adresa ADDRESS by měla identifikovat validní adresu instrukce.  Analyzována budou
+všechna vlákna.
+.PP
+Druhá forma slouží k analyzování nesymbolických událostí obsluhovaných
+mechanizmem 'utrace':
+.SAMPLE
+process(PID).begin
+process("FULLPATH").begin
+process.begin
+process(PID).thread.begin
+process("FULLPATH").thread.begin
+process.thread.begin
+process(PID).end
+process("FULLPATH").end
+process.end
+process(PID).thread.end
+process("FULLPATH").thread.end
+process.thread.end
+process(PID).syscall
+process("FULLPATH").syscall
+process.syscall
+process(PID).syscall.return
+process("FULLPATH").syscall.return
+process.syscall.return
+process(PID).insn
+process("FULLPATH").insn
+process(PID).insn.block
+process("FULLPATH").insn.block
+.ESAMPLE
+.PP
+A
+.B .begin
+sonda je aktivována při vytvoření nového procesu daného PID, nebo FULLPATH.
+A
+.B .thread.begin
+sonda je aktivována při vytvoření nového vlákna daného PID, nebo FULLPATH.
+A
+.B .end
+sonda je aktivována při ukončení procesu daného PID, nebo FULLPATH.
+A
+.B .thread.end
+sonda je aktivována při ukončení vlákna daného PID, nebo FULLPATH.
+A
+.B .syscall
+sonda je aktivována když vlákno daného PID nebo FULLPATH zavolá systémové
+volání.  Číslo systémového volání je přístupné v kontextové proměnné
+.BR $syscall
+a prvních 6 funkčních argumentů v kontextových proměnných 
+.BR $argN
+(ex. $arg1, $arg2, ...).
+Sonda
+.B .syscall.return
+sonda je aktivována když se vlákno daného PID nebo FULLPATH vrací ze systémového
+volání.  Číslo systémového volání je přístupné v kontextové proměnné
+.BR $syscall
+a návratová hodnota systémového volání pak v rámci kontextové proměnné
+.BR $return .
+Sonda
+.B .insn
+je aktivována pro každou atomickou instrukci procesu PID nebo
+FULLPATH.
+Sonda
+.B .insn.block
+je aktivována pro blok instrukcí procesu daného PID nebo
+FULLPATH.
+.PP
+Pokud je sonda specifikována bez PID, nebo FULLPATH, budou analyzována vlákna
+všech uživatelských procesů.  Ovšem pokud byl stap volán s přepínačem
+.IR \-c " nebo " \-x ,
+pak bude brán v potaz pouze daný proces a jeho potomci.  Pokud chybí jak
+specifikace PID, tak specifikace FULLPATH, ale je dán přepínač
+.IR \-c "
+, bude cesta k programu doplněna na základě heuristiky.  V tom případě jsou v
+rámci argumentu 
+.IR \-c
+přípustné jen příkazy (tj. přípustné nejsou zejména např. substituce a nesmí se
+ani vyskytnout znaky '|&;<>(){}').).
+
+.PP
+Třetí typ: Je založen na statické instrumentaci, která je již zakompilovaná do
+programů a DSO knihoven.
+.SAMPLE
+process("PATH").mark("LABEL")
+process("PATH").provider("PROVIDER").mark("LABEL")
+process(PID).mark("LABEL")
+process(PID).provider("PROVIDER").mark("LABEL")
+.ESAMPLE
+.PP
+Sonda
+.B .mark
+bude aktivována, jakmile vykonávání programu dosáhne místa, kde je zapřekládána
+speciální značka pomocí makra STAP_PROBE1(PROVIDER,LABEL,arg1). Toto makro je
+definováno v
+.BR sys/sdt.h .
+PROVIDER je volitelný identifikátor aplikace, LABEL identifikátor značky, a
+arg1 je celočíselný argument.  Pro sondy s jedním argumentem se použije makro
+STAP_PROBE1, pro sondy se dvěma argumenty makro STAP_PROBE2 a tak dále.  Proměnné
+arg1, arg2, ... argN jsou pak dostupné v kontextu sondy.
+
+Alternativou k použití makra STAP_PROBE je použít dtrace skript k vytvoření
+uživatelských maker.  V kontextu sondy jsou též dostupné proměnné $$name a
+$$provider.  V
+.B sys/sdt.h 
+se definuje makro DTRACE_PROBE* jako přezdívka pro STAP_PROBE*.
+
+.PP
+Poslední typ: V uživatelských programech jsou dostupné všechny varianty
+DWARF sond.  Jsou analogické k jaderným DWARF sondám, nebo DWARF sondám pro
+jaderné moduly popsaným výše.  Poskytují přístup ke kontextovým proměnným pro
+parametry funkcí, lokální proměnné atd:
+.SAMPLE
+process("PATH").function("NAME")
+process("PATH").statement("*@FILE.c:123")
+process("PATH").plt("NAME")
+process("PATH").library("PATH").plt("NAME")
+process("PATH").library("PATH").function("NAME")
+process("PATH").library("PATH").statement("*@FILE.c:123")
+process("PATH").function("*").return
+process("PATH").function("myfun").label("foo")
+process("PATH").function("foo").callee("bar")
+process("PATH").plt("NAME").return
+process(PID).function("NAME")
+process(PID).statement("*@FILE.c:123")
+process(PID).plt("NAME")
+.ESAMPLE
+
+.PP
+Poznamenejme, že pro všechny sondy pro uživatelské procesy platí, že
+.I PATH
+se odkazuje k spustitelnému souboru, jehož absolutní umístění se dohledává
+podobně jako to dělají shelly, tj. relativně k aktuálnímu adresáři pokud
+obsahují lomítko "/", jinak v
+.BR $PATH .
+Pokud se PATH odkazuje na skript, bude předmětem analýzy příslušný interpreter
+tak, jak je definován v prvním řádku skriptu za sekvencí #! (shebang).
+
+.PP
+Pokud je PATH parametrem komponenty '.process' a odkazuje se na sdílenou
+DSO knihovnu, pak analyzovány budou všechny procesy, které tuto knihovnu
+využívají.  Pokud je PATH parametrem komponenty '.library', pak analyzován bude
+pouze daný proces.  Poznamenejme, že PATH v rámci komponenty '.library' se vždy
+vztahuje na knihovny, které lze z daného spustitelného souboru zjistit staticky.
+Nicméně vždy je možné uvést absolutní cestu k libovolné knihovně explicitně.
+
+.PP
+Sonda .plt bude umístěns do 'program linkage' tabulky odpovídající zbytku
+definice sondážního bodu.  Při tom .plt je zkratkou pro .plt("*").  Jméno
+symbolu je dostupné v kontextové proměnné $$name, parametry funkcí dostupné
+nejsou, protože PLT sondy se zpracovávají bez ladicích informací.  Sonda
+.plt.return bude aktivní v okamžiku, který nastane brzy \fBpo\fR návratu z dané
+funkce.
+
+.PP
+Řetězec PATH může obsahovat zástupné symboly, jako tomu bylo v případě MPATTERN.
+V tomto případě nebude brán zřetel na proměnnou 
+.BR $PATH .
+
+.PP
+Pokud je systemtap vyvolán s jedním z přepínačů
+.IR \-c " nebo " \-x
+pak bude analýza omezena na cílový proces a jeho potomky.
+
+.SS JAVA
+Podpora pro instrumentaci java metod je založena na nástroji Byteman, což je
+software sloužící k instrumentaci javy vyvíjený v rámci JBoss projektu.
+Systemtap tak může detekovat vykonání java metody, nebo vykonání daného řádku
+java programu.
+.PP
+Instrumentace javy je založená na generování byteman skriptu a následném volání
+.IR bminstall .
+.PP
+V současnosti je instrumentace javy prototypem s významnými omezeními:
+Instrumentace javy nefunguje napříč uživateli.  Systemtap skript musí být
+spuštěn stejným uživatelem, jako instrumentovaný proces.  Tedy zejména, a to je
+ne neobvyklé, systemtap skript spuštěný rootem nemůže analyzovat java program
+jiného uživatele.
+
+.PP
+První typ java sond se odkazuje k java procesům jménem:
+.SAMPLE
+java("PNAME").class("CLASSNAME").method("PATTERN")
+java("PNAME").class("CLASSNAME").method("PATTERN").return
+.ESAMPLE
+Argument PNAME musí být již existující jvm PID a musí být viditelný ve výpisu
+programu jps.
+
+.PP
+Parametr PATTERN určuje signaturu java metody, která se má instrumentovat.
+Signatura musí sestávat z přesného jména java metody následovaného
+uzávorkovaným seznamem typů argumentů.  Příklad: "myMethod(int,double,Foo)".
+Zástupné znaky se zde nepodporují.
+
+.PP
+Sondu lze vložit na konkrétní řádek připojením dvojtečky a čísla řádku jako
+obvykle.  Příklad: "myMethod(int,double,Foo):245".
+
+.PP
+Parametr CLASSNAME identifikuje Java třídu, ke které metoda náleží, a to jak s,
+tak bez uvedení názvu balíčku (package).  Za normálních okolností bude sonda
+aktivní také na potomcích dané třídy, kteří ponechávají danou metodu
+nepředefinovanou.  Nicméně, CLASSNAME přijímá volitelný prefix "^" jako např:
+.IR ^org.my.MyClass,
+který značí, že sonda by měla být též aktivní na všech potomcích dané třídy,
+včetně těch, kteří danou metodu předefinovali.  Například všechny metody foo(int)
+v programu org.my.MyApp mohou být instrumentovány takto:
+.SAMPLE
+java("org.my.MyApp").class("^java.lang.Object").method("foo(int)")
+.ESAMPLE
+.PP
+Druhý typ sond funguje analogicky, ovšem odkazuje se k java procesu
+prostřednictvím PID:
+.SAMPLE
+java(PID).class("CLASSNAME").method("PATTERN")
+java(PID).class("CLASSNAME").method("PATTERN").return
+.ESAMPLE
+(PID již běžícího procesu lze získat pomocí 
+.IR jps (1) .
+)
+.PP
+Kontextové proměnné definované v java sondách zahrnují
+.IR $arg1
+až
+.IR $arg10
+a značí 1 - 10 parametrů metody řetězcového, nebo celočíselného typu.
+
+.SS PROCFS
+
+Následující sondy umožňují vytvářet / číst "soubory" v /proc/systemtap/MODNAME.
+Při tom je možné definovat umask. výchozí hodnoty jsou 0400 pro čtecí sondy a
+0200 pro zapisovací sondy.  Pokud jsou na jednom souboru používány sondy jak
+pro čtení, tak pro zápis, pak výchozí oprávnění bude 0600. 
+
+Sonda procfs.umask(0040).read způsobí nastavení oprávnění 0404 na souboru.
+.RI ( MODNAME
+je jméno systemtap modulu).  Souborový (pseudo-) systém
+.I proc
+se používá jako uživatelské rozhraní pro datové struktury jádra.  Překladač
+podporuje několik variant procfs sond:
+
+.SAMPLE
+procfs("PATH").read
+procfs("PATH").umask(UMASK).read
+procfs("PATH").read.maxsize(MAXSIZE)
+procfs("PATH").umask(UMASK).maxsize(MAXSIZE)
+procfs("PATH").write
+procfs("PATH").umask(UMASK).write
+procfs.read
+procfs.umask(UMASK).read
+procfs.read.maxsize(MAXSIZE)
+procfs.umask(UMASK).read.maxsize(MAXSIZE)
+procfs.write
+procfs.umask(UMASK).write
+.ESAMPLE
+
+.I PATH
+je cesta relativní vzhledem k /proc/systemtap/MODNAME
+Pokud není
+.I PATH
+určeno (tak jako u posledních dvou variant výše), pak
+.I PATH
+nabývá výchozí hodnoty "command".
+.PP
+Když uživatel čte /proc/systemtap/MODNAME/PATH, aktivuje se
+procfs
+.I read
+proba. Řetězcová data ke čtení se přiřadí proměnné
+.IR $value .
+Příklad:
+
+.SAMPLE
+procfs("PATH").read { $value = "100\\n" }
+.ESAMPLE
+.PP
+Když uživatel zapisuje do /proc/systemtap/MODNAME/PATH, aktivuje se odpovídající 
+.I write
+sonda.  Data zapsaná uživatelem jsou pak dostupná v proměnné
+.IR $value .
+Příklad:
+
+.SAMPLE
+procfs("PATH").write { printf("user wrote: %s", $value) }
+.ESAMPLE
+.PP
+.I MAXSIZE
+Maximální velikost procfs čtecího bufferu a procfs výstupu.  Pokud
+.I MAXSIZE
+není nastavena, velikost čtecího bufferu se položí rovna
+.I STP_PROCFS_BUFSIZE
+(s výchozí hodnotou
+.IR MAXSTRINGLEN ,
+tj. maximální délka řetězce).
+V případě, kdy je třeba nastavit velikost čtecích bufferů pro více než jeden
+procfs soubor, může pomoci 
+.I STP_PROCFS_BUFSIZE .
+
+Zde je příklad použití
+.IR MAXSIZE :
+
+.SAMPLE
+procfs.read.maxsize(1024) {
+    $value = "dlouhý řetězec..."
+    $value .= "jiný dlouhý řetězec..."
+    $value .= "jiný dlouhý řetězec..."
+    $value .= "jiný dlouhý řetězec..."
+}
+.ESAMPLE
+
+.SS SONDY 'NETFILTER HOOKS'
+
+Sondy 'netfilter hooks', (dále jen netfilter sondy) umožní sledování
+síťových paketů pomocí jaderného mechanizmu 'netfilter'.  Netfilter sonda
+odpovídá funkci 'netfilter hook' s využitím originálního API.  Pravděpodobně
+pohodlnější, než používání "syrových" sondážních bodů překladače,
+je použít příslušné tapset funkce
+.IR tapset::netfilter (3stap),
+které poskytují praktickou obálku.
+
+.PP
+Překladač podporuje několik variant netfilter sond:
+
+.SAMPLE
+netfilter.hook("HOOKNAME").pf("PROTOCOL_F")
+netfilter.pf("PROTOCOL_F").hook("HOOKNAME")
+netfilter.hook("HOOKNAME").pf("PROTOCOL_F").priority("PRIORITY")
+netfilter.pf("PROTOCOL_F").hook("HOOKNAME").priority("PRIORITY")
+.ESAMPLE
+
+.PP
+.I PROTOCOL_F
+je rodina protokolů které mají být využity k poslouchání.  V současností jsou k
+dispozici následující možnosti:
+
+.I NFPROTO_IPV4,
+.I NFPROTO_IPV6,
+.I NFPROTO_ARP,
+nebo
+.I NFPROTO_BRIDGE.
+
+.PP
+.I HOOKNAME
+je bod ('hook') v rámci daného protokolu, ve kterém se zachytí paket.  Seznam
+dostupných typů příslušných sondážních bodů nalezne čtenář v hlavičkových
+souborech <linux/netfilter_ipv4.h>, <linux/netfilter_ipv6.h>,
+<linux/netfilter_arp.h> a <linux/netfilter_bridge.h>.  Například použitelné
+sondážní body pro 
+.I NFPROTO_IPV4
+jsou
+.I NF_INET_PRE_ROUTING,
+.I NF_INET_LOCAL_IN,
+.I NF_INET_FORWARD,
+.I NF_INET_LOCAL_OUT,
+a
+.I NF_INET_POST_ROUTING.
+
+.PP
+.I PRIORITY
+Je celočíselná priorita určující pořadí aktivace netfilter sond vzhledem k
+ostatním 'netfilter hook' funkcím pro daný paket.  Na daném paketu se nejdříve
+vykonají 'hetfilter hook' funkce s nejnižší prioritou, poté funkce s vyšší
+prioritou.  Pokud
+.I PRIORITY
+není specifikovaná (jako je tomu v prvních dvou příkladech výše), bude efektivně
+.I PRIORITY
+rovna nule.
+
+Existuje řada pojmenovaných priorit tvaru
+.I NF_IP_PRI_*
+a
+.I NF_IP6_PRI_* ,
+které jsou definovány v hlavičkových souborech jádra <linux/netfilter_ipv4.h> a
+<linux/netfilter_ipv6.h>. Tato makra mohou být použita v systemtap skriptech.
+Výjimkou jsou sondážní body pro
+.I NFPROTO_ARP
+a
+.I NFPROTO_BRIDGE
+pro které momentálně neexistují pojmenované priority.  Přijatelné způsoby
+nastavení priorit:
+
+.SAMPLE
+priority("255")
+priority("NF_IP_PRI_SELINUX_LAST")
+.ESAMPLE
+
+Skript v guru režimu může určit libovolný identifikátor nebo číslo jako
+parametr 'hook', 'pf' a 'priority', což je vhodné používat opatrně, neboť
+parametr se vkládá do vygenerovaného C kódu doslovně.
+
+V rámci netfilter sond existují následující kontextové proměnné:
+.TP
+.IR $hooknum
+Číslo identifikující 'netfilter hook'.
+.TP
+.IR $skb
+adresa struktury sk_buff, která reprezentuje paket.  Viz hlavičkový soubor
+<linux/skbuff.h> a manuálovou stránku
+.IR tapset::netfilter (3stap)
+pro podrobnější informace.
+
+.TP
+.IR $in
+Adresa struktury net_device, která reprezentuje síťové zařízení ze kterého paket
+přišel.  Může být 0 pokud zařízení není známo nebo definováno.
+
+.TP
+.IR $out
+Adresa struktury net_device reprezentující síťové zařízení na které má být paket
+odeslán.  Může být 0 pokud zařízení není známo nebo definováno.
+
+.TP
+.IR $verdict
+Je dostupný jen v guru režimu.  Nastavením této hodnoty (viz <linux/netfilter.h>)
+se rozhodne o dalším způsobu zpracování paketu v paketovém filtru.  Například
+následující guru skript způsobí zahazování všech IPv6 paketů:
+
+.SAMPLE
+probe netfilter.pf("NFPROTO_IPV6").hook("NF_IP6_PRE_ROUTING") {
+  $verdict = 0 /* nf_drop */
+}
+.ESAMPLE
+
+Pro pohodlí uživatele poskytují netfilter sondy definované v
+.IR tapset::netfilter (3stap)
+hodnoty pro proměnnou 'verdict' jako lokální proměnné.  Například
+proměnná 'nf_drop' obsahuje hodnotu NF_DROP.
+
+
+.SS SONDÁŽNÍ BODY TYPU 'TRACEPOINT'
+
+Tato rodina sondážních bodů je založena na staticky zakompilovaných značkách
+typu 'tracepoint' (dále jen tracepoint body) vložených do jádra, nebo jaderného
+modulu. Systemtap umí tyto značky detekovat pomocí sondážních bodů typu 'tracepoint',
+dále jen 'tracepoint sondy'.  Tracepoint sondy jsou
+spolehlivější, než sondy založené na DWARF ladicích informacích. Pro funkčnost
+tracepoint sond není nutná přítomnost ladicích informací.  Další výhodou
+tracepoint sond jsou silněji typované parametry ve srovnání se značkami
+(markers).
+
+Příklady tracepoint sond:
+.BR kernel.trace("name") .
+Řetězcový literál "name" může obsahovat zástupné symboly.  Pro omezení sondy na
+konkrétní subsystém (např. sched, ext3, atd...), lze využít následující syntaxe:
+.BR kernel.trace("subsystém:jméno") .
+
+Obslužný kód pro tracepoint sondy může číst volitelné parametry, které autoři
+tracepoint bodů připravili.  Například sondážní bod
+.BR kernel.trace("sched:sched_switch")
+poskytuje parametry
+.BR $prev " a " $next .
+Pokud je parametrem ukazatel, lze jej dereferencovat pomocí stejné syntaxe jako
+je tomu u DWARF sond.  Hodnoty parametrů tracepoint sond nelze modifikovat.  V
+guru režimu lze ovšem modifikovat proměnné dereferencované pomocí parametrů
+tracepoint sond.
+
+Jméno subsystému a jméno tracepoint bodu je přístupné prostřednictvím proměnných
+.BR $$system " resp. " $$name
+a řetězcová reprezentace párů jméno=hodnota je pak dostupná prostřednictvím
+.BR $$vars " nebo " $$parms .
+
+.SS JADERNÉ ZNAČKY (KERNEL MARKERS) (ZASTARALÉ)
+
+Tato rodina sondážních bodů je postavena na poněkud zastaralém mechanizmu
+statických značek, které se vyskytují ve starších jádrech a jaderných modulech.
+Jde o makra STAP_MARK, které do jádra vložili vývojáři aby usnadnili
+instrumentaci jádra a učinili ji spolehlivou.  Proto DWARF ladicí informace
+nejsou pro tento typ instrumentace potřeba.
+
+Sondážní bod pro jadernou značku začíná
+.BR kernel .
+další částí je jméno značky samotné:
+.BR mark("name") .
+Řetězec vyjadřující jméno značky může obsahovat obvyklé zástupné symboly a
+porovnává se proti vývojářem zavedenému jménu značky.  Volitelně lze uvést
+formát:
+.BR format("format") ,
+čímž se odliší značky se stejným jménem, ale odlišným označením pro formát.
+
+Obslužný kód pro tento typ sond může číst parametry, které mohou být v místě
+značky dostupné jako:
+.BR $arg1 " až " $argNN ,
+Kde NN je počet parametrů podporovaných makrem.  Parametry mohou být řetězcového
+a celočíselného typu.
+
+Hodnota atributu 'format' značky je dostupná v proměnné 
+.BR $format .
+Hodnota atributu 'name' v
+.BR $name .
+
+.SS HARDWAROVÉ BODY ZASTAVENÍ (HARDWARE BREAKPOINTS)
+Tato skupina sond slouží k nastavení hardwarových bodů zastavení pro daný
+globální symbol jádra.  Příslušné sondy sestávají ze tří komponent:
+
+1.
+.BR virtuální adresa" / "jméno
+zkoumaného symbolu jádra se předává jako argument této třídě sond.  Podporovány
+jsou pouze sondy pro proměnné v datovém segmentu.  Analýzu lokálních proměnných
+nelze provést.
+
+2.  Způsob přístupu :
+a. sonda
+.I .write
+se aktivuje, jakmile dojde na zadané adrese / symbolu k zápisu.
+b. sonda
+.I rw
+se aktivuje, jakmile dojde na zadané adrese / symbolu ke čtení.
+
+3.
+.BR .length
+(volitelné)
+uživatel má možnost vymezit rozsah adres pro analýzu pomocí 
+"length".  Uživatelem určená hodnota se zaokrouhlí na
+nejbližší hardwarem podporovanou hodnotu.  Pokud se hodnota 'length' nezadá,
+položí ji překladač rovnu jedné.  Pozn., že 'length' nelze použít v kombinaci se
+symbolickými jmény.
+
+Podporovány jsou následující syntaktické konstrukce.
+.SAMPLE
+probe kernel.data(ADDRESS).write
+probe kernel.data(ADDRESS).rw
+probe kernel.data(ADDRESS).length(LEN).write
+probe kernel.data(ADDRESS).length(LEN).rw
+probe kernel.data("SYMBOL_NAME").write
+probe kernel.data("SYMBOL_NAME").rw
+.ESAMPLE
+
+Tato skupina sond využívá ladicí registry procesoru, což je vzácný zdroj.
+Architektura x86_64 nabízí čtyři ladicí registry, powerpc jen jeden.  Pokud se
+uživatel pokusí využít více ladicích registrů, než kolik jich má k dispozici,
+překlad skončí chybou ve fázi 2.
+
+.SS PERF SONDY
+
+Tato skupina sond je rozhraním pro infrastrukturu jádra "perf event", která
+pracuje s hardwarovými počitadly (hardware performance counters).  Událost, se
+kterou se má proba svázat, se specifikuje pomocí atributů "type" a "config"
+struktury
+.IR perf_event_attr .
+Vzorkovací frekvence se určí pomocí atributů "sample_period" nebo "sample_freq".
+
+Tento typ sond používá následující syntaxi:
+.SAMPLE
+probe perf.type(NN).config(MM).sample(XX)
+probe perf.type(NN).config(MM).hz(XX)
+probe perf.type(NN).config(MM)
+probe perf.type(NN).config(MM).process("PROC")
+probe perf.type(NN).config(MM).counter("COUNTER")
+probe perf.type(NN).config(MM).process("PROC").counter("COUNTER")
+.ESAMPLE
+
+Obslužná rutina sondy se při použití '.sample' zavolá jednou za XX inkrementů
+daného počitadla, nebo, pokud se použije .hz, po uplynutí periody dané
+frekvence.  Bez specifikace položí překladač XX rovno 1000000.  Platný rozsah je
+specifikován v popisu systémového volání
+.IR perf_event_open (2)
+a / nebo v hlavičkovém souboru
+.IR linux/perf_event.h .
+
+Neplatné nastavení skončí chybou překladu.  Kontrola platnosti zadaných hodnot se
+provádí v rámci jádra.  Za normálních okolností je .perf sonda platná pro celý
+systém.  Pokud se určí .process, pak jen pro daný uživatelský proces.  Pokud se
+vynechá jméno procesu, pokusí se ho překladač odvodit z \-c.  Událost lze číst
+použitím '.counter'.  Obslužná rutina perf sondy se pro .counter nezavolá,
+ale počitadlo lze číst pomocí následující syntaxe:
+.TP
+   process("PROCESS").statement("func@file") {stat <<< @perf("NAME")} 
+
+
+.SH PŘÍKLADY
+.PP
+Zde uvádíme několik konkrétních příkladů sond.
+.TP
+begin, end, end
+odkazuje se k začátku a k normálnímu ukončení sezení.  V tomto případě se
+obslužná rutina provede jednou při začátku sezení, a dvakrát při jeho normálním
+ukončení.
+.TP
+timer.jiffies(1000).randomize(200)
+sonda se aktivuje periodicky každých 1000 +/\- 200 jiffies.
+.TP
+kernel.function("*init*"), kernel.function("*exit*")
+odkazuje se ke všem jaderným funkcím, jejichž jméno obsahuje podřetězec "init",
+nebo "exit".
+.TP
+kernel.function("*@kernel/time.c:240")
+odkazuje se k libovolné funkci z "kernel/time.c", kde část jejího těla leží na
+řádku 240.
+.BR
+Poznamenejme, že v tomto případě
+.BR nejde
+o sondu vloženou na daný řádek.  Pro vložení sondy na daný řádek použijte
+.IR
+kernel.statement .
+.TP
+kernel.trace("sched_*")
+odkazuje se ke všem 'tracepoint' bodům s prefixem "sched_", tj. souvisejícím s
+časovačem.
+.TP
+kernel.mark("getuid")
+odkazuje se k zastaralému jadernému makru STAP_MARK(getuid, ...).
+.TP
+module("usb*").function("*sync*").return
+odkazuje se k bodu návratu ze všech funkcí, které obsahují "sync" ve svém jméně
+a nachází se v některém z USB modulů.
+.TP
+kernel.statement(0xc0044852)
+odkazuje se k prvnímu bajtu příkazu, jehož přeložené instrukce leží na dané
+adrese v jádře.
+.TP
+kernel.statement("*@kernel/time.c:296")
+odkazuje se k příkazu na řádku 290 v souboru "kernel/time.c".
+.TP
+kernel.statement("bio_init@fs/bio.c+3")
+odkazuje se k příkazu na řádku bio_init+3 v souboru "fs/bio.c".
+.TP
+kernel.data("pid_max").write
+odkazuje se k hardwarovému breakpointu typu "write" nastavenému na pid_max.
+.TP
+syscall.*.return
+odkazuje se ke skupině přezdívek sond s libovolným jménem druhé komponenty.
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR probe::* (3stap),
+.IR tapset::* (3stap)
+
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

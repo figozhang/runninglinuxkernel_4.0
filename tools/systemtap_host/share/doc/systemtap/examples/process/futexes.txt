@@ -1,0 +1,18 @@
+From: http://sourceware.org/systemtap/wiki/WSFutexContention
+
+# stap futexes.stp
+^C
+liferea-bin[3613] lock 0x0a117340 contended 1 times, 71 avg us
+java_vm[8155] lock 0x09baa45c contended 9 times, 1004013 avg us
+java_vm[8155] lock 0x09d6f9ac contended 186 times, 55964 avg us
+xmms[16738] lock 0xbfe29eec contended 777 times, 69 avg us
+xmms[16738] lock 0xbfe29ecc contended 119 times, 64 avg us
+xmms[16738] lock 0xbfe29ebc contended 111 times, 68 avg us
+xmms[16738] lock 0xbfe29ef0 contended 742 times, 91 avg us
+xmms[16738] lock 0xbfe29ed0 contended 107 times, 101 avg us
+xmms[16738] lock 0xbfe29ec0 contended 107 times, 74 avg us
+firefox-bin[21801] lock 0x096d16f4 contended 24 times, 12 avg us
+firefox-bin[21801] lock 0x096d1198 contended 2 times, 4 avg us
+firefox-bin[21801] lock 0x096d16f8 contended 150 times, 64997 avg us
+named[23869] lock 0x41ab0b84 contended 1 times, 131 avg us
+named[23869] lock 0x41ab0b50 contended 1 times, 26 avg us

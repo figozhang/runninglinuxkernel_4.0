@@ -1,0 +1,40 @@
+#! /usr/bin/env stap
+
+global execnames, page_faults, node_faults, nodes
+
+probe vm.pagefault {
+  execnames[pid()] = execname()
+  page_faults[pid(), write_access ? 1 : 0] <<< 1
+  try {
+    n=addr_to_node(address)
+    node_faults[pid(), n] <<< 1
+    nodes[n] <<< 1
+  } catch { }
+}
+
+function print_pf () {
+  printf ("\n")
+  printf ("%-16s %-6s %10s %10s %-20s\n",
+          "Execname", "PID", "RD Faults", "WR Faults", "Node:Faults")
+  print ("======================= ========== ========== =============\n")
+  foreach (pid in execnames) {
+    printf ("%-16s %6d %10d %10d ", execnames[pid], pid,
+            @count(page_faults[pid,0]), @count(page_faults[pid,1]))
+    foreach ([node+] in nodes) {
+      if ([pid, node] in node_faults)
+        printf ("%d:%d ", node, @count(node_faults[pid, node]))
+    }
+    printf ("\n")
+  }
+  printf("\n")
+}
+
+probe begin {
+ printf("Starting pagefault counters \n")
+}
+
+probe end {
+ printf("Printing counters: \n")
+ print_pf ()
+ printf("Done\n")
+}

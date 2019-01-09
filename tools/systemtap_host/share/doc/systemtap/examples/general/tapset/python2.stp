@@ -1,0 +1,398 @@
+# systemtap tapset for python2
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+
+# Global Python variables
+
+global python2_vars_seen			# which vars we have seen
+global python2_frame_n = 0			# set by iterate_over_frames
+global python2_frame = 0			# set by python2_function_entry
+
+# FUNCTION GET_TYPE
+# OBJ: PyObject
+# RETURNS: string representation of type
+
+function get_type:string (obj) {
+    if (obj == 0)
+	return ""
+    ob_type = @cast (obj, "PyObject", @PYTHON2_LIBRARY)->ob_type
+    if (ob_type == 0)
+	return ""
+    ob_type_name = @cast (ob_type, "PyTypeObject", @PYTHON2_LIBRARY)->tp_name
+    return set_string (ob_type_name)
+}
+
+# FUNCTION GET_NAME
+# F_CODE: The python frame code whose filename we are retrieving
+
+function get_filename (f_code)
+{
+    co_filename = @cast (f_code, "PyCodeObject", @PYTHON2_LIBRARY)->co_filename;
+    co_filename_s = @cast (co_filename, "PyStringObject", @PYTHON2_LIBRARY)->ob_sval;
+    return set_string (co_filename_s)
+}
+
+
+# FUNCTION GET_NAME
+# F_CODE: The python frame code whose function name we are retrieving
+
+function get_name (f_code)
+{
+    co_name = @cast (f_code, "PyCodeObject", @PYTHON2_LIBRARY)->co_name;
+    co_name_s = @cast (co_name, "PyStringObject", @PYTHON2_LIBRARY)->ob_sval;
+    return set_string (co_name_s)
+}
+
+# FUNCTION SET_STRING
+# STR_P: pointer to string
+# RETURNS: string as a stap string
+
+function set_string (str_p) {
+    if (str_p == 0)
+	return ""
+    else
+	return user_string (str_p)
+}
+
+# FUNCTION GET_SEQUENCE_ITEM
+# TUPLE: array of PyObject
+# I: index to retrieve 
+# SEQ_TYPE: PyTupleObject or PyListObject
+# RETURNS: array entry PyObject
+
+function get_sequence_item (tuple, i, seq_type) {
+    if (seq_type == "tuple")
+	ob_items = @cast (tuple, "PyTupleObject", @PYTHON2_LIBRARY)->ob_item;
+    else if (seq_type == "list")
+	ob_items = @cast (tuple, "PyListObject", @PYTHON2_LIBRARY)->ob_item;
+
+    ob_item = user_long (ob_items + (i * uarch_bytes()))
+    return ob_item
+}
+
+# FUNCTION DISPLAY_VALUE
+# VALUE: PyObject
+# PREFIX: prefix string to display
+# SUFFIX: suffix string to display
+
+function display_value (value, prefix, suffix) {
+    if (value == 0) {
+	return 0
+    }
+    value_type_str = get_type (value)
+    if (value_type_str == "str") {
+	value_s = @cast (value, "PyStringObject", @PYTHON2_LIBRARY)->ob_sval;
+	value_str = set_string (value_s)
+	printf ("%s\"%s\"%s", prefix, value_str, suffix)
+    }
+    else if (value_type_str == "int") {
+	arg_value_int = @cast (value, "PyIntObject", @PYTHON2_LIBRARY)->ob_ival;
+	printf ("%s%d%s", prefix, arg_value_int, suffix)
+    }
+    else if (value_type_str == "tuple" || value_type_str == "list") {
+	n = @cast (value, "PyTupleObject", @PYTHON2_LIBRARY)->ob_size;
+	if (value_type_str == "list") printf (" = [")
+	else printf (" = ")
+	for (i = 0; i < n; i++) 
+	    display_value (get_sequence_item (value, i, value_type_str), " ", ",")
+	if (value_type_str == "list") printf ("]")
+    }
+    else if (value_type_str == "set") {
+	printf (" = {")
+	n = @cast (value, "PySetObject", @PYTHON2_LIBRARY)->used;
+	for (i = 0; i <= n; i++)
+	    display_value (get_set_item (value, i), " ", ",")
+	printf ("}")
+    }
+    else if (value_type_str == "dict") {
+	printf (" = {")
+	n = @cast (value, "PyDictObject", @PYTHON2_LIBRARY)->ma_used;
+	for (i = 0; i <= n; i++) {
+	    dict_hash = get_dict_hash (value, i)      
+	    dict_key = get_dict_key (value, i)      
+	    dict_value = get_dict_value (value, i)      
+	    if (dict_hash == 0 && dict_key == 0)
+		continue
+	    display_value (dict_key, " ", ":")
+	    display_value (dict_value, "", "")
+	}
+	printf (" }")
+    }
+}
+
+# FUNCTION GET_SET_ITEM
+# SET: PySetObject
+# I: set index to retrieve
+# RETURNS: set entry PyObject
+
+function get_set_item (set, i) {
+    entries = @cast (set, "PySetObject", @PYTHON2_LIBRARY)->table;
+    n = @cast (set, "PySetObject", @PYTHON2_LIBRARY)->used;
+    if (i > n)
+	return 0
+  
+    return @cast (entries, "setentry", @PYTHON2_LIBRARY)[i]->key
+}
+
+# FUNCTION GET_DICT_HASH
+# DICT: PySetObject
+# I: set index to retrieve
+# RETURNS: DICT_HASH
+
+function get_dict_hash (dict, i) {
+    entries = @cast (dict, "PyDictObject", @PYTHON2_LIBRARY)->ma_table;
+    n = @cast (dict, "PyDictObject", @PYTHON2_LIBRARY)->ma_used;
+    if (i > n)
+	return 0
+  
+    return @cast (entries, "PyDictEntry", @PYTHON2_LIBRARY)[i]->me_hash
+}
+
+# FUNCTION GET_DICT_KEY
+# DICT: PySetObject
+# I: set index to retrieve
+# RETURNS: DICT_KEY
+
+function get_dict_key (dict, i) {
+    entries = @cast (dict, "PyDictObject", @PYTHON2_LIBRARY)->ma_table;
+    n = @cast (dict, "PyDictObject", @PYTHON2_LIBRARY)->ma_used;
+    if (i > n)
+	return 0
+  
+    return @cast (entries, "PyDictEntry", @PYTHON2_LIBRARY)[i]->me_key
+}
+
+# FUNCTION GET_DICT_VALUE
+# DICT: PySetObject
+# I: set index to retrieve
+# RETURNS: DICT_VALUE
+
+function get_dict_value (dict, i) {
+    entries = @cast (dict, "PyDictObject", @PYTHON2_LIBRARY)->ma_table;
+    n = @cast (dict, "PyDictObject", @PYTHON2_LIBRARY)->ma_used;
+    if (i > n)
+	return 0
+  
+    return @cast (entries, "PyDictEntry", @PYTHON2_LIBRARY)[i]->me_value;
+}
+
+# FUNCTION DISPLAY_DICT_VARIABLE
+# DICT: local or global variable name dictionary
+# VARIABLE: variable to retrieve
+# NAMESPACE: local or global
+
+function display_dict_variable (dict, variable, namespace, co_name_str, co_filename_str) {
+    n = @cast (dict, "PyDictObject", @PYTHON2_LIBRARY)->ma_used;
+    for (i = 0; i < n; i++) {
+	dict_key = get_dict_key (dict, i)      
+	dict_value = get_dict_value (dict, i)      
+	if (dict_key == 0 || dict_value == 0) break
+	key_str = set_string (@cast (dict_key, "PyStringObject", @PYTHON2_LIBRARY)->ob_sval)
+	key_type_str = get_type (dict_key)
+
+	if (wildcard_match (key_str, variable)) {
+	    foreach ([var, file] in python2_vars_seen) {
+		if (var == key_str
+		    && file == co_filename_str)
+		    return 0
+	    }
+	    printf ("%s %s %s", namespace, key_type_str, key_str)
+	    printf (" in %s at %s", co_name_str, co_filename_str)
+	    display_value (dict_value, " = ", " ")
+	    printf ("\n")
+	    python2_vars_seen[key_str, co_filename_str] = co_name_str
+	}
+    }
+}
+
+# FUNCTION WILDCARD_MATCH
+# STR: String to check for a wildcard
+# PATTERN: The wildcard pattern.  Wildcard special characters are limited to '*'
+
+function wildcard_match (str, pattern) {
+    if (pattern == "*")
+	return 1
+
+    # Does pattern start at the beginning of str or is it '*'?
+    if (substr (pattern, 0, 1) != "*" && substr (str, 0, 1) != substr (pattern, 0, 1))
+	return 0
+
+    hunk = tokenize (pattern,"*")
+    while (hunk != "")
+    {
+	# find pattern hunk in str
+	if (isinstr (str, hunk) == 0) {
+	    return 0
+	}
+	match = 0
+	for (i = 0; i < strlen (str) - strlen (hunk) + 1; i++) {
+	    if (hunk == substr (str, i, strlen (hunk))) {
+		match = 1
+		break
+	    }
+	}	
+	if (!match) return 0
+	    
+	# skip past hunk in str
+	str = substr (str, i, strlen (str)-i+1)
+	hunk = tokenize ("","*")
+    }
+
+    # Does pattern end at the end of str or is it '*'?
+    if (substr (pattern, strlen (pattern)-1, 1) != "*"
+	&& substr (str, strlen (str)-1, 1) != substr (pattern, strlen (pattern)-1, 1))
+	return 0
+    else
+	return 1
+}
+
+# FUNCTION ITERATE_OVER_FRAMES
+# FRAME: Pointer to a stack frame
+# FRAME_N: The frame number of this stack frame
+
+function python2_iterate_over_frames (frame, frame_n)
+{
+    if (frame_n != 0) {
+	python2_frame_n += 1
+	frame =  @cast (frame, "PyFrameObject", @PYTHON2_LIBRARY)->f_back
+    }
+    else
+	python2_frame_n = 0
+    return frame
+}
+
+    
+# FUNCTION BACKTRACE_ONE_FRAME
+# FRAME: Pointer to stack frame
+# SKIP_NAME: Pathnames containing this string are ignored.  Default is "/lib/" to
+#     ignore system python libraries
+
+function python2_backtrace_one_frame (frame, skip_name)
+{
+    if (skip_name == "")
+	skip_name = "/lib64/"
+
+    f_code = @cast (frame, "PyFrameObject", @PYTHON2_LIBRARY)->f_code;
+    co_filename_str = get_filename (f_code)
+    if (isinstr (co_filename_str, "importlib") == 1 || isinstr (co_filename_str, "<string>") == 1 || isinstr (co_filename_str, "/lib64/") == 1)
+	return 0
+    if (skip_name != "" && isinstr (co_filename_str, skip_name) == 1)
+	return 0
+    co_name_str = get_name (f_code)
+    co_firstlineno = @cast (f_code, "PyCodeObject", @PYTHON2_LIBRARY)->co_firstlineno;
+
+    printf ("#%d %s ", python2_frame_n, co_name_str)
+
+    co_varnames = @cast (f_code, "PyCodeObject", @PYTHON2_LIBRARY)->co_varnames;
+    co_argcount = @cast (f_code, "PyCodeObject", @PYTHON2_LIBRARY)->co_argcount;
+    f_localsplus = @cast (frame, "PyFrameObject", @PYTHON2_LIBRARY)->f_localsplus;
+    for (i = 0; i < co_argcount; i++) {
+	if (i == 0) print ("(");
+	arg_name_str = user_string (@cast (get_sequence_item (co_varnames, i, "tuple"), "PyStringObject", @PYTHON2_LIBRARY)->ob_sval)
+	arg_value = user_long (f_localsplus + (i * uarch_bytes()))
+	arg_type_name_str = get_type (arg_value)
+	printf ("%s:%s ", arg_name_str, arg_type_name_str)
+    }
+
+    if (co_argcount) printf (")");
+
+    printf (" at %s:%d\n", co_filename_str, co_firstlineno)
+}
+    
+# FUNCTION GETVAR_ONE_FRAME
+# FRAME: Pointer to stack frame
+# MATCH_ARGS: Match function arguments
+# VARIABLE: Variable wildcard to be matched.  Default is "*" to match all variables.
+# SKIP_NAME: Pathnames containing this string are ignored.  Default is "/lib/" to
+#     ignore system python libraries
+
+function python2_getvar_one_frame (frame, match_args, variable, skip_name)
+{
+    f_code = @cast (frame, "PyFrameObject", @PYTHON2_LIBRARY)->f_code;
+    co_filename_str = get_filename (f_code)
+    if (isinstr (co_filename_str, "importlib") == 1 || isinstr (co_filename_str, "<string>") == 1 || isinstr (co_filename_str, "/lib64/") == 1)
+	return 0
+    if (skip_name != "" && isinstr (co_filename_str, skip_name) == 1)
+	return 0
+    co_name_str = get_name (f_code)
+    
+    f_globals = @cast (frame, "PyFrameObject", @PYTHON2_LIBRARY)->f_globals;
+    if (f_globals != 0) {
+	display_dict_variable (f_globals, variable, "global", co_name_str, co_filename_str)
+    }
+    f_locals = @cast (frame, "PyFrameObject", @PYTHON2_LIBRARY)->f_locals;
+    if (f_locals != 0) {
+	display_dict_variable (f_locals, variable, "local", co_name_str, co_filename_str)
+    }
+
+    co_varnames = @cast (f_code, "PyCodeObject", @PYTHON2_LIBRARY)->co_varnames;
+    co_argcount = @cast (f_code, "PyCodeObject", @PYTHON2_LIBRARY)->co_argcount;
+    f_localsplus = @cast (frame, "PyFrameObject", @PYTHON2_LIBRARY)->f_localsplus;
+    ob_size = @cast (co_varnames, "PyTypeObject", @PYTHON2_LIBRARY)->ob_size;
+    # iterate through the local variable list
+    for (i = 0; i < ob_size; i++) {
+	arg_name_str = user_string (@cast (get_sequence_item (co_varnames, i, "tuple"), "PyStringObject", @PYTHON2_LIBRARY)->ob_sval)
+	if (! wildcard_match (arg_name_str, variable))
+	    continue
+	arg_value = user_long (f_localsplus + (i * uarch_bytes()))
+	arg_type_name_str = get_type (arg_value)
+	next_var = 0
+	foreach ([var, file] in python2_vars_seen)
+	if (var == arg_name_str && file == co_filename_str)
+	    next_var = 1
+	if (next_var || arg_type_name_str == "")
+	    continue
+	if (i < co_argcount && match_args)
+	    printf ("arg%d ", i + 1)
+	python2_vars_seen[arg_name_str, co_filename_str] = co_name_str
+	printf ("%s %s", arg_type_name_str, arg_name_str)
+	printf (" in %s at %s", co_name_str, co_filename_str)
+	display_value (arg_value, " = ", " ")
+	printf ("\n")
+    }
+}
+
+# FUNCTION PYTHON2_BACKTRACE
+# SKIP_NAME: Pathnames containing this string are ignored.
+
+function python2_backtrace (skip_name)
+{
+    frame = python2_frame
+    for (i = 0; frame != 0; i++) {
+       python2_backtrace_one_frame (frame, skip_name)
+       frame = python2_iterate_over_frames (frame, i)
+    }
+}
+
+# FUNCTION PYTHON2_GET_VARIABLE
+# SKIP_NAME: Pathnames containing this string are ignored.
+
+function python2_get_variable (variable, skip_name)
+{
+    frame = python2_frame
+    for (i = 0; frame != 0; i++) {
+	python2_getvar_one_frame (frame, 1, variable, skip_name)
+	frame = python2_iterate_over_frames (frame, i)
+    }
+}
+
+probe python2.function_entry = process(@PYTHON2_LIBRARY).mark ("function__entry")
+{
+  # fedora and rhel python pass function name and line number, not frame pointer
+  # so grab the frame pointer using debuginfo
+  # python2_frame = $arg1
+   python2_frame = $f
+}
+
+probe python2.function_return = process(@PYTHON2_LIBRARY).mark ("function__return")
+{
+  # fedora and rhel python pass function name and line number, not frame pointer
+  # unfortunately the frame pointer is not always available in debuginfo
+  # python2_frame = $arg1
+}
+
+probe python.function_entry = python2.function_entry {}
+probe python.function_return = python2.function_return {}

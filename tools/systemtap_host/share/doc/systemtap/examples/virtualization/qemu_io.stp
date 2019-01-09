@@ -1,0 +1,22 @@
+#!/usr/bin/env stap
+#
+# Copyright (C) 2011 Red Hat, Inc.
+# Written by William Cohen <wcohen@redhat.com>
+#
+# The qemu_io.stp script tallies the number of times each of the IO
+# port on the guest virtual machines is touched by a input or output
+# operation. When the script exits, it prints a count of the number of
+# times each IO port read and written.
+
+global cpu_in, cpu_out
+probe qemu.*.*.cpu_in?, qemu.kvm.cpu_in? { cpu_in[addr]++ }
+probe qemu.*.*.cpu_out?, qemu.kvm.cpu_out? {cpu_out[addr]++ }
+probe end {
+  # write out the data
+  printf("\ncpu_in\n%6s %8s\n","port", "count")
+  foreach (addr+ in cpu_in)
+    printf("0x%04x %8d\n", addr, cpu_in[addr])
+  printf("\ncpu_out\n%6s %8s\n","port", "count")
+  foreach (addr+ in cpu_out)
+    printf("0x%04x %8d\n", addr, cpu_out[addr])
+}

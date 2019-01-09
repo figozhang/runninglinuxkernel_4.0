@@ -1,0 +1,164 @@
+/*
+ *      Copyright (C) 2009 IBM Corp.
+ *      This file is part of systemtap, and is free software.  You can
+ *      redistribute it and/or modify it under the terms of the GNU General
+ *      Public License (GPL); either version 2, or (at your option) any
+ *      later version.
+ *
+ *      Version 1.0     prerna@linux.vnet.ibm.com     2009-10-28
+ *
+ * Tracepoint based tapset for IRQs, Workqueues, etc
+ *
+ */
+// Probes for workqueues.
+
+/**
+ * probe workqueue.create - Creating a new workqueue
+ * @wq_thread: task_struct of the workqueue thread
+ * @cpu: cpu for which the worker thread is created
+ */
+probe workqueue.create = kernel.trace("workqueue_creation") ?
+{
+	wq_thread = $wq_thread
+	cpu = $cpu
+}
+
+/**
+ * probe workqueue.insert - Queuing work on a workqueue
+ * @wq_thread: task_struct of the workqueue thread
+ * @work: work_struct* being queued
+ * @work_func: pointer to handler function
+ */
+probe workqueue.insert = kernel.trace("workqueue_insertion") ?
+{
+	wq_thread = $wq_thread
+	work = $work
+	work_func = $work->func
+}
+
+/**
+ * probe workqueue.execute - Executing deferred work
+ * @wq_thread:	task_struct of the workqueue thread
+ * @work: work_struct* being executed
+ * @work_func:	pointer to handler function
+ */
+probe workqueue.execute = kernel.trace("workqueue_execution") ?
+{
+	wq_thread = $wq_thread
+	work = $work
+	work_func = $work->func
+}
+
+/**
+ * probe workqueue.destroy - Destroying workqueue
+ * @wq_thread: task_struct of the workqueue thread
+ */
+probe workqueue.destroy = kernel.trace("workqueue_destruction") ?
+{
+	wq_thread = $wq_thread
+}
+
+// Probes for IRQ handlers.
+
+/**
+ * probe irq_handler.entry - Execution of interrupt handler starting
+ * @irq: irq number
+ * @action: struct irqaction* for this interrupt num
+ * @handler: interrupt handler function
+ * @flags: Flags for IRQ handler
+ * @flags_str: symbolic string representation of IRQ flags
+ * @dev_name: name of device
+ * @dev_id: Cookie to identify device
+ * @next_irqaction: pointer to next irqaction for shared interrupts
+ * @dir: pointer to the proc/irq/NN/name entry
+ * @thread_fn: interrupt handler function for threaded interrupts
+ * @thread: thread pointer for threaded interrupts
+ * @thread_flags: Flags related to thread
+ */
+probe irq_handler.entry = kernel.trace("irq_handler_entry") ?
+{
+	irq = $irq
+	// the tracepoint doesn't have the struct definition, so we must @cast
+	action = & @cast($action, "irqaction", "kernel<linux/interrupt.h>")
+	handler = action->handler
+	flags = action->flags
+	flags_str = irqflags_str(flags)
+	dev_name = action->name
+	dev_id = action->dev_id
+	next_irqaction = action->next
+	dir = action->dir
+	thread_fn = action->thread_fn
+	thread = action->thread
+	thread_flags = action->thread_flags
+}
+
+/**
+ * probe irq_handler.exit - Execution of interrupt handler completed
+ * @irq: interrupt number
+ * @action: struct irqaction*
+ * @ret: return value of the handler
+ * @handler: interrupt handler function that was executed
+ * @flags: flags for IRQ handler
+ * @flags_str: symbolic string representation of IRQ flags
+ * @dev_name: name of device
+ * @dev_id: Cookie to identify device
+ * @next_irqaction: pointer to next irqaction for shared interrupts
+ * @dir: pointer to the proc/irq/NN/name entry
+ * @thread_fn: interrupt handler function for threaded interrupts
+ * @thread: thread pointer for threaded interrupts
+ * @thread_flags: Flags related to thread
+ */
+probe irq_handler.exit = kernel.trace("irq_handler_exit") ?
+{
+	irq = $irq
+	// the tracepoint doesn't have the struct definition, so we must @cast
+	action = & @cast($action, "irqaction", "kernel<linux/interrupt.h>")
+	ret = $ret
+	handler = action->handler
+	flags = action->flags
+	flags_str = irqflags_str(flags)
+	dev_name = action->name
+	dev_id = action->dev_id
+	next_irqaction = action->next
+	dir = action->dir
+	thread_fn = action->thread_fn
+	thread = action->thread
+	thread_flags = action->thread_flags
+}
+
+// Softirq based probes.
+/**
+ * probe softirq.entry - Execution of handler for a pending softirq starting
+ * @h: struct softirq_action* for current pending softirq
+ * @vec: softirq_action vector
+ * @action: pointer to softirq handler just about to execute
+ * @vec_nr:  softirq vector number
+ */
+probe softirq.entry = kernel.trace("irq_softirq_entry") !,
+     		      kernel.trace("softirq_entry") ?
+{
+	# kernels < 2.6.37
+	h = @choose_defined($h, 0)
+	vec = @choose_defined($vec, 0)
+	action = (@defined($h) ? @cast($h,"softirq_action","kernel<linux/interrupt.h>")->action : 0)
+	# kernels >= 2.6.37
+	vec_nr = @choose_defined($vec_nr, 0)
+}
+
+/**
+ * probe softirq.exit - Execution of handler for a pending softirq completed
+ * @h: struct softirq_action* for just executed softirq
+ * @vec: softirq_action vector
+ * @action: pointer to softirq handler that just finished execution
+ * @vec_nr:  softirq vector number
+ */
+probe softirq.exit = kernel.trace("irq_softirq_exit") !,
+		     kernel.trace("softirq_exit") ?
+{
+	# kernels < 2.6.37
+	h = @choose_defined($h, 0)
+	vec = @choose_defined($vec, 0)
+	action = (@defined($h) ? @cast($h,"softirq_action","kernel<linux/interrupt.h>")->action : 0)
+	# kernels >= 2.6.37
+	vec_nr = @choose_defined($vec_nr, 0)
+}

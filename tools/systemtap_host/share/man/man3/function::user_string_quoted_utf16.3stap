@@ -1,0 +1,50 @@
+'\" t
+.\"     Title: function::user_string_quoted_utf16
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: String and data retrieving functions Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::USER_STRIN" "3stap" "March 2016" "SystemTap Tapset Reference" "String and data retrieving fun"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::user_string_quoted_utf16 \- Quote given user UTF\-16 string\&.
+.SH "SYNOPSIS"
+.sp
+.nf
+    user_string_quoted_utf16:string(addr:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIaddr\fR
+.RS 4
+The user address to retrieve the string from
+.RE
+.SH "DESCRIPTION"
+.PP
+This function combines quoting as per
+\fIstring_quoted\fR
+and UTF\-16 decoding as per
+\fIuser_string_utf16\fR\&.
+.SH SEE ALSO\n 
+.IR tapset::uconversions (3stap)

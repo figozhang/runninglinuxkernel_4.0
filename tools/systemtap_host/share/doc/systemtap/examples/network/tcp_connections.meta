@@ -1,0 +1,13 @@
+title: Track Creation of Incoming TCP Connections
+name: tcp_connections.stp
+version: 1.0
+author: anonymous
+keywords: network tcp socket
+subsystem: network
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The tcp_connections.stp script prints information for each new incoming TCP connection accepted by the computer. The information includes the UID, the command accepting the connection, the PID of the command, the port the connection is on, and the IP address of the originator of the request.
+test_check: stap -p4 tcp_connections.stp
+test_installcheck: stap tcp_connections.stp -c "sleep 1"

@@ -1,0 +1,20 @@
+# stap sig_by_proc.stp 
+Collecting data... Type Ctrl-C to exit and display results
+^C
+SENDER           RECEIVER         SIGNAL           COUNT
+swapper          Xvnc             SIGALRM          448
+sh               wcstatusd        SIGCHLD          318
+ifconfig         sh               SIGCHLD          106
+mii-tool         sh               SIGCHLD          106
+lspci            wcstatusd        SIGCHLD          106
+automount        automount        SIGCHLD          14
+swapper          automount        SIGALRM          13
+swapper          syslogd          SIGALRM          7
+swapper          sendmail         SIGALRM          2
+sendmail         sendmail         SIGCHLD          2
+lspci            Xvnc             SIGALRM          2
+ifconfig         automount        SIGALRM          1
+sh               Xvnc             SIGALRM          1
+xterm            staprun          SIGINT           1
+xterm            stap             SIGINT           1
+

@@ -1,0 +1,69 @@
+'\" t
+.\"     Title: probe::tty.open
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: TTY Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::TTY\&.OPEN" "3stap" "March 2016" "SystemTap Tapset Reference" "TTY Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::tty.open \- Called when a tty is opened
+.SH "SYNOPSIS"
+.sp
+.nf
+tty\&.open 
+.fi
+.SH "VALUES"
+.PP
+\fIinode_flags\fR
+.RS 4
+the inode flags
+.RE
+.PP
+\fIfile_flags\fR
+.RS 4
+the file flags
+.RE
+.PP
+\fIfile_name\fR
+.RS 4
+the file name
+.RE
+.PP
+\fIfile_mode\fR
+.RS 4
+the file mode
+.RE
+.PP
+\fIinode_number\fR
+.RS 4
+the inode number
+.RE
+.PP
+\fIinode_state\fR
+.RS 4
+the inode state
+.RE
+.SH SEE ALSO\n 
+.IR tapset::tty (3stap)

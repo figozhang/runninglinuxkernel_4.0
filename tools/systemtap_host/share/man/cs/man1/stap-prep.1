@@ -1,0 +1,63 @@
+.\" -*- nroff -*-
+.TH STAP\-PREP 1
+.SH JMÉNO
+stap\-prep \- připraví systém pro použití systemtapem
+
+.\" macros
+.\" do not nest SAMPLEs
+.de SAMPLE
+.br
+
+.nr oldin \\n(.i
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POUŽITÍ
+
+.br
+.B stap\-prep
+[
+.I KERNEL_VERSION
+]
+
+.SH POPIS
+
+Program stap\-prep připraví systém pro použití systemtapem tím, že nainstaluje
+hlavičkové soubory a ladicí informace jádra, a sestavovací nástroje, které
+odpovídají právě běžícímu jádru, případně jádru, které zadal uživatel.
+
+Konkrétní chování programu stap\-prep může být upraveno v rámci různých
+linuxových distribucí.  Program může například dávat jen doporučení a nic
+ve skutečnosti neinstalovat v případě, že by taková automatizace byla příliš
+složitá.
+
+.SH PŘÍKLADY
+.SAMPLE
+$ stap-prep
+Please install linux-image-3.2.0-2-amd64-dbg
+.ESAMPLE
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1)
+
+.SH CHYBY                                                                       
+Použijte projektovou bugzillu, nebo mailing list.                               
+.nh                                                                             
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .          
+.hy                                                                             
+.PP                                                                             
+.IR error::reporting (7stap),                                                   
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs                       
+.hy
+

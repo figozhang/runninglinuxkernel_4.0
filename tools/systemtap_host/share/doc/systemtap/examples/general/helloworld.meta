@@ -1,0 +1,6 @@
+title: SystemTap "Hello World" Program
+name: helloworld.stp
+keywords: _best simple
+description: A basic "Hello World" program implemented in SystemTap script. It prints out "hello world" message and then immediately exits.
+test_check: stap -p4 helloworld.stp
+test_installcheck: stap helloworld.stp

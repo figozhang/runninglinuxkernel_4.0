@@ -1,0 +1,13 @@
+title: Trace Time Spent in Read and Write for Files 
+name: iotime.stp
+version: 1.0
+author: Daniel Berrange and Will Cohen
+keywords: profiling syscall io file
+subsystem: syscall io
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The script watches each open, close, read, and write syscalls on the system. For each file the scripts observes opened it accumulates the amount of wall clock time spent in read and write operations and the number of bytes read and written. When a file is closed the script prints out a pair of lines for the file. Both lines begin with a timestamp in microseconds, the PID number, and the executable name in parentheses. The first line with the "access" keyword lists the file name, the attempted number of bytes for the read and write operations. The second line with the "iotime" keyword list the file name and the number of microseconds accumulated in the read and write syscalls.
+test_check: stap -p4 iotime.stp
+test_installcheck: stap iotime.stp -c "sleep 1"

@@ -1,0 +1,99 @@
+.\" t
+.TH ERROR::SDT 7stap 
+.SH NAME
+error::sdt \- <sys/sdt.h> marker failures
+
+.\" macros
+.de SAMPLE
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+..
+
+
+.SH DESCRIPTION
+
+Systemtap's
+.BR <sys/sdt.h>
+probes are modeled after the dtrace USDT API, but are implemented
+differently.  They leave a only a NOP instruction in the userspace
+program's text segment, and add an ELF note to the binary with
+metadata.  This metadata describes the marker's name and parameters.
+This encoding is designed to be parseable by multiple tools (not just
+systemtap: GDB, the GNU Debugger, also contains support).  These allow
+the tools to find parameters and their types, wherever they happen to
+reside, even without DWARF debuginfo.
+
+.PP
+
+The reason finding parameters is tricky is because the STAP_PROBE /
+DTRACE_PROBE markers store an assembly language expression for each
+operand, as a result of use of gcc inline-assembly directives.  The
+compiler is given a broad gcc operand constraint string ("nor") for
+the operands, which usually works well.  Usually, it does not force
+the compiler to load the parameters into or out of registers, which
+would slow down an instrumented program.  However, some
+instrumentation sites with some parameters do not work well with the
+default "nor" constraint.
+
+.TP
+unresolveable at run-time
+GCC may emit strings that an assembler could resolve (from the
+context of compiling the original program), but a run-time tool
+cannot.  For example, the operand string might refer to a label of a
+local symbol that is not emitted into the ELF object file at all,
+which leaves no trace for the run-time.  Reference to such parameters
+from within systemtap can result in "SDT asm not understood" errors.
+
+.TP
+too complicated expression
+GCC might synthesize very complicated assembly addressing modes from
+complex C data types / pointer expressions.  systemtap or gdb may not
+be able to parse some valid but complicated expressions.  Reference to
+such parameters from within systemtap can result in "SDT asm not
+understood" errors.
+
+.TP
+overly restrictive constraint
+GCC might not be able to even compile the original program with the
+default "nor" constraint due to shortage of registers or other
+reasons.  A compile-time gcc error such as "asm operand has impossible
+constraints" may result.
+
+.PP
+
+There are two general workarounds to this family of problems.
+
+.TP
+change the constraints
+While compiling the original instrumented program, set the
+.IR STAP_SDT_ARG_CONSTRAINT
+macro to different constraint strings.  See the GCC manual about
+various options.  For example, on many machine architectures, "r" forces
+operands into registers, and "g" leaves operands essentially unconstrained.
+
+.TP
+revert to debuginfo
+As long as the instrumented program compiles, it may be fine simply to
+keep using <sys/sdt.h> but eschew extraction of a few individual
+parameters.  In the worst case, disable <sys/sdt.h> macros entirely to
+eschew the compiled-in instrumentation.  If DWARF debuginfo was
+generated and preserved, a systemtap script could refer to the
+underlying source context variables instead of the positional
+STAP_PROBE parameters.
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR stapprobes (3stap),
+.IR error::dwarf (7stap),
+.IR http://gcc.gnu.org/onlinedocs/gcc/Constraints.html ,
+.IR http://sourceware.org/systemtap/wiki/UserSpaceProbeImplementation ,
+.IR error::reporting (7stap)

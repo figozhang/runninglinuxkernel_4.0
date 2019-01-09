@@ -1,0 +1,57 @@
+'\" t
+.\"     Title: probe::tcpmib.OutRsts
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: SNMP Information Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::TCPMIB\&.OUTR" "3stap" "March 2016" "SystemTap Tapset Reference" "SNMP Information Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::tcpmib.OutRsts \- Count the sending of a reset packet
+.SH "SYNOPSIS"
+.sp
+.nf
+tcpmib\&.OutRsts 
+.fi
+.SH "VALUES"
+.PP
+\fIsk\fR
+.RS 4
+pointer to the struct sock being acted on
+.RE
+.PP
+\fIop\fR
+.RS 4
+value to be added to the counter (default value of 1)
+.RE
+.SH "DESCRIPTION"
+.PP
+The packet pointed to by
+\fIskb\fR
+is filtered by the function
+\fBtcpmib_filter_key\fR\&. If the packet passes the filter is is counted in the global
+\fIOutRsts\fR
+(equivalent to SNMP\*(Aqs MIB TCP_MIB_OUTRSTS)
+.SH SEE ALSO\n 
+.IR tapset::tcpmib (3stap)

@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::qs_run
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Queue Statistics Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::QS_RUN" "3stap" "March 2016" "SystemTap Tapset Reference" "Queue Statistics Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::qs_run \- Function to record being moved from wait queue to being serviced
+.SH "SYNOPSIS"
+.sp
+.nf
+    qs_run(qname:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIqname\fR
+.RS 4
+the name of the service being moved and started
+.RE
+.SH "DESCRIPTION"
+.PP
+This function records that the previous enqueued request was removed from the given wait queue and is now being serviced\&.
+.SH SEE ALSO\n 
+.IR tapset::queue_stats (3stap)

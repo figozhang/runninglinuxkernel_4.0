@@ -1,0 +1,8 @@
+title: Generate backtraces for kernel audit events
+name: auditbt.stp
+keywords: monitoring security backtrace
+subsystem: process
+scope: system-wide
+description: Attaches to the kernel audit-log paths (also used by libaudit), and log every record being sent, along with a user-space backtrace of the process that caused it.
+test_check: stap -p4 auditbt.stp
+test_installcheck: stap auditbt.stp -d /usr/bin/sudo --ldd -c "sudo true"

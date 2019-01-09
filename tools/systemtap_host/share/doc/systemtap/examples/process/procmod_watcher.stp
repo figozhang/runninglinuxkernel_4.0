@@ -1,0 +1,83 @@
+#! /usr/bin/env stap
+
+/*
+ * Copyright (C) 2014 Red Hat Inc.
+ *
+ * This copyrighted material is made available to anyone wishing to use,
+ * modify, copy, or redistribute it subject to the terms and conditions
+ * of the GNU General Public License v.2.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Print out all calls to fork(), exec(), exit(), init_module(), and
+ * delete_module(). This script does not require debuginfo.
+ *
+ * Format is:
+ * timestamp: EVENT: ( pid) <event details>
+ *
+ * 2.843626: FORK: ( 410) firewalld: pid 868
+ * 2.843831: EXEC: ( 868) firewalld: file /sbin/iptables
+ * 2.844514: EXIT: ( 868) iptables: exit code 0
+ * 2.844829: FORK: ( 410) firewalld: pid 869
+ * 2.845034: EXEC: ( 869) firewalld: file /sbin/iptables
+ * 2.845722: EXIT: ( 869) iptables: exit code 0
+ * 2.846036: FORK: ( 410) firewalld: pid 870
+ * 2.846240: EXEC: ( 870) firewalld: file /sbin/iptables
+ *
+ */
+
+function print_time() {
+   timer = read_stopwatch_us("timer")
+   printf("%4d.%.6d: ", timer/1000000, timer%1000000)
+}
+
+probe begin {
+   start_stopwatch("timer")
+   printf("   0.000000: Started procmod_watcher on %s\n",
+          ctime(gettimeofday_s()))
+}
+
+probe nd_syscall.execve {
+   print_time()
+   printf("EXEC: (%4d) %s: file %s\n",
+          pid(), execname(), argstr)
+}
+
+probe nd_syscall.fork.return {
+   print_time()
+   printf("FORK: (%4d) %s: pid %s\n",
+          pid(), execname(), retstr)
+}
+
+probe nd_syscall.exit {
+   print_time()
+   sig = status & 0x7F
+   code = sig ? sig : status >> 8
+   printf("EXIT: (%4d) %s: %s %d\n",
+          pid(), execname(),
+          sig ? "signal" : "exit code", code)
+}
+
+probe kernel.trace("module_load") {
+   print_time()
+   printf("LOAD: (%4d) %s: module %s",
+          pid(), execname(),
+          kernel_string(@cast($mod, "struct module", "kernel<linux/module.h>")->name))
+   args = kernel_string(@cast($mod, "struct module", "kernel<linux/module.h>")->args)
+   if (args != "")
+      printf(" with args \"%s\"", args)
+   println("")
+}
+
+probe nd_syscall.delete_module {
+   print_time()
+   printf("UNLD: (%4d) %s: module %s with flags 0x%x\n",
+          pid(), execname(), name_user, flags);
+}
+
+probe end {
+   print_time()
+   printf("Exiting procmod_watcher on %s\n",
+          ctime(gettimeofday_s()))
+}

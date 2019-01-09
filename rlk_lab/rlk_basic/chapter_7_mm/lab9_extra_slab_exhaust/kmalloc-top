@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+#
+# This script accumulates the execution paths of all calls to kmalloc
+# in the kernel.  On Ctrl-C (or exit of the command provided by -c option),
+# it sorts, filters and displays them on
+# stdout.
+#
+# The -e (exclude) option can be used to specify a comma-separated list
+# - any stack with contents matching any of the items in the list will
+# be excluded from the output.
+#
+# The -m (min) option can be used to specify the minimum number of
+# occurrences a stack needs to be included in the output.
+#
+# The -t (top) option can be used to specify printing only the 
+# top N stack traces.
+#
+# The -c (command) option runs starts the command and script
+# only runs for the duration of the command.
+#
+# The -o (options) option passes the options to systemap.
+#
+# Usage: ./kmalloc-top [-m min] [-e exclude list] [-t top_n] [-c command]
+#           [-o options]
+# Ctrl-c
+
+probe kernel.function("__kmalloc") { kmalloc_stack[backtrace()]++ }
+
+probe timer.ms(100), end
+{
+  foreach (stack in kmalloc_stack) {
+    printf("<hashval>%d</hashval>\n", kmalloc_stack[stack])
+  }
+  delete kmalloc_stack
+}

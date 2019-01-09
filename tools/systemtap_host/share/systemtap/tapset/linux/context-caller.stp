@@ -1,0 +1,86 @@
+// context-caller tapset
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// Provides caller and caller_addr function for context for kernel and user
+// space.
+// </tapsetdescription>
+
+%{
+/* caller_addr() might be user caller, so needs at least uprobes structs. */
+#include "linux/uprobes-inc.h"
+%}
+
+/**
+ *  sfunction callers - Return first n elements of kernel stack backtrace
+ *  
+ *  @n: number of levels to descend in the stack (not counting the top
+ *  level). If n is -1, print the entire stack.
+ *
+ *  Description: This function returns a string of the first n hex
+ *  addresses from the backtrace of the kernel stack. Output may be
+ *  truncated as per maximum string length (MAXSTRINGLEN).
+ */
+function callers:string (n:long) {
+         str = ""; l = 0
+         for (i = 0; i <= n || n == -1; i++) {
+             foo = i > 0 ? " " : ""
+             try {
+                 foo .= sprintf("0x%x", stack(i))
+             } catch { /* assume we've hit the end of the stack */
+                 if (n == -1) break
+                 @__context_unwind_error(n)
+             }
+             // ensure string cuts off cleanly at MAXSTRINGLEN:
+             l += strlen(foo); if (l > @MAXSTRINGLEN) break    
+             str .= foo
+         }
+         return str
+}
+
+/**
+ *  sfunction caller - Return name and address of calling function
+ *
+ *  Description: This function returns the address and name of the 
+ *  calling function. This is equivalent to calling:
+ *  sprintf("%s 0x%x", symname(caller_addr()), caller_addr())
+ */
+function caller:string() {
+	return sprintf("%s 0x%x", symname(caller_addr()), caller_addr());
+}
+
+/**
+ *  sfunction caller_addr - Return caller address
+ *
+ *  Description: This function returns the address of the calling function. 
+ */
+function caller_addr:long () { return stack(1) }
+
+/* Undocumented function - used in support of .callee[s] probes.
+ * Verifies that the current function's caller matches the given addr,
+ * accounting for relocation. Used in the constructor of
+ * dwarf_derived_probe constructor in tapsets.cxx.
+ */
+function _caller_match:long (user_mode:long, level:long,
+                             module:string, section:string, addr:long) %{
+   /* pure */ /* myproc-unprivileged */
+   /* pragma:unwind */ /* pragma:uprobes */ /* pragma:vma */
+   /* unmodified-fnargs */
+   #ifdef STAP_CALLEE_MATCHALL /* Set using -D to have .callee probes fire
+                                  regardless of caller */
+      STAP_RETVALUE = 1;
+   #else
+      STAP_RETVALUE = STAP_ARG_user_mode
+       ? _stp_stack_user_get(CONTEXT, STAP_ARG_level) ==
+            _stp_umodule_relocate(STAP_ARG_module,
+                                  STAP_ARG_addr,
+                                  current)
+       : _stp_stack_kernel_get(CONTEXT, STAP_ARG_level) ==
+            _stp_kmodule_relocate(STAP_ARG_module,
+                                  STAP_ARG_section,
+                                  STAP_ARG_addr);
+   #endif
+%}

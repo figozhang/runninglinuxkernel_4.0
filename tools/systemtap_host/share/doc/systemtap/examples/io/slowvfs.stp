@@ -1,0 +1,11 @@
+#! /usr/bin/env stap
+
+# minimum number of microseconds to print at
+# override with  -G sloth=NNN
+global sloth = 50
+      
+probe vfs.open.return {
+  time = gettimeofday_us()-@entry(gettimeofday_us())
+  if (time >= sloth)
+    printf("%s[%d] %d %s\n", execname(), tid(), time, pathname)
+}

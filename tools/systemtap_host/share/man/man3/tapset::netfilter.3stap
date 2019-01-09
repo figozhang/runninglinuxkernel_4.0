@@ -1,0 +1,102 @@
+.\" -*- nroff -*-
+.TH TAPSET::NETFILTER 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::netfilter \- systemtap netfilter tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B netfilter.ip.pre_routing 
+Called before an IP packet is routed
+.IP
+ See 
+.IR probe::netfilter.ip.pre_routing (3stap)
+ for details.
+.P
+.TP
+.B netfilter.ip.local_in 
+Called on an incoming IP packet addressed to the local computer
+.IP
+ See 
+.IR probe::netfilter.ip.local_in (3stap)
+ for details.
+.P
+.TP
+.B netfilter.ip.forward 
+Called on an incoming IP packet addressed to some other computer
+.IP
+ See 
+.IR probe::netfilter.ip.forward (3stap)
+ for details.
+.P
+.TP
+.B netfilter.ip.local_out 
+Called on an outgoing IP packet
+.IP
+ See 
+.IR probe::netfilter.ip.local_out (3stap)
+ for details.
+.P
+.TP
+.B netfilter.ip.post_routing 
+Called immediately before an outgoing IP packet leaves the computer
+.IP
+ See 
+.IR probe::netfilter.ip.post_routing (3stap)
+ for details.
+.P
+.TP
+.B netfilter.bridge.local_in 
+Called on a bridging packet destined for the local computer
+.IP
+ See 
+.IR probe::netfilter.bridge.local_in (3stap)
+ for details.
+.P
+.TP
+.B netfilter.bridge.forward 
+Called on an incoming bridging packet destined for some other computer
+.IP
+ See 
+.IR probe::netfilter.bridge.forward (3stap)
+ for details.
+.P
+.TP
+.B netfilter.bridge.local_out 
+Called on a bridging packet coming from a local process
+.IP
+ See 
+.IR probe::netfilter.bridge.local_out (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%probe::netfilter.ip.pre_routing (3stap),
+.BR
+.IR \%probe::netfilter.ip.local_in (3stap),
+.BR
+.IR \%probe::netfilter.ip.forward (3stap),
+.BR
+.IR \%probe::netfilter.ip.local_out (3stap),
+.BR
+.IR \%probe::netfilter.ip.post_routing (3stap),
+.BR
+.IR \%probe::netfilter.arp.in (3stap),
+.BR
+.IR \%probe::netfilter.arp.out (3stap),
+.BR
+.IR \%probe::netfilter.arp.forward (3stap),
+.BR
+.IR \%probe::netfilter.bridge.pre_routing (3stap),
+.BR
+.IR \%probe::netfilter.bridge.local_in (3stap),
+.BR
+.IR \%probe::netfilter.bridge.forward (3stap),
+.BR
+.IR \%probe::netfilter.bridge.local_out (3stap),
+.BR
+.IR \%probe::netfilter.bridge.post_routing (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

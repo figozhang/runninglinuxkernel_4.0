@@ -1,0 +1,7 @@
+title: pingpong game
+name: pingpong.stp
+keywords: stapgames
+description: A simulated ball bounces around the terminal reflecting at the edges
+test_support: stap -l 'kernel.function("tty_do_resize")' && stap -l 'kernel.function("input_event")'
+test_check: stap -p4 -Itapset/ pingpong.stp
+test_installcheck: stap -p4 -Itapset/ pingpong.stp

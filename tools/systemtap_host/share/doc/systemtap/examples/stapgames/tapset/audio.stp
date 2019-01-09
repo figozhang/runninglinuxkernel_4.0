@@ -1,0 +1,93 @@
+# systemtap audio tapset
+# Copyright (C) 2008 Masami Hiramatsu <masami.hiramatsu@gmail.com>
+# 
+# This file is free software and is distributed under the terms of the GNU
+# General Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+%{
+#include <linux/vt_kern.h>
+%}
+
+%( kernel_v >= "2.6.25" %? 
+function game_beep(hz:long, ms:long)
+%{
+  unsigned int tick = msecs_to_jiffies((unsigned int)THIS->ms);
+  kd_mksound((unsigned int)THIS->hz, tick);
+%}
+%)
+
+function game_nobeep()
+{
+  game_beep(0,0)
+}
+
+global __GM_scale
+global __GM_merody
+global __GM_merody_nth
+global __GM_merody_seq
+global __GM_merody_cnt
+
+probe begin(-1001) {
+  __GM_scale["c"]  = 262
+  __GM_scale["c+"] = 277
+  __GM_scale["d"]  = 294
+  __GM_scale["d+"] = 311
+  __GM_scale["e"]  = 330
+  __GM_scale["f"]  = 349
+  __GM_scale["f+"] = 370
+  __GM_scale["g"]  = 392
+  __GM_scale["g+"] = 415
+  __GM_scale["a"]  = 440
+  __GM_scale["a+"] = 466
+  __GM_scale["b"]  = 494
+  delete __GM_merody
+}
+
+function game_tone(tone:string, nth:long, ms:long)
+{
+  if ([tone] in __GM_scale) {
+    tone2 = __GM_scale[tone];
+    for (i=0;i<nth-3;i++) tone2*=2
+    for (i=0;i>nth-3;i--) tone2/=2
+    game_beep(tone2, ms)
+  }
+}
+
+function game_merody(merody:string)
+{
+  i = 0
+  delete __GM_merody
+  c = tokenize(merody, " ")
+  while (c != "") {
+   __GM_merody[i, 0] = c
+   c = tokenize("",",")
+   __GM_merody[i, 1] = c
+   c = tokenize(""," ")
+   i++
+  }
+  __GM_merody_seq = 0
+  __GM_merody_nth = 3
+  __GM_merody_cnt = 1
+}
+
+probe timer.ms(64) {
+  if (__GM_merody_cnt-- > 0) next;
+  seq = __GM_merody_seq;
+  while ([seq, 0] in __GM_merody) {
+    c = __GM_merody[seq, 0]
+    l = strtol(__GM_merody[seq, 1], 10)
+    seq++
+    if (c == ">") {
+	__GM_merody_nth += l
+    } else if (c == "<" ) {
+	__GM_merody_nth -= l
+    } else {
+        break;
+    }
+  }
+  game_tone(c, __GM_merody_nth, l*64)
+  __GM_merody_cnt = l
+  __GM_merody_seq = seq
+}
+

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<CustomTxtTraceDefinitionList>
+<Definition name="Proc_Snoop_Parser">
+<TimeStampOutputFormat/>
+<InputLine>
+<Cardinality max="2147483647" min="0"/>
+<RegEx> *TIMESTAMP *PID *TID *EXECNAME *ACTION</RegEx>
+</InputLine>
+<InputLine>
+<Cardinality max="2147483647" min="0"/>
+<RegEx> *(\d*) *(\d*) *(\d*) *(\S*) *(.*)</RegEx>
+<InputData action="0" format="" name="Timestamp"/>
+<InputData action="0" format="" name="PID"/>
+<InputData action="0" format="" name="TID"/>
+<InputData action="2" format="" name="Execname"/>
+<InputData action="0" format="" name="Action"/>
+</InputLine>
+<OutputColumn name="Timestamp"/>
+<OutputColumn name="PID"/>
+<OutputColumn name="TID"/>
+<OutputColumn name="Execname"/>
+<OutputColumn name="Action"/>
+</Definition>
+</CustomTxtTraceDefinitionList>

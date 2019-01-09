@@ -1,0 +1,6 @@
+title: Profile Kernel Functions
+name: thread-times.stp
+keywords: _best profiling
+description: The thread-times.stp script sets up time-based sampling.  Every five seconds it prints out a sorted list with the top twenty threads occupying the CPUs, broken down as a percentage of user and kernel time.
+test_check: stap -p4 thread-times.stp
+test_installcheck: stap thread-times.stp -c "sleep 1"

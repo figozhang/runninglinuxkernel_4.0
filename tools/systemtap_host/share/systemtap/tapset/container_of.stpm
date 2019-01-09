@@ -1,0 +1,7 @@
+@define container_of(ptr, type, member) %(
+    @cast(@ptr - @offsetof(@type, @member), @type)
+%)
+
+@define module_container_of(ptr, module, type, member) %(
+    @cast(@ptr - @module_offsetof(@module, @type, @member), @type, @module)
+%)

@@ -1,0 +1,110 @@
+/*
+ *      Copyright (C) 2009 IBM Corp.
+ *      Copyright (C) 2010 Red Hat Inc.
+ *
+ *      This file is part of systemtap, and is free software.  You can
+ *      redistribute it and/or modify it under the terms of the GNU General
+ *      Public License (GPL); either version 2, or (at your option) any
+ *      later version.
+ *      
+ *      Version 1.0     wilder@us.ibm.com     2009-07-06
+ */
+
+global DelayedACKs		/* LINUX_MIB_DELAYEDACKS */
+global ListenOverflows		/* LINUX_MIB_LISTENOVERFLOWS */
+global ListenDrops		/* LINUX_MIB_LISTENDROPS */
+global TCPMemoryPressures	/* LINUX_MIB_TCPMEMORYPRESSURES */
+
+/**
+ * probe linuxmib.DelayedACKs - Count of delayed acks
+ * @sk: Pointer to the struct sock being acted on
+ * @op: Value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * linuxmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @DelayedACKs (equivalent to SNMP's MIB
+ * LINUX_MIB_DELAYEDACKS)
+ */
+global indelack_timer
+probe linuxmib.DelayedACKs = _linuxmib.DelayedACKs.* {}
+
+probe _linuxmib.DelayedACKs.A = kernel.function("tcp_send_ack")
+{
+	sk=$sk
+	if ( !indelack_timer[sk] ) next
+	op=1
+	key = linuxmib_filter_key(sk,op);
+	if ( key ) DelayedACKs[key] += op;
+}
+
+probe _linuxmib.DelayedACKs.B = kernel.function("tcp_delack_timer")
+{
+	sk=$data
+	indelack_timer[sk]=1
+	op=0
+}
+
+probe _linuxmib.DelayedACKs.C = kernel.function("tcp_delack_timer").return
+{
+	sk=$data
+	indelack_timer[sk]=0;
+	op=0
+}
+
+/**
+ * probe linuxmib.ListenOverflows - Count of times a listen queue overflowed
+ * @sk: Pointer to the struct sock being acted on
+ * @op: Value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * linuxmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @ListenOverflows (equivalent to SNMP's MIB
+ * LINUX_MIB_LISTENOVERFLOWS)
+ */
+probe linuxmib.ListenOverflows=kernel.function("tcp_v4_syn_recv_sock").return
+{
+	sk = $sk
+	if ( $return ) next
+	if ( $sk->sk_ack_backlog <= $sk->sk_max_ack_backlog ) next
+	op = 1;
+	key = linuxmib_filter_key(sk,op);
+	if ( key ) ListenOverflows[key] += op;
+}
+
+/**
+ * probe linuxmib.ListenDrops - Count of times conn request that were dropped
+ * @sk: Pointer to the struct sock being acted on
+ * @op: Value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * linuxmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @ListenDrops (equivalent to SNMP's MIB
+ * LINUX_MIB_LISTENDROPS)
+ */
+probe linuxmib.ListenDrops=kernel.function("tcp_v4_syn_recv_sock").return
+{
+	sk = $sk
+	if ( $return ) next
+	op = 1;
+	key = linuxmib_filter_key(sk,op);
+	if ( key ) ListenDrops[key] += op;
+}
+
+/**
+ * probe linuxmib.TCPMemoryPressures - Count of times memory pressure was used
+ * @sk: Pointer to the struct sock being acted on
+ * @op: Value to be added to the counter (default value of 1)
+ *
+ * The packet pointed to by @skb is filtered by the function
+ * linuxmib_filter_key(). If the packet passes the filter is is
+ * counted in the global @TCPMemoryPressures (equivalent to SNMP's MIB
+ * LINUX_MIB_TCPMEMORYPRESSURES)
+ */
+probe linuxmib.TCPMemoryPressures=kernel.function("tcp_enter_memory_pressure")
+{
+	sk = @choose_defined($sk, 0)
+	op = 1;
+	if ( $tcp_memory_pressure ) next
+	key = linuxmib_filter_key(sk,op);
+        if ( key ) TCPMemoryPressures[key] += op;
+}

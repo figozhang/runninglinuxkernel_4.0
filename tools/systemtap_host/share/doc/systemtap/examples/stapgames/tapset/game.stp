@@ -1,0 +1,31 @@
+# Miscellaneous routines for games
+# Copyright (C) 2008 Masami Hiramatsu <masami.hiramatsu@gmail.com>
+#
+# This file is free software and is distributed under the terms of the GNU
+# General Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+global __GM_rand_seed
+
+function game_srand(seed:long)
+{
+  __GM_rand_seed = seed
+}
+
+function __game_lfsr(val:long) /* pure */
+%{
+  u64 r = THIS->val;
+  r = (r >> 1) ^ ((-(r & 1ULL)) & 0xd800000000000000ULL);
+  THIS->__retvalue = r;
+%}
+
+function game_rand()
+{
+  return __GM_rand_seed = __game_lfsr(__GM_rand_seed)
+}
+
+function game_urand()
+{
+  rand = game_rand()
+  return rand<0?-rand:rand
+}

@@ -1,0 +1,37 @@
+#! /usr/bin/env stap
+
+%( CONFIG_64BIT == "y" %?
+global profile%[20000], pcount
+%:
+# On a 32-bit platform, the profile array must be smaller, otherwise
+# its allocation will fail on module startup.
+global profile%[5000], pcount
+%)
+probe timer.profile {
+  pcount <<< 1
+  # NB: we resolve to a function name here (rather than recording only
+  # the PC), because during a later pc->name lookup, the process context
+  # may be different.
+  if (!user_mode())
+    try { // modname() can throw
+      fn = "k:".modname(addr()).":".symname(addr())
+    } catch {
+      fn = "k:<unknown>:".symname(addr())
+    }
+  else {
+    try { // umodname() can throw
+      fn = "u:".umodname(uaddr()).":".usymname(uaddr())
+    } catch {
+      fn = "u:<unknown>:".usymname(uaddr())
+    }
+  }
+  profile[fn] <<< 1
+}
+probe timer.ms(5000) {
+  printf ("\n--- %d samples recorded:\n", @count(pcount))
+  foreach (f in profile- limit 20) {
+    printf ("%-30s\t%6d\n", f, @count(profile[f]))
+  }
+  delete profile
+  delete pcount
+}

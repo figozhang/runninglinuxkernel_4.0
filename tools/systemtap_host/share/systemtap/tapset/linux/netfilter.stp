@@ -1,0 +1,789 @@
+/* netfilter.stp - netfilter hook tapset
+ *
+ * Copyright (C) 2012 Red Hat Inc.
+ * <tapsetdescription>
+ * This family of probe points provides a simple way to examine network traffic using the netfilter hooks mechanism.
+ * </tapsetdescription>
+ */
+
+/* The below functionality is mostly inspired by tcp.stp and networking.stp. */
+
+%{
+#include <linux/in.h>
+#include <linux/skbuff.h>
+#include <linux/netfilter_arp.h>
+#include <linux/if_arp.h>
+#include <net/ipv6.h>
+#include <net/llc_pdu.h>
+#include <linux/llc.h>
+%}
+
+# XXX: IPPROTO_* and NF_* constants should be secure globals -- needs PR10607
+  # ... currently we use a hideous copypasta hack which defines them as
+  # locals in each probe alias. Blegh
+
+@__private30 function __mac_addr_to_string:string(addr:long) {
+         return sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
+                        kernel_char(addr)&255, kernel_char(addr+1)&255,
+                        kernel_char(addr+2)&255, kernel_char(addr+3)&255,
+                        kernel_char(addr+4)&255, kernel_char(addr+5)&255)
+}
+
+@__private30 function __get_mac_addr:string(addr:long) {
+         return __mac_addr_to_string(@cast(addr, "struct net_device", "kernel<linux/netdevice.h>")->dev_addr)
+}
+
+@__private30 function __get_skb_arphdr:long(addr:long)
+{
+        // The method is exactly the same as for an IP header:
+        return __get_skb_iphdr(addr)
+}
+
+/* returns the bridge header for kernel >= 2.6.21 */
+@__private30 function __get_skb_brhdr_new:long(skb:long)
+%{ /* pure */
+    struct sk_buff *skb;
+    skb = (struct sk_buff *)(long)STAP_ARG_skb;
+    /* as done by skb_network_header() */
+    #ifdef NET_SKBUFF_DATA_USES_OFFSET
+        STAP_RETVALUE = (long)(kread(&(skb->head)) + kread(&(skb->network_header)) + sizeof(struct llc_pdu_un));
+    #else
+        STAP_RETVALUE = (long)(kread(&(skb->network_header)) + sizeof(struct llc_pdu_un));
+    #endif
+    CATCH_DEREF_FAULT();
+%}
+
+/* returns the bridge header for a given sk_buff structure */
+@__private30 function __get_skb_brhdr:long(skb:long)
+{
+%( kernel_v < "2.6.21" %?
+	brhdr = @cast(skb, "sk_buff")->mac->raw + %{ /* pure */ sizeof(struct llc_pdu_un) %}
+	return brhdr
+%:
+	return __get_skb_brhdr_new(skb)
+%)
+}
+
+/* returns llc_pdu_un for a given sk_buff structure */
+@__private30 function __get_skb_llc:long(skb:long)
+%{ /* pure */
+    struct sk_buff *skb;
+    skb = (struct sk_buff *)(long)STAP_ARG_skb;
+    /* as done by skb_network_header() */
+    #ifdef NET_SKBUFF_DATA_USES_OFFSET
+        STAP_RETVALUE = (long)(kread(&(skb->head)) + kread(&(skb->network_header)));
+    #else
+        STAP_RETVALUE = (long)kread(&(skb->network_header));
+    #endif
+    CATCH_DEREF_FAULT();
+%}
+
+@__private30 function __ip6_skb_proto:long(addr:long)
+%{ /* pure */
+   struct sk_buff *skb = (struct sk_buff *)(uintptr_t)STAP_ARG_addr;
+   struct ipv6hdr *hdr;
+   u8 nexthdr;
+
+   /* We call deref() here to ensure the memory at the skb location
+    * is valid to read, to avoid potential kernel panic calling ipv6_hdr(). */
+   (void)kderef_buffer(NULL, skb, sizeof(struct sk_buff));
+   hdr = ipv6_hdr(skb);
+   nexthdr = kread(&(hdr->nexthdr));
+
+   if (ipv6_ext_hdr(nexthdr)) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
+     long result = ipv6_skip_exthdr(skb, sizeof(*hdr), &nexthdr);     
+#else
+     __be16 frag_offp;
+     int extoff = (u8 *)(hdr + 1) - kread(&(skb->data));
+     long result = ipv6_skip_exthdr(skb, extoff, &nexthdr, &frag_offp);
+#endif
+     STAP_RETVALUE = result < 0 ? 0 : result;
+   } else {
+     STAP_RETVALUE = 0;
+   }
+   CATCH_DEREF_FAULT();
+%}
+
+@define netfilter_common_setup(pf_name) %(
+        pf = @pf_name
+
+        /* XXX not relevant for netfilter.arp & netfilter.bridge probes */
+        ipproto_tcp = %{ /* pure */ IPPROTO_TCP %}
+        ipproto_udp = %{ /* pure */ IPPROTO_UDP %}
+
+        /* from include/linux/netfilter.h: */
+        nf_drop = 0
+        nf_accept = 1
+        nf_stolen = 2
+        nf_queue = 3
+        nf_repeat = 4
+        nf_stop = 5
+
+        indev = & @cast($in, "struct net_device", "kernel<linux/netdevice.h>")
+        outdev = & @cast($out, "struct net_device", "kernel<linux/netdevice.h>")
+        indev_name = kernel_string(indev->name, "")
+        outdev_name = kernel_string(outdev->name, "")
+
+        if (indev) {
+           indev_mac_len = indev->addr_len
+           in_mac = __get_mac_addr(indev)
+        }
+        if (outdev) {
+           outdev_mac_len = outdev->addr_len
+           out_mac = __get_mac_addr(outdev)
+        }
+%)
+
+@define netfilter_ip4_setup %(
+        iphdr = __get_skb_iphdr($skb)
+        family = %{ /* pure */ AF_INET %}
+        saddr = format_ipaddr(__ip_skb_saddr(iphdr), %{ /* pure */ AF_INET %})
+        daddr = format_ipaddr(__ip_skb_daddr(iphdr), %{ /* pure */ AF_INET %})
+        protocol = __ip_skb_proto(iphdr)
+
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+
+        tcphdr = __get_skb_tcphdr($skb)
+        if (protocol == ipproto_tcp) {
+           dport = __tcp_skb_dport(tcphdr)
+           sport = __tcp_skb_sport(tcphdr)
+           urg = __tcp_skb_urg(tcphdr)
+           ack = __tcp_skb_ack(tcphdr)
+           psh = __tcp_skb_psh(tcphdr)
+           rst = __tcp_skb_rst(tcphdr)
+           syn = __tcp_skb_syn(tcphdr)
+           fin = __tcp_skb_fin(tcphdr)
+        }
+
+        /* udphdr is in the same place where tcphdr would have been */
+        udphdr = & @cast(tcphdr, "udphdr", "kernel<linux/udp.h>")
+        if (protocol == ipproto_udp) {
+           dport = ntohs(udphdr->dest)
+           sport = ntohs(udphdr->source)
+        }
+%)
+
+@define netfilter_ip6_setup %(
+        iphdr = &@cast(__get_skb_iphdr($skb), "ipv6hdr", "kernel<linux/ipv6.h>")
+        family = %{ /* pure */ AF_INET6 %}
+        saddr = format_ipaddr(&iphdr->saddr, %{ /* pure */ AF_INET6 %})
+        daddr = format_ipaddr(&iphdr->daddr, %{ /* pure */ AF_INET6 %})
+        protocol = __ip6_skb_proto($skb)
+
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+
+        tcphdr = __get_skb_tcphdr($skb)
+        if (protocol == ipproto_tcp) {
+           dport = __tcp_skb_dport(tcphdr)
+           sport = __tcp_skb_sport(tcphdr)
+           urg = __tcp_skb_urg(tcphdr)
+           ack = __tcp_skb_ack(tcphdr)
+           psh = __tcp_skb_psh(tcphdr)
+           rst = __tcp_skb_rst(tcphdr)
+           syn = __tcp_skb_syn(tcphdr)
+           fin = __tcp_skb_fin(tcphdr)
+        }
+
+        /* udphdr is in the same place where tcphdr would have been */
+        udphdr = & @cast(tcphdr, "udphdr", "kernel<linux/udp.h>")
+        if (protocol == ipproto_udp) {
+           dport = ntohs(udphdr->dest)
+           sport = ntohs(udphdr->source)
+        }        
+%)
+
+/**
+ * probe netfilter.ip.pre_routing - Called before an IP packet is routed
+ * @pf: Protocol family - either 'ipv4' or 'ipv6'
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @length: The length of the packet buffer contents, in bytes
+ * @iphdr: Address of IP header
+ * @protocol: Packet protocol from driver (ipv4 only)
+ * @ipproto_tcp: Constant used to signify that the packet protocol is TCP
+ * @ipproto_udp: Constant used to signify that the packet protocol is UDP
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ * @family: IP address family
+ * @saddr: A string representing the source IP address
+ * @daddr: A string representing the destination IP address
+ * @sport: TCP or UDP source port (ipv4 only)
+ * @dport: TCP or UDP destination port (ipv4 only)
+ * @urg: TCP URG flag (if protocol is TCP; ipv4 only)
+ * @ack: TCP ACK flag (if protocol is TCP; ipv4 only)
+ * @psh: TCP PSH flag (if protocol is TCP; ipv4 only)
+ * @rst: TCP RST flag (if protocol is TCP; ipv4 only)
+ * @syn: TCP SYN flag (if protocol is TCP; ipv4 only)
+ * @fin: TCP FIN flag (if protocol is TCP; ipv4 only)
+ */
+probe netfilter.ip.pre_routing = netfilter.ipv4.pre_routing,
+        netfilter.ipv6.pre_routing
+{
+}
+
+probe netfilter.ipv4.pre_routing
+        = netfilter.hook("NF_INET_PRE_ROUTING").pf("NFPROTO_IPV4")
+{
+        @netfilter_common_setup("ipv4")
+        @netfilter_ip4_setup
+}
+
+
+probe netfilter.ipv6.pre_routing
+        = netfilter.hook("NF_IP6_PRE_ROUTING").pf("NFPROTO_IPV6")
+{
+        @netfilter_common_setup("ipv6")
+        @netfilter_ip6_setup
+}
+
+/**
+ * probe netfilter.ip.local_in - Called on an incoming IP packet addressed to the local computer
+ * @pf: Protocol family -- either "ipv4" or "ipv6"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @length: The length of the packet buffer contents, in bytes
+ * @iphdr: Address of IP header
+ * @protocol: Packet protocol from driver (ipv4 only)
+ * @ipproto_tcp: Constant used to signify that the packet protocol is TCP
+ * @ipproto_udp: Constant used to signify that the packet protocol is UDP
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ * @family: IP address family
+ * @saddr: A string representing the source IP address
+ * @daddr: A string representing the destination IP address
+ * @sport: TCP or UDP source port (ipv4 only)
+ * @dport: TCP or UDP destination port (ipv4 only)
+ * @urg: TCP URG flag (if protocol is TCP; ipv4 only)
+ * @ack: TCP ACK flag (if protocol is TCP; ipv4 only)
+ * @psh: TCP PSH flag (if protocol is TCP; ipv4 only)
+ * @rst: TCP RST flag (if protocol is TCP; ipv4 only)
+ * @syn: TCP SYN flag (if protocol is TCP; ipv4 only)
+ * @fin: TCP FIN flag (if protocol is TCP; ipv4 only)
+ */
+probe netfilter.ip.local_in = netfilter.ipv4.local_in,
+        netfilter.ipv6.local_in
+{
+}
+
+probe netfilter.ipv4.local_in
+        = netfilter.hook("NF_INET_LOCAL_IN").pf("NFPROTO_IPV4")
+{
+        @netfilter_common_setup("ipv4")
+        @netfilter_ip4_setup
+}
+
+
+probe netfilter.ipv6.local_in
+        = netfilter.hook("NF_IP6_LOCAL_IN").pf("NFPROTO_IPV6")
+{
+        @netfilter_common_setup("ipv6")
+        @netfilter_ip6_setup
+}
+
+/**
+ * probe netfilter.ip.forward - Called on an incoming IP packet addressed to some other computer
+ * @pf: Protocol family -- either "ipv4" or "ipv6"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @length: The length of the packet buffer contents, in bytes
+ * @iphdr: Address of IP header
+ * @protocol: Packet protocol from driver (ipv4 only)
+ * @ipproto_tcp: Constant used to signify that the packet protocol is TCP
+ * @ipproto_udp: Constant used to signify that the packet protocol is UDP
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ * @family: IP address family
+ * @saddr: A string representing the source IP address
+ * @daddr: A string representing the destination IP address
+ * @sport: TCP or UDP source port (ipv4 only)
+ * @dport: TCP or UDP destination port (ipv4 only)
+ * @urg: TCP URG flag (if protocol is TCP; ipv4 only)
+ * @ack: TCP ACK flag (if protocol is TCP; ipv4 only)
+ * @psh: TCP PSH flag (if protocol is TCP; ipv4 only)
+ * @rst: TCP RST flag (if protocol is TCP; ipv4 only)
+ * @syn: TCP SYN flag (if protocol is TCP; ipv4 only)
+ * @fin: TCP FIN flag (if protocol is TCP; ipv4 only)
+ */
+probe netfilter.ip.forward = netfilter.ipv4.forward,
+        netfilter.ipv6.forward
+{
+}
+
+probe netfilter.ipv4.forward
+        = netfilter.hook("NF_INET_FORWARD").pf("NFPROTO_IPV4")
+{
+        @netfilter_common_setup("ipv4")
+        @netfilter_ip4_setup
+}
+
+
+probe netfilter.ipv6.forward
+        = netfilter.hook("NF_IP6_FORWARD").pf("NFPROTO_IPV6")
+{
+        @netfilter_common_setup("ipv6")
+        @netfilter_ip6_setup
+}
+
+/**
+ * probe netfilter.ip.local_out - Called on an outgoing IP packet
+ * @pf: Protocol family -- either "ipv4" or "ipv6"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @length: The length of the packet buffer contents, in bytes
+ * @iphdr: Address of IP header
+ * @protocol: Packet protocol from driver (ipv4 only)
+ * @ipproto_tcp: Constant used to signify that the packet protocol is TCP
+ * @ipproto_udp: Constant used to signify that the packet protocol is UDP
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ * @family: IP address family
+ * @saddr: A string representing the source IP address
+ * @daddr: A string representing the destination IP address
+ * @sport: TCP or UDP source port (ipv4 only)
+ * @dport: TCP or UDP destination port (ipv4 only)
+ * @urg: TCP URG flag (if protocol is TCP; ipv4 only)
+ * @ack: TCP ACK flag (if protocol is TCP; ipv4 only)
+ * @psh: TCP PSH flag (if protocol is TCP; ipv4 only)
+ * @rst: TCP RST flag (if protocol is TCP; ipv4 only)
+ * @syn: TCP SYN flag (if protocol is TCP; ipv4 only)
+ * @fin: TCP FIN flag (if protocol is TCP; ipv4 only)
+ */
+probe netfilter.ip.local_out = netfilter.ipv4.local_out,
+        netfilter.ipv6.local_out
+{
+}
+
+probe netfilter.ipv4.local_out
+        = netfilter.hook("NF_INET_LOCAL_OUT").pf("NFPROTO_IPV4")
+{
+        @netfilter_common_setup("ipv4")
+        @netfilter_ip4_setup
+}
+
+probe netfilter.ipv6.local_out
+        = netfilter.hook("NF_IP6_LOCAL_OUT").pf("NFPROTO_IPV6")
+{
+        @netfilter_common_setup("ipv6")
+        @netfilter_ip6_setup
+}
+
+/**
+ * probe netfilter.ip.post_routing - Called immediately before an outgoing IP packet leaves the computer
+ * @pf: Protocol family -- either "ipv4" or "ipv6"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @length: The length of the packet buffer contents, in bytes
+ * @iphdr: Address of IP header
+ * @protocol: Packet protocol from driver (ipv4 only)
+ * @ipproto_tcp: Constant used to signify that the packet protocol is TCP
+ * @ipproto_udp: Constant used to signify that the packet protocol is UDP
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ * @family: IP address family
+ * @saddr: A string representing the source IP address
+ * @daddr: A string representing the destination IP address
+ * @sport: TCP or UDP source port (ipv4 only)
+ * @dport: TCP or UDP destination port (ipv4 only)
+ * @urg: TCP URG flag (if protocol is TCP; ipv4 only)
+ * @ack: TCP ACK flag (if protocol is TCP; ipv4 only)
+ * @psh: TCP PSH flag (if protocol is TCP; ipv4 only)
+ * @rst: TCP RST flag (if protocol is TCP; ipv4 only)
+ * @syn: TCP SYN flag (if protocol is TCP; ipv4 only)
+ * @fin: TCP FIN flag (if protocol is TCP; ipv4 only)
+ */
+probe netfilter.ip.post_routing = netfilter.ipv4.post_routing,
+        netfilter.ipv6.local_out
+{
+}
+
+probe netfilter.ipv4.post_routing
+        = netfilter.hook("NF_INET_POST_ROUTING").pf("NFPROTO_IPV4")
+{
+        @netfilter_common_setup("ipv4")
+        @netfilter_ip4_setup
+}
+
+
+probe netfilter.ipv6.post_routing
+        = netfilter.hook("NF_IP6_POST_ROUTING").pf("NFPROTO_IPV6")
+{
+        @netfilter_common_setup("ipv6")
+        @netfilter_ip6_setup
+}
+
+@define netfilter_arp_setup %(
+# XXX: include functionality to parse ARP packet contents
+        arphdr = & @cast(__get_skb_arphdr($skb), "struct arphdr", "kernel<linux/if_arp.h>")
+        family = %{ /* pure */ NF_ARP %} // from linux/netfilter_arp.h
+        ar_hrd = ntohs(arphdr->ar_hrd)
+        ar_pro = ntohs(arphdr->ar_pro)
+        ar_hln = arphdr->ar_hln
+        ar_pln = arphdr->ar_pln
+        ar_op = ntohs(arphdr->ar_op)
+
+        ar_data = arphdr + 8
+        if (ar_hrd == 0x001 && ar_pro == 0x800) {
+           /* additional info available for most common (Ethernet+IP) case: */
+           ar_sha = __mac_addr_to_string(ar_data)
+           ar_sip = format_ipaddr(kernel_int(ar_data + 6), %{ /* pure */ AF_INET %})
+           ar_tha = __mac_addr_to_string(ar_data + 10)
+           ar_tip =  format_ipaddr(kernel_int(ar_data + 16), %{ /* pure */ AF_INET %})
+        }
+        /* XXX support for additional cases? */
+
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+%)
+
+/**
+ * probe netfilter.arp.in -- Called for each incoming ARP packet
+ * @pf: Protocol family -- always "arp"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @length: The length of the packet buffer contents, in bytes
+ * @arphdr: Address of ARP header
+ * @ar_hrd: Format of hardware address
+ * @ar_pro: Format of protocol address
+ * @ar_hln: Length of hardware address
+ * @ar_pln: Length of protocol address
+ * @ar_op: ARP opcode (command)
+ * @ar_data: Address of ARP packet data region (after the header)
+ * @ar_sha: Ethernet+IP only (ar_pro==0x800): source hardware (MAC) address 
+ * @ar_sip: Ethernet+IP only (ar_pro==0x800): source IP address
+ * @ar_tha: Ethernet+IP only (ar_pro==0x800): target hardware (MAC) address
+ * @ar_tip: Ethernet+IP only (ar_pro==0x800): target IP address
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ */
+probe netfilter.arp.in = netfilter.hook("NF_ARP_IN").pf("NFPROTO_ARP")
+{
+        @netfilter_common_setup("arp")
+        @netfilter_arp_setup
+}
+
+
+/**
+ * probe netfilter.arp.out -- Called for each outgoing ARP packet
+ * @pf: Protocol family -- always "arp"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @length: The length of the packet buffer contents, in bytes
+ * @arphdr: Address of ARP header
+ * @ar_hrd: Format of hardware address
+ * @ar_pro: Format of protocol address
+ * @ar_hln: Length of hardware address
+ * @ar_pln: Length of protocol address
+ * @ar_op: ARP opcode (command)
+ * @ar_data: Address of ARP packet data region (after the header)
+ * @ar_sha: Ethernet+IP only (ar_pro==0x800): source hardware (MAC) address 
+ * @ar_sip: Ethernet+IP only (ar_pro==0x800): source IP address
+ * @ar_tha: Ethernet+IP only (ar_pro==0x800): target hardware (MAC) address
+ * @ar_tip: Ethernet+IP only (ar_pro==0x800): target IP address
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ */
+probe netfilter.arp.out = netfilter.hook("NF_ARP_OUT").pf("NFPROTO_ARP")
+{
+        @netfilter_common_setup("arp")
+        @netfilter_arp_setup
+}
+
+/**
+ * probe netfilter.arp.forward -- Called for each ARP packet to be forwarded
+ * @pf: Protocol family -- always "arp"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @length: The length of the packet buffer contents, in bytes
+ * @arphdr: Address of ARP header
+ * @ar_hrd: Format of hardware address
+ * @ar_pro: Format of protocol address
+ * @ar_hln: Length of hardware address
+ * @ar_pln: Length of protocol address
+ * @ar_op: ARP opcode (command)
+ * @ar_data: Address of ARP packet data region (after the header)
+ * @ar_sha: Ethernet+IP only (ar_pro==0x800): source hardware (MAC) address 
+ * @ar_sip: Ethernet+IP only (ar_pro==0x800): source IP address
+ * @ar_tha: Ethernet+IP only (ar_pro==0x800): target hardware (MAC) address
+ * @ar_tip: Ethernet+IP only (ar_pro==0x800): target IP address
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ */
+probe netfilter.arp.forward = netfilter.hook("NF_ARP_FORWARD").pf("NFPROTO_ARP")
+{
+        @netfilter_common_setup("arp")
+        @netfilter_arp_setup
+}
+
+@define netfilter_bridge_setup %(
+        llcpdu = &@cast(__get_skb_llc($skb), "struct llc_pdu_un", "kernel<net/llc_pdu.h>")
+        brhdr = __get_skb_brhdr($skb)
+        llcproto_stp = %{ /* pure */ LLC_SAP_BSPAN %} // from linux/llc.h
+
+        if (llcpdu->dsap == llcproto_stp && llcpdu->ssap == llcproto_stp) {
+            protocol = llcproto_stp
+            br_prid = ntohs(kernel_short(brhdr))
+            br_vid = kernel_char(brhdr + 2)
+            br_type = kernel_char(brhdr + 3)
+            br_flags = kernel_char(brhdr + 4)
+            br_rid = kernel_long(brhdr + 5)
+            br_rmac = __mac_addr_to_string(brhdr + 7)
+            br_cost = ntohl(kernel_int(brhdr + 13))
+            br_bid = kernel_long(brhdr + 17)
+            br_mac = __mac_addr_to_string(brhdr + 19)
+            br_poid = ntohs(kernel_short(brhdr + 25))
+            br_msg = ntohs(kernel_short(brhdr + 27))
+            br_max = ntohs(kernel_short(brhdr + 29))
+            br_htime = ntohs(kernel_short(brhdr + 31))
+            br_fd = ntohs(kernel_short(brhdr + 33))
+        }
+
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+%)
+
+/**
+ * probe netfilter.bridge.pre_routing -- Called before a bridging packet is routed
+ * @pf: Protocol family -- always "bridge"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @llcpdu: Address of LLC Protocol Data Unit
+ * @brhdr: Address of bridge header
+ * @llcproto_stp: Constant used to signify Bridge Spanning Tree Protocol packet
+ * @protocol: Packet protocol
+ * @br_prid: Protocol identifier
+ * @br_vid: Protocol version identifier
+ * @br_type: BPDU type
+ * @br_flags: BPDU flags
+ * @br_rid: Identity of root bridge
+ * @br_rmac: Root bridge MAC address
+ * @br_cost: Total cost from transmitting bridge to root
+ * @br_bid: Identity of bridge
+ * @br_mac: Bridge MAC address
+ * @br_poid: Port identifier
+ * @br_msg: Message age in 1/256 secs
+ * @br_max: Max age in 1/256 secs
+ * @br_htime: Hello time in 1/256 secs
+ * @br_fd: Forward delay in 1/256 secs
+ * @length: The length of the packet buffer contents, in bytes
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ */
+probe netfilter.bridge.pre_routing
+        = netfilter.hook("NF_BR_PRE_ROUTING").pf("NFPROTO_BRIDGE")
+{
+        @netfilter_common_setup("bridge")
+        @netfilter_bridge_setup
+}
+
+/**
+ * probe netfilter.bridge.local_in - Called on a bridging packet destined for the local computer
+ * @pf: Protocol family -- always "bridge"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @llcpdu: Address of LLC Protocol Data Unit
+ * @brhdr: Address of bridge header
+ * @llcproto_stp: Constant used to signify Bridge Spanning Tree Protocol packet
+ * @protocol: Packet protocol
+ * @br_prid: Protocol identifier
+ * @br_vid: Protocol version identifier
+ * @br_type: BPDU type
+ * @br_flags: BPDU flags
+ * @br_rid: Identity of root bridge
+ * @br_rmac: Root bridge MAC address
+ * @br_cost: Total cost from transmitting bridge to root
+ * @br_bid: Identity of bridge
+ * @br_mac: Bridge MAC address
+ * @br_poid: Port identifier
+ * @br_msg: Message age in 1/256 secs
+ * @br_max: Max age in 1/256 secs
+ * @br_htime: Hello time in 1/256 secs
+ * @br_fd: Forward delay in 1/256 secs
+ * @length: The length of the packet buffer contents, in bytes
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ */
+probe netfilter.bridge.local_in
+        = netfilter.hook("NF_BR_LOCAL_IN").pf("NFPROTO_BRIDGE")
+{
+        @netfilter_common_setup("bridge")
+        @netfilter_bridge_setup
+}
+
+/**
+ * probe netfilter.bridge.forward - Called on an incoming bridging packet destined for some other computer
+ * @pf: Protocol family -- always "bridge"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @llcpdu: Address of LLC Protocol Data Unit
+ * @brhdr: Address of bridge header
+ * @llcproto_stp: Constant used to signify Bridge Spanning Tree Protocol packet
+ * @protocol: Packet protocol
+ * @br_prid: Protocol identifier
+ * @br_vid: Protocol version identifier
+ * @br_type: BPDU type
+ * @br_flags: BPDU flags
+ * @br_rid: Identity of root bridge
+ * @br_rmac: Root bridge MAC address
+ * @br_cost: Total cost from transmitting bridge to root
+ * @br_bid: Identity of bridge
+ * @br_mac: Bridge MAC address
+ * @br_poid: Port identifier
+ * @br_msg: Message age in 1/256 secs
+ * @br_max: Max age in 1/256 secs
+ * @br_htime: Hello time in 1/256 secs
+ * @br_fd: Forward delay in 1/256 secs
+ * @length: The length of the packet buffer contents, in bytes
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ */
+probe netfilter.bridge.forward
+        = netfilter.hook("NF_BR_FORWARD").pf("NFPROTO_BRIDGE")
+{
+        @netfilter_common_setup("bridge")
+        @netfilter_bridge_setup
+}
+
+/**
+ * probe netfilter.bridge.local_out - Called on a bridging packet coming from a local process
+ * @pf: Protocol family -- always "bridge"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @llcpdu: Address of LLC Protocol Data Unit
+ * @brhdr: Address of bridge header
+ * @llcproto_stp: Constant used to signify Bridge Spanning Tree Protocol packet
+ * @protocol: Packet protocol
+ * @br_prid: Protocol identifier
+ * @br_vid: Protocol version identifier
+ * @br_type: BPDU type
+ * @br_flags: BPDU flags
+ * @br_rid: Identity of root bridge
+ * @br_rmac: Root bridge MAC address
+ * @br_cost: Total cost from transmitting bridge to root
+ * @br_bid: Identity of bridge
+ * @br_mac: Bridge MAC address
+ * @br_poid: Port identifier
+ * @br_msg: Message age in 1/256 secs
+ * @br_max: Max age in 1/256 secs
+ * @br_htime: Hello time in 1/256 secs
+ * @br_fd: Forward delay in 1/256 secs
+ * @length: The length of the packet buffer contents, in bytes
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ */
+probe netfilter.bridge.local_out
+        = netfilter.hook("NF_BR_LOCAL_OUT").pf("NFPROTO_BRIDGE")
+{
+        @netfilter_common_setup("bridge")
+        @netfilter_bridge_setup
+}
+
+/**
+ * probe netfilter.bridge.post_routing -- Called before a bridging packet hits the wire
+ * @pf: Protocol family -- always "bridge"
+ * @indev: Address of net_device representing input device, 0 if unknown
+ * @outdev: Address of net_device representing output device, 0 if unknown
+ * @indev_name: Name of network device packet was received on (if known)
+ * @outdev_name: Name of network device packet will be routed to (if known)
+ * @llcpdu: Address of LLC Protocol Data Unit
+ * @brhdr: Address of bridge header
+ * @llcproto_stp: Constant used to signify Bridge Spanning Tree Protocol packet
+ * @protocol: Packet protocol
+ * @br_prid: Protocol identifier
+ * @br_vid: Protocol version identifier
+ * @br_type: BPDU type
+ * @br_flags: BPDU flags
+ * @br_rid: Identity of root bridge
+ * @br_rmac: Root bridge MAC address
+ * @br_cost: Total cost from transmitting bridge to root
+ * @br_bid: Identity of bridge
+ * @br_mac: Bridge MAC address
+ * @br_poid: Port identifier
+ * @br_msg: Message age in 1/256 secs
+ * @br_max: Max age in 1/256 secs
+ * @br_htime: Hello time in 1/256 secs
+ * @br_fd: Forward delay in 1/256 secs
+ * @length: The length of the packet buffer contents, in bytes
+ * @nf_drop: Constant used to signify a 'drop' verdict
+ * @nf_accept: Constant used to signify an 'accept' verdict
+ * @nf_stolen: Constant used to signify a 'stolen' verdict
+ * @nf_queue: Constant used to signify a 'queue' verdict
+ * @nf_repeat: Constant used to signify a 'repeat' verdict
+ * @nf_stop: Constant used to signify a 'stop' verdict
+ */
+probe netfilter.bridge.post_routing
+        = netfilter.hook("NF_BR_POST_ROUTING").pf("NFPROTO_BRIDGE")
+{
+        @netfilter_common_setup("bridge")
+        @netfilter_bridge_setup
+}

@@ -1,0 +1,108 @@
+#! /usr/bin/env stap
+
+global processes, stime, virtmem, rssmem, shrmem, utime, proc_state
+global tot_intervals, sec_counter
+
+// configuration options:
+// -G sort=[pid|process|state|virtmem|rssmem|shrdmem|stime|utime]
+// -G sortdir=[increase|decrease]
+// -G show=#
+// -G interval=#
+// -G clear_screen=[y|n]
+global sort="stime", sortdir="decrease", show=25, interval=5, clear_screen="n"
+
+probe scheduler.ctxswitch {
+  //don't let the process name get overwritten 
+  if (processes[prev_pid] == "" || prev_task_name != "")
+    processes[prev_pid] = prev_task_name
+
+  if (task_stime() > stime[prev_pid]){
+    stime[prev_pid] = task_stime()
+    utime[prev_pid] = task_utime()
+    virtmem[prev_pid] = proc_mem_size(prev_pid)
+    rssmem[prev_pid] = proc_mem_rss(prev_pid)
+    shrmem[prev_pid] = proc_mem_shr(prev_pid)
+  }
+
+  // update the state if we've encountered the process before
+  if (processes[prev_pid] != "")
+    proc_state[prev_pid] = prevtsk_state
+}
+
+probe scheduler.process_exit {
+  proc_state[pid] = 65
+}
+
+function print_pid_info (proc_pid){
+    // calc the state of the process
+    if (proc_state[proc_pid] == 0) state = "R"
+    else if  (proc_state[proc_pid] == 1) state = "S"
+    else if  (proc_state[proc_pid] == 2) state = "D"
+    else if  (proc_state[proc_pid] == 4 || proc_state[proc_pid] == 8) state = "T"
+    else if  (proc_state[proc_pid] == 16) state = "Z"
+    else if  (proc_state[proc_pid] == 32) state = "EXIT_DEAD"
+    else if  (proc_state[proc_pid] == 65) state = "DEAD"
+    else state = "DEAD" // let's assume the worst
+
+    printf("%8d %20s %10s %12d %12d %12d %16d %16d\n",
+           proc_pid,
+           processes[proc_pid],
+           state,
+           virtmem[proc_pid] * mem_page_size(),
+           rssmem[proc_pid] * mem_page_size(),
+           shrmem[proc_pid] * mem_page_size(),
+           stime[proc_pid],
+           utime[proc_pid])
+}
+
+function print_info (){
+  tot_processes = 0;
+
+  // count the number of processes
+  foreach ([a] in processes)
+    tot_processes ++;
+
+  if (clear_screen == "y")
+    ansi_clear_screen()
+  else
+    println();
+
+  printf("%d seconds: showing %d out of %d tasks\n",
+         tot_intervals*interval, ((show>tot_processes) ? tot_processes : show), 
+         tot_processes)
+
+  printf("%8s %20s %10s %12s %12s %12s %16s %16s\n",
+         "PID", "Process", "State", "VirtMem", "RSSMem", "ShrdMem", "CPU Time", "User Time")
+
+  if (sortdir == "increase") {
+    if (sort == "pid") foreach ([proc_pid+] in processes limit show) print_pid_info(proc_pid)
+    if (sort == "process") foreach ([proc_pid] in processes+ limit show) print_pid_info(proc_pid)
+    if (sort == "state") foreach ([proc_pid] in proc_state+ limit show) print_pid_info(proc_pid)
+    if (sort == "virtmem") foreach ([proc_pid] in virtmem+ limit show) print_pid_info(proc_pid)
+    if (sort == "rssmem") foreach ([proc_pid] in rssmem+ limit show) print_pid_info(proc_pid)
+    if (sort == "shrdmem") foreach ([proc_pid] in shrmem+ limit show) print_pid_info(proc_pid)
+    if (sort == "stime") foreach ([proc_pid] in stime+ limit show) print_pid_info(proc_pid)
+    if (sort == "utime") foreach ([proc_pid] in utime+ limit show) print_pid_info(proc_pid)
+  } else if (sortdir == "decrease") {
+    if (sort == "pid") foreach ([proc_pid-] in processes limit show) print_pid_info(proc_pid)
+    if (sort == "process") foreach ([proc_pid] in processes- limit show) print_pid_info(proc_pid)
+    if (sort == "state") foreach ([proc_pid] in proc_state- limit show) print_pid_info(proc_pid)
+    if (sort == "virtmem") foreach ([proc_pid] in virtmem- limit show) print_pid_info(proc_pid)
+    if (sort == "rssmem") foreach ([proc_pid] in rssmem- limit show) print_pid_info(proc_pid)
+    if (sort == "shrdmem") foreach ([proc_pid] in shrmem- limit show) print_pid_info(proc_pid)
+    if (sort == "stime") foreach ([proc_pid] in stime- limit show) print_pid_info(proc_pid)
+    if (sort == "utime") foreach ([proc_pid] in utime- limit show) print_pid_info(proc_pid)
+  }
+
+
+  if (clear_screen != "y")
+    println("-----------------------------------------------------------------------------------------------------------------")
+}
+
+probe timer.s(1) {
+  if (++sec_counter >= interval){
+    tot_intervals++
+    print_info()
+    sec_counter = 0;
+  }
+}

@@ -1,0 +1,69 @@
+Examples of bitesize-nd.stp, the Linux SystemTap version.
+
+
+This shows size distributions for requested block I/O, by process name:
+
+# ./bitesize-nd.stp 
+Tracing block I/O... Hit Ctrl-C to end.
+^C
+I/O size (bytes):
+
+process name: flush-202:1
+ value |-------------------------------------------------- count
+  1024 |                                                    0
+  2048 |                                                    0
+  4096 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                  33
+  8192 |@@@@@@@@@@@@@@@@                                   16
+ 16384 |@@@@@@@@@                                           9
+ 32768 |@@@@                                                4
+ 65536 |@@@                                                 3
+131072 |                                                    0
+262144 |                                                    0
+
+process name: kjournald
+ value |-------------------------------------------------- count
+  1024 |                                                     0
+  2048 |                                                     0
+  4096 |@                                                    4
+  8192 |                                                     2
+ 16384 |                                                     2
+ 32768 |@                                                    7
+ 65536 |@                                                    5
+131072 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@      182
+262144 |                                                     0
+524288 |                                                     0
+
+process name: randread.pl
+ value |-------------------------------------------------- count
+  1024 |                                                      0
+  2048 |                                                      0
+  4096 |                                                      4
+  8192 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   1859
+ 16384 |                                                      0
+ 32768 |                                                      5
+ 65536 |                                                     18
+131072 |                                                      0
+262144 |                                                      0
+
+process name: tar
+ value |-------------------------------------------------- count
+  1024 |                                                      0
+  2048 |                                                      0
+  4096 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  1645
+  8192 |@@@@@@@@@@@@@@@@@@@@@@@@@                           836
+ 16384 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@         1394
+ 32768 |@@@@@@@@@@@@@@@@                                    532
+ 65536 |@@@@@                                               180
+131072 |@@@@@@                                              219
+262144 |                                                      0
+524288 |                                                      0
+
+tar(1) was archiving a directory of varying sized files, and writing an output
+file, which creates the distribution seen above.
+
+The randread.pl program was performing 8 Kbyte random reads. Note that there
+were a few larger I/O: some custom SystemTap can be used to explain this. Eg,
+show kernel stack traces for I/O larger than 32 Kbytes. I'd guess it was
+file system metadata.
+
+The aim of this tool is to help characterize the disk I/O workload.

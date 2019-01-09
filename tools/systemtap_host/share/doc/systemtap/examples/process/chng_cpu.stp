@@ -1,0 +1,31 @@
+#! /usr/bin/env stap
+/*    Filename: chng_cpu.stp
+ *      Author: Ankita Garg <ankita@in.ibm.com>
+ * Description: Captures information on the number of times an executable
+ * switches cpu
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * Copyright (C) IBM Corp. 2009.  All Rights Reserved.
+ *
+ */
+
+global threads
+
+probe scheduler.cpu_on
+{
+  if ((threads[tid()] != cpu() && (execname() == @1))) {
+    printf("\nthread %d (%s) context switched on cpu%d state: %d\n",
+           tid(), execname(), cpu(), task_state(task_current()));
+    print_syms(backtrace());
+    threads[tid()] = cpu();
+  }
+}

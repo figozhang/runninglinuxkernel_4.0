@@ -1,0 +1,13 @@
+title: Display the Task Switches Happening in the Scheduler
+name: sched_switch.stp
+version: 1.0
+author: kiran
+keywords: profiling function
+subsystem: scheduler
+status: production
+exit: user-controlled
+output: trace
+scope: system-wide
+description: The sched_switch.stp script takes two arguments, first argument can be "pid" or "name" to indicate what is being passed as second argument. The script will trace the process based on pid/name and print the scheduler switches happening with the process. If no arguments are passed, it displays all the scheduler switches. This can be used to understand which tasks schedule out the current process being traced, and when it gets scheduled in again.
+test_check: stap -p4 sched_switch.stp
+test_installcheck: stap  sched_switch.stp -c "sleep 1"

@@ -1,0 +1,7 @@
+title: Profile Kernel/User Backtraces
+name: pf4.stp
+keywords: _best profiling backtrace
+exit: user-controlled
+description: The pf4.stp script sets up time-based sampling. Every five seconds it prints out a sorted list with the top twenty kernel and/or user stack backtraces (on a per-cpu basis).  Use any of --ldd, --all-modules, -d MODULE, -d /PATH/TO/EXEC to add more symbolic info.
+test_check: stap -p4 pf4.stp
+test_installcheck: stap pf4.stp -c "sleep 6" --all-modules --ldd

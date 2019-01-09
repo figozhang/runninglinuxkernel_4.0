@@ -1,0 +1,9 @@
+title: Watch a Variable Changing Value in a Thread
+name: varwatch.stp
+keywords: _best monitoring
+exit: user-controlled
+output: trace
+scope: system-wide
+description: This script places a set of probes (specified by $1), each of which monitors the state of some context $variable expression (specified by $2).  Whenever the value changes, with respect to the active thread, the event is traced.
+test_check: stap -wp4 varwatch.stp 'kernel.statement("do_sys_open@fs/open.c:*")' '$$vars'
+test_installcheck: stap -w varwatch.stp 'kernel.statement("do_sys_open@fs/open.c:*")' '$$vars' -c "sleep 1"

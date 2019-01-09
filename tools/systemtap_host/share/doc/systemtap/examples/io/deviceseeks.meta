@@ -1,0 +1,13 @@
+title: Histograms of Seek Behavior for Each Device
+name: deviceseeks.stp
+version: 1.0
+author: Dominic Duval
+keywords: disk
+subsystem: disk io
+status: production
+exit: user-controlled
+output: histogram
+scope: system-wide
+description: The deviceseeks.stp script generates a histogram showing the frequency of different sized seeks (in sectors) on each device.
+test_check: stap -p4 deviceseeks.stp
+test_installcheck: stap deviceseeks.stp -c "sleep 1"

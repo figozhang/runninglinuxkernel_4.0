@@ -1,0 +1,43 @@
+
+oops_test.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 <create_oops>:
+   0:	e8 00 00 00 00       	callq  5 <create_oops+0x5>
+   5:	55                   	push   %rbp
+   6:	48 8b 77 50          	mov    0x50(%rdi),%rsi
+   a:	31 c0                	xor    %eax,%eax
+   c:	48 c7 c7 00 00 00 00 	mov    $0x0,%rdi
+  13:	48 89 e5             	mov    %rsp,%rbp
+  16:	e8 00 00 00 00       	callq  1b <create_oops+0x1b>
+  1b:	31 c0                	xor    %eax,%eax
+  1d:	5d                   	pop    %rbp
+  1e:	c3                   	retq   
+
+Disassembly of section .init.text:
+
+0000000000000000 <init_module>:
+   0:	55                   	push   %rbp
+   1:	48 89 e5             	mov    %rsp,%rbp
+   4:	0f ae f0             	mfence 
+   7:	48 8b 34 25 50 00 00 	mov    0x50,%rsi
+   e:	00 
+   f:	48 c7 c7 00 00 00 00 	mov    $0x0,%rdi
+  16:	31 c0                	xor    %eax,%eax
+  18:	e8 00 00 00 00       	callq  1d <init_module+0x1d>
+  1d:	31 c0                	xor    %eax,%eax
+  1f:	5d                   	pop    %rbp
+  20:	c3                   	retq   
+
+Disassembly of section .exit.text:
+
+0000000000000000 <cleanup_module>:
+   0:	55                   	push   %rbp
+   1:	48 c7 c7 00 00 00 00 	mov    $0x0,%rdi
+   8:	31 c0                	xor    %eax,%eax
+   a:	48 89 e5             	mov    %rsp,%rbp
+   d:	e8 00 00 00 00       	callq  12 <cleanup_module+0x12>
+  12:	5d                   	pop    %rbp
+  13:	c3                   	retq   

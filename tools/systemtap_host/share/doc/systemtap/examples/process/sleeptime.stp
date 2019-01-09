@@ -1,0 +1,43 @@
+#! /usr/bin/env stap
+
+/*
+ * Copyright (C) 2006-2007 Red Hat Inc.
+ * 
+ * This copyrighted material is made available to anyone wishing to use,
+ * modify, copy, or redistribute it subject to the terms and conditions
+ * of the GNU General Public License v.2.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Print out the amount of time spent in the nanosleep and compat_nanosleep
+ * systemcalls. This can help find which processes are waking based on time
+ * rather than some real event than needs to be handled.
+ *
+ * Format is:
+ * 12799538 3389 (xchat) nanosleep: 9547
+ * 12846944 2805 (NetworkManager) nanosleep: 100964
+ * 12947924 2805 (NetworkManager) nanosleep: 100946
+ * 13002925 4757 (sleep) nanosleep: 13000717
+ */
+
+global start
+
+function timestamp:long() {
+  return gettimeofday_us() - start
+}
+
+function proc:string() {
+  return sprintf("%d (%s)", pid(), execname())
+}
+
+probe begin {
+ start = gettimeofday_us()
+}
+
+probe syscall.nanosleep.return,
+      syscall.compat_nanosleep.return ?
+{
+  elapsed_time = gettimeofday_us() - @entry(gettimeofday_us())
+  printf("%d %s %s: %d\n",  timestamp(), proc(), name, elapsed_time)
+}

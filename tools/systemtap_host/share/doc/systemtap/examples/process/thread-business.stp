@@ -1,0 +1,28 @@
+#! /usr/bin/env stap
+
+global activity           // [execname,tid]->syscall-count
+global activity2          // [execname,tid]->syscall-name-string-history
+
+global syscall_history_length = 50 // override with stap -Gsyscall_history_length=NNN
+global top_threads = 20
+
+probe nd_syscall.* # use non-dwarf variant; we don't need context data
+{
+  activity[execname(),tid()]<<<1
+  history = name." ".activity2[execname(),tid()]
+  activity2[execname(),tid()] = substr(history,0,syscall_history_length)
+}
+
+
+probe timer.s(5) 
+{
+  printf("%16s %6s %5s %-*s\n\n", "execname", "tid", "count", 
+                               syscall_history_length, "recent syscalls");
+  foreach ([e,t] in activity- limit top_threads) {
+    printf("%16s %6d %5d %s", e, t, @count(activity[e,t]), activity2[e,t])
+    printf("\n")
+  }    
+  printf("\n")
+  delete activity
+  delete activity2
+}

@@ -1,0 +1,50 @@
+'\" t
+.\"     Title: function::read_stopwatch_ms
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Timestamp Functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::READ_STOPW" "3stap" "March 2016" "SystemTap Tapset Reference" "Timestamp Functions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::read_stopwatch_ms \- Reads the time in milliseconds for a stopwatch
+.SH "SYNOPSIS"
+.sp
+.nf
+    read_stopwatch_ms:long(name:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIname\fR
+.RS 4
+stopwatch name
+.RE
+.SH "DESCRIPTION"
+.PP
+Returns time in milliseconds for stopwatch
+\fIname\fR\&. Creates stopwatch
+\fIname\fR
+if it does not currently exist\&.
+.SH SEE ALSO\n 
+.IR tapset::stopwatch (3stap)

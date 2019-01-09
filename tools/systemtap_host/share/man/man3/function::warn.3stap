@@ -1,0 +1,47 @@
+'\" t
+.\"     Title: function::warn
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Logging Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::WARN" "3stap" "March 2016" "SystemTap Tapset Reference" "Logging Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::warn \- Send a line to the warning stream
+.SH "SYNOPSIS"
+.sp
+.nf
+    warn(msg:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fImsg\fR
+.RS 4
+The formatted message string
+.RE
+.SH "DESCRIPTION"
+.PP
+This function sends a warning message immediately to staprun\&. It is also sent over the bulk transport (relayfs) if it is being used\&. If the last characater is not a newline, the one is added\&.
+.SH SEE ALSO\n 
+.IR tapset::logging (3stap)

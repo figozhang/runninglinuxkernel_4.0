@@ -1,0 +1,41 @@
+.TH bitesize-nd 8  "2015-01-30" "USER COMMANDS"
+.SH NAME
+bitesize-nd \- Measure block I/O size distribution. Uses Linux SystemTap (non-debuginfo).
+.SH SYNOPSIS
+.B bitesize-nd.stp
+.SH DESCRIPTION
+This uses the kernel tracepoint block_rq_insert to read the size of I/O. The
+output includes the name of the process or thread that was on-CPU when the I/O
+request was inserted on the issue queue.
+.SH REQUIREMENTS
+SystemTap.
+.SH EXAMPLES
+.TP
+Measure block I/O sizes, and show a distribution histogram for each process name on Ctrl-C:
+#
+.B bitesize-nd.stp
+.SH FIELDS
+.TP
+value
+The minimum size, in bytes, for this histogram bucket. Read this value
+as "I/O size was at least xxx".
+.TP
+count
+How many I/O fell into this size range.
+.SH OVERHEAD
+Should be low, relative to the rate of disk I/O. Test first.
+.SH SOURCE
+This is from the SystemTap lwtools collection.
+.IP
+https://github.com/brendangregg/systemtap-lwtools
+.PP
+Also look under the examples directory for a text file containing example
+usage, output, and commentary for this tool.
+.SH OS
+Linux
+.SH STABILITY
+Unstable - in development.
+.SH AUTHOR
+Brendan Gregg
+.SH SEE ALSO
+biolatency-nd.stp(8), iostat(1)

@@ -1,0 +1,128 @@
+/* <tapsetdescription>
+ * The indent tapset provides functions to generate indented lines for
+ * nested kinds of trace messages.  Each line contains a relative
+ * timestamp, and the process name / pid.  The timestamp is as per
+ * provided by the __indent_timestamp function, which by default
+ * measures microseconds.
+ * </tapsetdescription>
+ */
+
+@__private30 global _indent_counters, _indent_timestamps
+
+@__private30 function _generic_indent_depth:long (idx, delta)
+{
+  # pre-increment for positive delta and post-decrement for negative delta
+  x = _indent_counters[idx] + (delta > 0 ? delta : 0)
+  _indent_counters[idx] += delta
+
+  return (x>0 ? x-1 : 0)
+}
+
+@__private30 function _generic_indent (idx, desc, delta) 
+{
+  ts = __indent_timestamp ()
+  if (! _indent_counters[idx]) _indent_timestamps[idx] = ts
+
+  depth = _generic_indent_depth(idx, delta)
+
+  return sprintf("%6d %s:%-*s", (ts - _indent_timestamps[idx]), desc, depth, "")
+}
+
+/**
+ * sfunction thread_indent - returns an amount of space with the current task information
+ *
+ * @delta: the amount of space added/removed for each call
+ *
+ * Description: This function returns a string with appropriate
+ * indentation for a thread. Call it with a small positive or
+ * matching negative delta. If this is the real outermost,
+ * initial level of indentation, then the function resets the 
+ * relative timestamp base to zero.  The timestamp is as per
+ * provided by the __indent_timestamp function, which by default
+ * measures microseconds.
+ */
+function thread_indent:string (delta:long)
+{
+  return _generic_indent (tid(), sprintf("%s(%d)", execname(), tid()), delta)
+}
+
+/**
+ * sfunction thread_indent_depth - returns the nested-depth of the current task
+ *
+ * @delta: the amount of depth added/removed for each call
+ *
+ * Description: This function returns an integer equal to the nested
+ * function-call depth starting from the outermost initial level. This function
+ * is useful for saving space (consumed by whitespace) in traces with long
+ * nested function calls. Use this function in a similar fashion to
+ * thread_indent(), i.e., in call-probe, use thread_indent_depth(1) and in
+ * return-probe, use thread_indent_depth(-1)
+ */
+function thread_indent_depth:long (delta:long)
+{
+  return _generic_indent_depth (tid(), delta)
+}
+
+/**
+ * sfunction indent - returns an amount of space to indent
+ *
+ * @delta: the amount of space added/removed for each call
+ *
+ * Description: This function returns a string with appropriate
+ * indentation. Call it with a small positive or matching negative
+ * delta. Unlike the thread_indent function, the indent does not
+ * track individual indent values on a per thread basis.
+ */
+function indent:string (delta:long){
+  return _generic_indent(-1, "",  delta)
+}
+
+/**
+ * sfunction indent_depth - returns the global nested-depth
+ *
+ * @delta: the amount of depth added/removed for each call
+ *
+ * Description: This function returns a number for appropriate indentation,
+ * similar to indent(). Call it with a small positive or matching negative
+ * delta. Unlike the thread_indent_depth function, the indent does not track
+ * individual indent values on a per thread basis.
+ */
+function indent_depth:long (delta:long)
+{
+  return _generic_indent_depth (-1, delta)
+}
+
+/* The following example uses thread_indent() to trace the functions
+ * called in the drivers/usb/core kernel source. It prints a relative
+ * timestamp and the name and ID of the current process, followed by 
+ * the appropriate indent and the function name. Note that 
+ * 'char' swapper(0) indicates the kernel is running in interrupt
+ * context and there is no valid current process.
+ *
+ * probe kernel.function("*@drivers/usb/core/*") {
+ * 	printf("%s -> %s\n, thread_indent(1), probefunc())
+ * }
+ * probe kernel.function("*@drivers/usb/core/*").return {
+ * 	printf("%s <- %s\n", thread_indent(-1), probefunc())
+ * }
+ *
+ * //This prints:
+ *  0 swapper(0): -> usb_hcd_irq
+ *  8 swapper(0): <- usb_hcd_irq
+ *  0 swapper(0): -> usb_hcd_irq
+ * 10 swapper(0):  -> usb_hcd_giveback_urb
+ * 16 swapper(0):   -> urb_unlink
+ * 22 swapper(0):   <- usb_unlink
+ * 29 swapper(0):   -> usb_free_urb
+ * 35 swapper(0):   <- usb_hcd_urb
+ * 39 swapper(0):  <- usb_hcd_giveback_urb
+ * 45 swapper(0): <- usb_hcd_irq
+ *  0 usb-storage(1338): -> usb_submit_urb
+ *  6 usb-storage(1338):  -> usb_hcd_submit_urb
+ * 12 usb-storage(1338):   -> usb_get_urb
+ * 18 usb-storage(1338):   <- usb_get_urb
+ * 25 usb-storage(1338):  <- usb_hcd_submit_urb
+ * 29 usb-storage(1338): -> usb_submit_urb
+ *  0 swapper(0): -> usb_hcd_irq
+ *  7 swapper(0): <- usb_hcd_irq
+ */

@@ -1,0 +1,1380 @@
+// nfs tapset
+// Copyright (C) 2006-2007 IBM Corp.
+// Copyright (C) 2007 Intel Corporation.
+// Copyright (C) 2007 Bull S.A.S
+// Copyright (c) 2009,2010,2011 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+%{
+#include <linux/kernel.h>
+#include <linux/nfs_fs.h>
+#include <linux/uaccess.h>		/* For VERIFY_READ/VERIFY_WRITE */
+%}
+
+/* Get cache_validity flag from struct inode */
+@__private30 function __nfsi_cache_valid:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_I(inode), "nfs_inode", "kernel:nfs")->cache_validity 
+}
+
+/* Get read_cache_jiffies from struct inode */
+@__private30 function __nfsi_rcache_time:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_I(inode), "nfs_inode", "kernel:nfs")->read_cache_jiffies
+}
+
+/* Get attrtimeo from struct inode */
+@__private30 function __nfsi_attr_time :long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_I(inode), "nfs_inode", "kernel:nfs")->attrtimeo
+}
+
+/* Get ndirty from struct inode */
+@__private30 function __nfsi_ndirty:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @choose_defined(@cast(NFS_I(inode), "nfs_inode", "kernel:nfs")->ndirty, -1)
+}
+
+/* Get rsize from struct inode */
+@__private30 function __nfs_server_rsize:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_SERVER(inode), "nfs_server", "kernel:nfs")->rsize
+}
+
+/* Get version from struct inode */
+function __nfs_version:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_PROTO(inode), "nfs_rpc_ops", "kernel:nfs")->version
+}
+
+/* Get wsize from struct inode */
+@__private30 function __nfs_server_wsize:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_SERVER(inode), "nfs_server", "kernel:nfs")->wsize
+}
+
+/* Get rpages from struct inode */
+@__private30 function __nfs_rpages:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_SERVER(inode), "nfs_server", "kernel:nfs")->rpages
+}
+
+/* Get wpages from struct inode */
+@__private30 function __nfs_wpages:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_SERVER(inode), "nfs_server", "kernel:nfs")->wpages
+}
+
+/* Get struct inode from struct page */
+@__private30 function __p2i :long (page:long)
+{
+    mapping = page? @cast(page, "page", "kernel:nfs")->mapping : 0
+    if (mapping == 0)
+        return 0
+    return @cast(mapping, "address_space", "kernel:nfs")->host
+}
+
+/* Get i_flags from struct page */
+@__private30 function __p2i_flag : long (page:long)
+{
+    host = __p2i(page)
+    if (host == 0)
+        return -1
+    return @cast(host, "inode", "kernel:nfs")->i_flags
+}
+
+/* Get i_state from struct page */
+@__private30 function __p2i_state :long (page:long)
+{
+    host = __p2i(page)
+    if (host == 0)
+        return -1
+    return @cast(host, "inode", "kernel:nfs")->i_state
+}
+
+/* Get i_size from struct page */
+@__private30 function __p2i_size :long (page:long)
+{
+    host = __p2i(page)
+    if (host == 0)
+        return -1
+    return @cast(host, "inode", "kernel:nfs")->i_size
+}
+
+/* Get s_flags from struct page */
+@__private30 function __p2sb_flag:long (page:long)
+{
+    host = __p2i(page)
+    i_sb = host? @cast(host, "inode", "kernel:nfs")->i_sb : 0
+    if (i_sb == 0)
+        return -1
+    return @cast(i_sb, "super_block", "kernel:nfs")->s_flags
+}
+
+function __file_inode:long (file:long)
+{
+    dentry = file
+	? @choose_defined(@cast(file, "file", "kernel:nfs")->f_path->dentry,
+		@cast(file, "file", "kernel:nfs")->f_dentry)
+	: 0
+    if (dentry == 0)
+        return 0
+    return @cast(dentry, "dentry", "kernel:nfs")->d_inode
+}
+
+@__private30 function __file_id:long (file:long)
+{
+    d_inode = __file_inode(file)
+    if (d_inode == 0)
+        return 0
+    return @cast(d_inode, "inode", "kernel:nfs")->i_sb->s_id
+}
+
+@__private30 function __file_mode:long (file:long)
+{
+    d_inode = __file_inode(file)
+    if (d_inode == 0)
+        return 0
+    return @cast(d_inode, "inode", "kernel:nfs")->i_mode
+}
+
+@__private30 function __file_parentname:string (file:long)
+{
+    dentry = file
+	? @choose_defined(@cast(file, "file", "kernel:nfs")->f_path->dentry,
+		@cast(file, "file", "kernel:nfs")->f_dentry)
+	: 0
+    d_parent = dentry? @cast(dentry, "dentry", "kernel:nfs")->d_parent : 0
+    if (d_parent == 0)
+        return "NULL"
+    name = @cast(d_parent, "dentry", "kernel:nfs")->d_name->name
+    return kernel_string(name)
+}
+
+/*
+ * Combination of generic_segment_checks and iov_length functions
+ * @iov:        io vector request
+ * @nr_segs:    number of segments in the iovec
+ * @check_flag:  whether to check (0 as iov_length, 1 as
+ *               generic_segment_checks)
+ * @access_flags: valid when check_flag >0, type of access:
+ *                VERIFY_READ - 0 or VERIFY_WRITE - 1
+ *
+ * @return:      number of bytes to write/read
+ */
+function __iov_length:long (iov:long, nr_segs:long, check_flag:long, access_flags:long) %{ /* pure */
+        unsigned long seg;
+        size_t ret = 0;
+        const struct iovec *iov = (const struct iovec *)(long)STAP_ARG_iov;
+        unsigned long nr_segs = (unsigned long)STAP_ARG_nr_segs;
+
+        for (seg = 0; seg < nr_segs; seg++)
+	{   __kernel_size_t iov_len  = kread(&(iov[seg].iov_len));
+            ret += iov_len;
+		
+	    if (STAP_ARG_check_flag) {
+
+                if (unlikely((ssize_t)(ret|iov_len) < 0)) {
+			STAP_RETVALUE = -EINVAL;
+			return;
+		}
+                if (access_ok((int)STAP_ARG_access_flags, kread(&(iov[seg].iov_base)), iov_len))
+                        continue;
+                if (seg == 0) {
+        		STAP_RETVALUE = -EFAULT;
+			return;
+		}
+                ret -= iov_len;     /* This segment is no good */
+                break;
+	   }
+	}
+        STAP_RETVALUE = (long)ret;
+        CATCH_DEREF_FAULT();
+%}
+
+probe nfs.fop.entries = nfs.fop.llseek,
+                        nfs.fop.read,
+                        nfs.fop.write,
+                        nfs.fop.aio_read,
+                        nfs.fop.aio_write,
+			nfs.fop.read_iter ?,
+			nfs.fop.write_iter ?,
+                        nfs.fop.mmap,
+                        nfs.fop.open,
+                        nfs.fop.flush,
+                        nfs.fop.release,
+                        nfs.fop.sendfile ?,
+                        nfs.fop.fsync,
+                        nfs.fop.lock
+{
+}
+
+probe nfs.fop.return = nfs.fop.llseek.return,
+                        nfs.fop.read.return,
+                        nfs.fop.write.return,
+                        nfs.fop.aio_read.return,
+                        nfs.fop.aio_write.return,
+			nfs.fop.read_iter.return ?,
+			nfs.fop.write_iter.return ?,
+                        nfs.fop.mmap.return,
+                        nfs.fop.open.return,
+                        nfs.fop.flush.return,
+                        nfs.fop.release.return,
+                        nfs.fop.sendfile.return ?,
+                        nfs.fop.fsync.return,
+                        nfs.fop.lock.return
+{
+}
+
+/**
+ * probe nfs.fop.llseek - NFS client llseek operation
+ *
+ * @dev: device identifier
+ * @ino: inode number
+ * @offset: the offset of the file will be repositioned
+ * @whence: the position to seek from
+ * @whence_str: symbolic string representation of the position to seek from
+ */
+probe nfs.fop.llseek = kernel.function ("nfs_file_llseek") !,
+                       module("nfs").function("nfs_file_llseek")
+{
+        dev = __file_dev($filp)
+        ino = __file_ino($filp)
+        s_id = __file_id($filp)
+        devname = kernel_string(s_id)
+
+        maxbyte = __file_maxbytes($filp)
+        offset = $offset
+%(systemtap_v < "2.3" %?
+        origin = @choose_defined($whence, $origin)
+%)
+	whence = @choose_defined($whence, $origin)
+	whence_str = _seek_whence_str(@choose_defined($whence, $origin))
+
+        name = "nfs.fop.llseek"
+        argstr = sprintf("%d, %d", offset, @choose_defined($whence, $origin))
+}
+
+probe nfs.fop.llseek.return = kernel.function ("nfs_file_llseek").return !,
+                              module("nfs").function("nfs_file_llseek").return
+{
+        name = "nfs.fop.llseek.return"
+        retstr = sprintf("%d", $return)
+}
+
+/**
+ * probe nfs.fop.read - NFS client read operation
+ *
+ * @devname: block device name
+ * 
+ * SystemTap uses the vfs.do_sync_read probe to implement this probe
+ * and as a result will get operations other than the NFS client read
+ * operations.
+ */
+probe nfs.fop.read = vfs.do_sync_read
+{
+	s_id = __file_id(file)
+	devname = kernel_string(s_id)
+        name = "nfs.fop.read"
+}
+
+probe nfs.fop.read.return = vfs.do_sync_read.return
+{
+        name = "nfs.fop.read.return"
+}
+
+/**
+ * probe nfs.fop.write - NFS client write operation
+ *
+ * @devname: block device name
+ *
+ * SystemTap uses the vfs.do_sync_write probe to implement this probe
+ * and as a result will get operations other than the NFS client write
+ * operations.
+ */
+probe nfs.fop.write = vfs.do_sync_write
+{
+	s_id = __file_id(file)
+	devname = kernel_string(s_id)
+        name = "nfs.fop.write"
+}
+
+probe nfs.fop.write.return = vfs.do_sync_write.return
+{
+        name = "nfs.fop.write.return"
+}
+
+/**
+ * probe nfs.fop.aio_read - NFS client aio_read file operation
+ *
+ * @dev: device identifier
+ * @ino: inode number        
+ * @count: read bytes
+ * @pos: current position of file   
+ * @buf: the address of buf in user space
+ * @parent_name: parent dir name
+ * @file_name: file name
+ * @cache_valid: cache related bit mask flag
+ * @cache_time: when we started read-caching this inode
+ * @attrtimeo: how long the cached information is assumed to be valid.
+ * 	       We need to revalidate the cached attrs for this inode
+ *	       if jiffies - read_cache_jiffies > attrtimeo.
+ */
+%( kernel_v < "3.16" %?
+probe nfs.fop.aio_read = kernel.function ("nfs_file_read") !,
+                         module("nfs").function("nfs_file_read")
+{
+        dev = __file_dev($iocb->ki_filp)
+        ino = __file_ino($iocb->ki_filp)
+	s_id = __file_id($iocb->ki_filp)
+	devname = kernel_string(s_id)
+
+        pos = $pos
+
+	if (@defined($iov)) {
+		buf = $iov->iov_base
+	        count = __iov_length($iov, $nr_segs, 0, %{ /* pure */ VERIFY_WRITE %})
+	}
+	else {
+	        buf = $buf
+	        count = $count
+	}
+
+        parent_name = __file_parentname($iocb->ki_filp)
+        file_name = __file_filename($iocb->ki_filp)
+
+        cache_valid = __nfsi_cache_valid(__file_inode($iocb->ki_filp))
+        cache_time  = __nfsi_rcache_time(__file_inode($iocb->ki_filp))
+        attr_time   = __nfsi_attr_time(__file_inode($iocb->ki_filp))
+
+        name = "nfs.fop.aio_read"
+        argstr = sprintf("%p, %d, %d", buf, count, pos)
+
+        size = count
+        units = "bytes"
+}
+
+probe nfs.fop.aio_read.return = kernel.function ("nfs_file_read").return !,
+                                module("nfs").function("nfs_file_read").return
+{
+        name = "nfs.fop.aio_read.return"
+        retstr = sprintf("%d", $return)
+
+        if ($return > 0) {
+                size = $return
+        }
+	units = "bytes"
+}
+%:
+probe nfs.fop.aio_read = never
+{
+        dev = 0
+        ino = 0
+	s_id = 0
+	devname = ""
+
+        pos = 0
+
+	buf = 0
+        count = 0
+
+        parent_name = ""
+        file_name = ""
+
+        cache_valid = 0
+        cache_time  = 0
+        attr_time   = 0
+
+        name = "nfs.fop.aio_read"
+        argstr = sprintf("%p, %d, %d", buf, count, pos)
+
+        size = count
+        units = "bytes"
+}
+
+probe nfs.fop.aio_read.return = never
+{
+        name = "nfs.fop.aio_read.return"
+        retstr = sprintf("%d", 0)
+
+	size = 0
+	units = "bytes"
+}
+%)
+
+/**
+ * probe nfs.fop.read_iter - NFS client read_iter file operation
+ *
+ * @dev: device identifier
+ * @ino: inode number        
+ * @count: read bytes
+ * @pos: current position of file   
+ * @parent_name: parent dir name
+ * @file_name: file name
+ * @cache_valid: cache related bit mask flag
+ * @cache_time: when we started read-caching this inode
+ * @attrtimeo: how long the cached information is assumed to be valid.
+ * 	       We need to revalidate the cached attrs for this inode
+ *	       if jiffies - read_cache_jiffies > attrtimeo.
+ */
+%( kernel_v >= "3.16" %?
+probe nfs.fop.read_iter = kernel.function ("nfs_file_read") !,
+			  module("nfs").function("nfs_file_read")
+{
+        dev = __file_dev($iocb->ki_filp)
+        ino = __file_ino($iocb->ki_filp)
+	s_id = __file_id($iocb->ki_filp)
+	devname = kernel_string(s_id)
+
+	pos = $to->iov_offset
+	count = __iov_length($to->iov, $to->nr_segs, 0, %{ /* pure */ VERIFY_READ %})
+
+        parent_name = __file_parentname($iocb->ki_filp)
+        file_name = __file_filename($iocb->ki_filp)
+
+        cache_valid = __nfsi_cache_valid(__file_inode($iocb->ki_filp))
+        cache_time  = __nfsi_rcache_time(__file_inode($iocb->ki_filp))
+        attr_time   = __nfsi_attr_time(__file_inode($iocb->ki_filp))
+
+        name = "nfs.fop.read_iter"
+        argstr = sprintf("%d, %d", count, pos)
+
+        size = count
+        units = "bytes"
+}
+
+probe nfs.fop.read_iter.return = kernel.function ("nfs_file_read").return !,
+				 module("nfs").function("nfs_file_read").return
+{
+        name = "nfs.fop.read_iter.return"
+        retstr = sprintf("%d", $return)
+
+        if ($return > 0) {
+                size = $return
+        }
+	units = "bytes"
+}
+%)
+
+/**
+ * probe nfs.fop.aio_write - NFS client aio_write file operation
+ *
+ * @dev: device identifier
+ * @ino: inode number        
+ * @count: read bytes
+ * @pos: offset of the file 
+ * @buf: the address of buf in user space
+ * @parent_name: parent dir name
+ * @file_name: file name
+ */
+%( kernel_v < "3.16" %?
+probe nfs.fop.aio_write = kernel.function("nfs_file_write") !,
+                          module("nfs").function("nfs_file_write")
+{
+        dev = __file_dev($iocb->ki_filp)
+        ino = __file_ino($iocb->ki_filp)
+	s_id = __file_id($iocb->ki_filp)
+	devname = kernel_string(s_id)
+
+        pos = $pos
+	if (@defined($iov)) {
+		buf = $iov->iov_base
+	        count = __iov_length($iov, $nr_segs, 0, %{ /* pure */ VERIFY_WRITE %})
+	}
+	else {
+	        buf = $buf
+	        count = $count
+	}
+               
+        parent_name = __file_parentname($iocb->ki_filp)
+        file_name = __file_filename($iocb->ki_filp)
+
+        name = "nfs.fop.aio_write"
+        argstr = sprintf("%p, %d, %d", buf, count, pos)
+
+        size = count
+        units = "bytes"
+}
+
+probe nfs.fop.aio_write.return = kernel.function("nfs_file_write").return !,
+	module("nfs").function("nfs_file_write").return
+{
+        name = "nfs.fop.aio_write.return"
+        retstr = sprintf("%d", $return)
+
+        if ($return > 0) {
+                size = $return
+        }
+        units = "bytes"
+}
+%:
+probe nfs.fop.aio_write = never
+{
+        dev = 0
+        ino = 0
+	s_id = 0
+	devname = ""
+
+        pos = 0
+	buf = 0
+        count = 0
+               
+        parent_name = ""
+        file_name = ""
+
+        name = "nfs.fop.aio_write"
+        argstr = sprintf("%p, %d, %d", buf, count, pos)
+
+        size = count
+        units = "bytes"
+}
+
+probe nfs.fop.aio_write.return = never
+{
+        name = "nfs.fop.aio_write.return"
+        retstr = sprintf("%d", 0)
+
+	size = 0
+        units = "bytes"
+}
+%)
+
+/**
+ * probe nfs.fop.write_iter - NFS client write_iter file operation
+ *
+ * @dev: device identifier
+ * @ino: inode number        
+ * @count: read bytes
+ * @pos: offset of the file 
+ * @parent_name: parent dir name
+ * @file_name: file name
+ */
+%( kernel_v >= "3.16" %?
+probe nfs.fop.write_iter = kernel.function("nfs_file_write") !,
+			   module("nfs").function("nfs_file_write")
+{
+        dev = __file_dev($iocb->ki_filp)
+        ino = __file_ino($iocb->ki_filp)
+	s_id = __file_id($iocb->ki_filp)
+	devname = kernel_string(s_id)
+
+        pos = $from->iov_offset
+	count = __iov_length($from->iov, $from->nr_segs, 0, %{ /* pure */ VERIFY_READ %})
+               
+        parent_name = __file_parentname($iocb->ki_filp)
+        file_name = __file_filename($iocb->ki_filp)
+
+        name = "nfs.fop.write_iter"
+        argstr = sprintf("%d, %d", count, pos)
+
+        size = count
+        units = "bytes"
+}
+
+probe nfs.fop.write_iter.return = kernel.function("nfs_file_write").return !,
+	module("nfs").function("nfs_file_write").return
+{
+        name = "nfs.fop.write_iter.return"
+        retstr = sprintf("%d", $return)
+
+        if ($return > 0) {
+                size = $return
+        }
+        units = "bytes"
+}
+%)
+
+/**
+ * probe nfs.fop.mmap - NFS client mmap operation
+ * 
+ * @dev: device identifier
+ * @ino: inode number        
+ * @vm_start: start address within vm_mm 
+ * @vm_end: the first byte after end address within vm_mm
+ * @vm_flag: vm flags
+ * @buf: the address of buf in user space
+ * @parent_name: parent dir name
+ * @file_name: file name
+ * @cache_valid: cache related bit mask flag
+ * @cache_time: when we started read-caching this inode
+ * @attrtimeo: how long the cached information is assumed to be valid.
+ * 	       We need to revalidate the cached attrs for this inode 
+ *	       if jiffies - read_cache_jiffies > attrtimeo.
+ */
+probe nfs.fop.mmap = kernel.function("nfs_file_mmap") !,
+                     module("nfs").function("nfs_file_mmap")
+{
+        dev = __file_dev($file)
+        ino = __file_ino($file)
+	s_id = __file_id($file)
+	devname = kernel_string(s_id)
+
+        vm_start = $vma->vm_start
+        vm_end = $vma->vm_end
+        vm_flags = $vma->vm_flags
+
+        parent_name = __file_parentname($file)
+        file_name = __file_filename($file)
+
+        cache_valid = __nfsi_cache_valid(__file_inode($file))
+        cache_time  = __nfsi_rcache_time(__file_inode($file))
+        attr_time   = __nfsi_attr_time(__file_inode($file))
+
+        name = "nfs.fop.mmap"
+        argstr = sprintf("0x%x, 0x%x, 0x%x", vm_start, vm_end, vm_flags)
+}
+
+probe nfs.fop.mmap.return = kernel.function("nfs_file_mmap").return !,
+                            module("nfs").function("nfs_file_mmap").return
+{
+        name = "nfs.fop.mmap.return"
+        retstr = sprintf("%d", $return)
+}
+
+/**
+ * probe nfs.fop.open - NFS client file open operation
+ *
+ * @dev: device identifier
+ * @ino: inode number
+ * @file_name: file name
+ * @flag: file flag
+ * @i_size: file length in bytes 
+ */
+probe nfs.fop.open = kernel.function("nfs_file_open") !,
+                     module("nfs").function("nfs_file_open")
+{
+        dev = __file_dev($filp)
+        ino = $inode->i_ino
+	s_id = $inode->i_sb->s_id
+	devname = kernel_string(s_id)
+
+        filename = __file_filename($filp)
+        flag = $filp->f_flags   
+
+        i_size = $inode->i_size
+   
+        name = "nfs.fop.open"
+        argstr = sprintf("%d, %d, %s", flag, ino, filename)
+}
+
+probe nfs.fop.open.return = kernel.function("nfs_file_open").return !,
+                            module("nfs").function("nfs_file_open").return
+{
+        name = "nfs.fop.open.return"
+        retstr = sprintf("%d", $return)        
+}
+
+/**
+ * probe nfs.fop.flush - NFS client flush file operation
+ * 
+ * @dev: device identifier
+ * @ino: inode number
+ * @mode: file mode
+ * @ndirty: number of dirty page
+ */
+probe nfs.fop.flush = kernel.function("nfs_file_flush") !,
+                      module("nfs").function("nfs_file_flush")
+{
+        dev = __file_dev($file)
+        ino = __file_ino($file)
+	s_id = __file_id($file)
+	devname = kernel_string(s_id)
+
+        mode = $file->f_mode
+        ndirty = __nfsi_ndirty(__file_inode($file))
+
+        name = "nfs.fop.flush"
+        argstr = sprintf("%d", ino)
+}
+
+probe nfs.fop.flush.return = kernel.function("nfs_file_flush").return !,
+                             module("nfs").function("nfs_file_flush").return
+{
+        name = "nfs.fop.flush.return"
+        retstr = sprintf("%d", $return)
+}
+
+/**
+ * probe nfs.fop.release - NFS client release page operation
+ * 
+ * @dev: device identifier
+ * @ino: inode number
+ * @mode: file mode
+ */
+probe nfs.fop.release = kernel.function("nfs_file_release") !,
+                        module("nfs").function("nfs_file_release")
+{
+        dev = __file_dev($filp)
+        ino = $inode->i_ino
+	s_id = $inode->i_sb->s_id
+	devname = kernel_string(s_id)
+
+        mode = $filp->f_mode
+
+        name = "nfs.fop.release"
+        argstr = sprintf("%d", ino)
+}
+
+probe nfs.fop.release.return = kernel.function("nfs_file_release").return !,
+                               module("nfs").function("nfs_file_release").return
+{
+        name = "nfs.fop.release.return"
+        retstr = sprintf("%d", $return)
+}
+
+/**
+ * probe nfs.fop.fsync - NFS client fsync operation
+ * 
+ * @dev: device identifier
+ * @ino: inode number
+ * @ndirty: number of dirty pages
+ */
+probe nfs.fop.fsync = kernel.function("nfs_file_fsync") !,
+                      module("nfs").function("nfs_file_fsync") !,
+                      kernel.function("nfs_fsync") !,
+                      module("nfs").function("nfs_fsync")
+{
+        dev = __file_dev($file)
+        ino = __file_ino($file)
+	s_id = __file_id($file)
+	devname = kernel_string(s_id)
+
+        ndirty = __nfsi_ndirty(__file_inode($file))
+
+        name = "nfs.fop.fsync"
+	argstr = sprintf("%d", ino)  
+}
+
+probe nfs.fop.fsync.return = kernel.function("nfs_file_fsync").return !,
+                             module("nfs").function("nfs_file_fsync").return !,
+                             kernel.function("nfs_fsync").return !,
+                             module("nfs").function("nfs_fsync").return
+{
+        name = "nfs.fop.fsync.return"
+        retstr = sprintf("%d", $return)
+}
+
+/**
+ * probe nfs.fop.lock - NFS client file lock operation
+ * 
+ * @dev: device identifier
+ * @ino: inode number
+ * @i_mode: file type and access rights
+ * @cmd: cmd arguments
+ * @fl_type:lock type
+ * @fl_flag: lock flags
+ * @fl_start: starting offset of locked region
+ * @fl_end: ending offset of locked region
+ */
+probe nfs.fop.lock = kernel.function("nfs_lock") !,
+                     module("nfs").function("nfs_lock")
+{
+        dev = __file_dev($filp)
+        ino = __file_ino($filp)
+	s_id = __file_id($filp)
+	devname = kernel_string(s_id)
+ 
+        i_mode = __file_mode($filp)
+        cmd = $cmd
+ 
+        fl_type = $fl->fl_type
+        fl_flag = $fl->fl_flags
+        fl_start = $fl->fl_start
+        fl_end  = $fl->fl_end
+
+        name = "nfs.fop.lock"
+        argstr = sprintf("%d, %d", cmd, i_mode)
+}
+
+probe nfs.fop.lock.return = kernel.function("nfs_lock").return !,
+                            module("nfs").function("nfs_lock").return
+{
+         name = "nfs.fop.lock.return"
+         retstr = sprintf("%d", $return)
+}
+
+/**
+ * probe nfs.fop.sendfile - NFS client send file operation
+ * 
+ * @dev: device identifier
+ * @ino: inode number
+ * @count: read bytes
+ * @ppos: current position of file
+ * @cache_valid: cache related bit mask flag
+ * @cache_time: when we started read-caching this inode
+ * @attrtimeo:  how long the cached information is assumed to be valid.
+ * 		We need to revalidate the cached attrs for this inode
+ *		if jiffies - read_cache_jiffies > attrtimeo.
+ */
+probe nfs.fop.sendfile = kernel.function("nfs_file_sendfile") !,
+			 module("nfs").function("nfs_file_sendfile") ?
+{
+        dev = __file_dev($filp)
+        ino = __file_ino($filp)
+	s_id = __file_id($filp)
+	devname = kernel_string(s_id)
+
+        count = $count
+        ppos  = $ppos ? kernel_pointer($ppos) : -1
+
+        cache_valid = __nfsi_cache_valid(__file_inode($filp))
+        cache_time  = __nfsi_rcache_time(__file_inode($filp))
+        attr_time   = __nfsi_attr_time(__file_inode($filp))
+
+        name = "nfs.fop.sendfile"
+        argstr = sprintf("%d, %d", count, ppos)
+
+        size = count
+        units = "bytes"
+}
+
+probe nfs.fop.sendfile.return =
+	kernel.function("nfs_file_sendfile").return !,
+	module("nfs").function("nfs_file_sendfile").return ?
+{
+        name = "nfs.fop.sendfile.return"
+        retstr = sprintf("%d", $return)
+
+        if ($return > 0) {
+                size = $return
+        }
+        units = "bytes"
+}
+
+/**
+ * probe nfs.fop.check_flags - NFS client checking flag operation
+ *
+ * @flag: file flag
+ */
+probe nfs.fop.check_flags =  kernel.function("nfs_check_flags") !,
+                             module("nfs").function("nfs_check_flags")
+{
+        flag = $flags
+        
+        name = "nfs.fop.check_flags"
+        argstr = sprintf("%d", flag)
+}
+
+probe nfs.fop.check_flags.return =
+	kernel.function("nfs_check_flags").return !,
+	module("nfs").function("nfs_check_flags").return
+{
+        name = "nfs.fop.check_flags.return"
+        retstr = sprintf("%d", $return)
+}
+
+probe nfs.aop.entries = nfs.aop.readpage,
+                        nfs.aop.readpages,
+                        nfs.aop.writepage,
+                        nfs.aop.writepages,
+                        nfs.aop.release_page ?,
+			nfs.aop.write_begin,
+			nfs.aop.write_end
+{
+}
+ 
+probe nfs.aop.return = nfs.aop.readpage.return,
+                        nfs.aop.readpages.return,
+                        nfs.aop.writepage.return,
+                        nfs.aop.writepages.return,
+                        nfs.aop.release_page.return ?,
+			nfs.aop.write_begin.return,
+			nfs.aop.write_end.return
+{
+}
+
+/**
+ * probe nfs.aop.readpage - NFS client synchronously reading a page
+ * @__page: the address of page
+ * @dev: device identifier
+ * @ino: inode number
+ * @i_flag: file flags
+ * @i_size: file length in bytes
+ * @sb_flag: super block flags
+ * @file: file argument
+ * @page_index : offset within mapping, can used a page identifier
+ *               and position identifier in the page frame
+ * @rsize: read size  (in bytes)
+ * @size:  number of pages to be read in this execution 
+ *
+ * Read the page over, only fires when a previous async
+ * read operation failed
+ */
+probe nfs.aop.readpage = kernel.function ("nfs_readpage") !,
+                         module("nfs").function ("nfs_readpage")
+{
+        __page = $page
+        dev = __page_dev(__page)
+        ino = __page_ino(__page)
+
+        i_flag = __p2i_flag($page) 
+        i_size = __p2i_size($page)
+ 
+        sb_flag = __p2sb_flag($page) 
+
+        file = $file
+        page_index = $page->index
+        
+        __inode = __p2i($page) 
+        rsize = __nfs_server_rsize(__inode)
+
+        name = "nfs.aop.readpage"
+        argstr = sprintf("%d, %d", page_index, rsize)
+
+        size = 1
+        units = "pages"
+}
+
+probe nfs.aop.readpage.return = kernel.function ("nfs_readpage").return !,
+                                module("nfs").function ("nfs_readpage").return
+{
+        name = "nfs.aop.readpage.return"
+        retstr = sprintf("%d", $return)
+
+        size = 1
+        units = "pages"
+}
+
+/**
+ * probe nfs.aop.readpages - NFS client reading multiple pages
+ * @dev: device identifier
+ * @ino: inode number   
+ * @nr_pages: number of pages attempted to read in this execution
+ * @file: filp argument
+ * @rpages: read size (in pages)
+ * @rsize: read size (in bytes)
+ * @size: number of pages attempted to read in this execution
+ *
+ * Fires when in readahead way, read several pages once
+ */
+probe nfs.aop.readpages = kernel.function ("nfs_readpages") !,
+                          module("nfs").function ("nfs_readpages")
+{
+        dev = $mapping->host->i_sb->s_dev
+        ino = $mapping->host->i_ino
+
+        nr_pages = $nr_pages
+        file = $filp
+
+        rpages = __nfs_rpages($mapping->host)
+        rsize  = __nfs_server_rsize($mapping->host)
+
+        name = "nfs.aop.readpages"
+        argstr = sprintf("%d", nr_pages)
+
+        size = nr_pages
+        units = "pages"
+}
+
+probe nfs.aop.readpages.return = kernel.function ("nfs_readpages").return !,
+                                 module("nfs").function ("nfs_readpages").return
+{
+        name = "nfs.aop.readpages.return"
+        retstr = sprintf("%d", $return)
+
+        if ($return > 0 ) {
+            size = $return
+        }
+        units = "pages"
+}
+
+/**
+ * probe nfs.aop.set_page_dirty - NFS client marking page as dirty
+ * @__page: the address of page
+ * @page_flag: page flags
+ *
+ * This probe attaches to the generic __set_page_dirty_nobuffers function.
+ * Thus, this probe is going to fire on many other file systems in
+ * addition to the NFS client.
+ */
+probe nfs.aop.set_page_dirty =
+            kernel.function ("__set_page_dirty_nobuffers") !,
+            module("nfs").function ("__set_page_dirty_nobuffers")
+{
+        __page = $page
+        page_flag = $page->flags
+
+        name = "nfs.aop.set_page_dirty"
+        argstr = sprintf("%d", page_flag)
+}
+
+probe nfs.aop.set_page_dirty.return =
+            kernel.function ("__set_page_dirty_nobuffers") .return !,
+            module("nfs").function ("__set_page_dirty_nobuffers").return
+{
+        name = "nfs.aop.set_page_dirty.return"
+        retstr = sprintf("%d", $return)
+}
+
+/**
+ * probe nfs.aop.writepage - NFS client writing a mapped page to the NFS server
+ * @__page: the address of page
+ * @dev: device identifier
+ * @ino: inode number  
+ * @for_reclaim: a flag of writeback_control,
+ *    indicates if it's invoked from the page allocator
+ * @for_kupdate: a flag of writeback_control,
+ *    indicates if it's a kupdate writeback
+ * @i_flag: file flags
+ * @i_size: file length in bytes
+ * @i_state: inode state flags
+ * @sb_flag: super block flags
+ * @page_index: offset within mapping,
+ *   can used a page identifier and position identifier in the page frame
+ * @wsize: write size
+ * @size: number of pages to be written in this execution
+ *
+ * The priority of wb is decided by the flags
+ * @for_reclaim and @for_kupdate.
+ */
+probe nfs.aop.writepage = kernel.function ("nfs_writepage") !,
+                          module("nfs").function ("nfs_writepage")
+{
+        __page = $page
+        dev = __page_dev(__page)
+        ino = __page_ino(__page)
+
+        for_reclaim = $wbc->for_reclaim
+        for_kupdate = $wbc->for_kupdate
+
+        i_flag = __p2i_flag($page) 
+        i_state = __p2i_state($page)
+        i_size = __p2i_size($page)
+
+        sb_flag = __p2sb_flag($page) 
+
+        page_index = $page->index
+
+        __inode = __p2i($page)
+        wsize = __nfs_server_wsize(__inode)            
+ 
+        name = "nfs.aop.writepage"
+        argstr = sprintf("%d", page_index)
+
+        size = 1
+        units = "pages"
+}
+
+probe nfs.aop.writepage.return = kernel.function ("nfs_writepage").return !,
+                                 module("nfs").function ("nfs_writepage").return
+{
+        name = "nfs.aop.writepage.return"
+        retstr = sprintf("%d", $return)
+}
+
+/**
+ * probe nfs.aop.writepages - NFS client writing several dirty pages to the NFS server
+ * @dev: device identifier
+ * @ino: inode number
+ * @for_reclaim: a flag of writeback_control,
+ *               indicates if it's invoked from the page allocator
+ * @for_kupdate: a flag of writeback_control,
+ *               indicates if it's a kupdate writeback
+ * @wsize: write size
+ * @wpages: write size (in pages)
+ * @nr_to_write: number of pages attempted to be written in this execution
+ * @size: number of pages attempted to be written in this execution
+ *
+ * The priority of wb is decided by the flags
+ * @for_reclaim and @for_kupdate.
+ */
+probe nfs.aop.writepages = kernel.function ("nfs_writepages") !,
+                           module("nfs").function ("nfs_writepages")
+{
+        dev = $mapping->host->i_sb->s_dev
+        ino = $mapping->host->i_ino
+
+        for_reclaim = $wbc->for_reclaim
+        for_kupdate = $wbc->for_kupdate
+        nr_to_write = $wbc->nr_to_write
+
+        wsize = __nfs_server_wsize($mapping->host)
+        wpages = __nfs_wpages($mapping->host)
+
+        name = "nfs.aop.writepages"
+        argstr = sprintf("%d", nr_to_write)
+
+        size = nr_to_write
+        units = "pages"         
+}
+
+probe nfs.aop.writepages.return =
+		kernel.function ("nfs_writepages").return !,
+		module("nfs").function ("nfs_writepages").return
+{
+        name = "nfs.aop.writepages.return"
+        retstr = sprintf("%d", $return)
+}
+
+# kernel commit 4899f9c852564ce7b6d0ca932ac6674bf471fd28 removed
+# nfs_prepare_write()/nfs_commit_write() and created
+# nfs_write_begin()/nfs_write_end().  So, we try to find whatever the
+# current kernel has.
+
+/**
+ * probe nfs.aop.write_begin - NFS client begin to write data
+ * @__page: the address of page
+ * @dev: device identifier
+ * @ino: inode number 
+ * @offset: start address of this write operation 
+ * @to: end address of this write operation 
+ * @page_index: offset within mapping, can used a page identifier
+ * 		and position identifier in the page frame
+ * @size: write bytes
+ *
+ *  Occurs when write operation occurs on nfs. It prepare a page for writing,
+ *  look for a request corresponding to the page. If there
+ *  is one, and it belongs to another file, it flush it out
+ *  before it tries to copy anything into the page. 
+ *  Also do the same if it finds a request from an existing
+ *  dropped page
+ *
+ */
+probe nfs.aop.write_begin = __nfs.aop.write_begin !,
+			    __nfs.aop.prepare_write
+{
+}
+probe nfs.aop.write_begin.return
+		= __nfs.aop.write_begin.return !,
+		  __nfs.aop.prepare_write.return
+{
+}
+
+/**
+ * probe nfs.aop.write_end - NFS client complete writing data
+ * @__page: the address of page
+ * @dev: device identifier
+ * @ino: inode number
+ * @offset: start address of this write operation
+ * @to: end address of this write operation
+ * @i_flag: file flags
+ * @i_size: file length in bytes
+ * @sb_flag: super block flags
+ * @page_index: offset within mapping, can used a page identifier and position identifier in the page frame
+ * @size: write bytes
+ *
+ * Fires when do a write operation on nfs,
+ * often after prepare_write
+ *
+ * Update and possibly write a cached page of an NFS file.
+ */ 
+probe nfs.aop.write_end = __nfs.aop.write_end !,
+			  __nfs.aop.commit_write
+{
+}
+probe nfs.aop.write_end.return
+		= __nfs.aop.write_end.return !,
+		  __nfs.aop.commit_write.return
+{
+}
+
+probe __nfs.aop.write_begin = kernel.function ("nfs_write_begin") !,
+			      module("nfs").function("nfs_write_begin")
+{
+	# Since __nfs.aop.write_begin and __nfs.aop.prepare_write
+	# share a "parent" probe (nfs.aop.write_begin), they need to
+	# have the same convenience variables.  So, define a few fake
+	# ones here.  The optimizer will remove any that aren't
+	# actually used.
+	__page = -1
+	offset = $pos
+	to = $pos + $len
+	page_index = -1
+	size = $len
+
+        dev = __file_dev($file)
+        ino = __file_ino($file)
+        s_id = __file_id($file)
+        devname = kernel_string(s_id)
+
+        pos = $pos
+        count = $len
+       
+        name = "nfs.aop.write_begin"
+        argstr = sprintf("%d", ino)
+
+        units = "bytes"        
+}
+probe __nfs.aop.write_begin.return
+               = kernel.function ("nfs_write_begin").return !,
+                 module("nfs").function ("nfs_write_begin").return
+{
+        name = "nfs.aop.write_begin.return"
+        retstr = sprintf("%d", $return)
+}
+
+probe __nfs.aop.write_end = kernel.function ("nfs_write_end") !,
+			    module("nfs").function("nfs_write_end")
+{
+	# Since __nfs.aop.write_end and __nfs.aop.commit_write
+	# share a "parent" probe (nfs.aop.write_end), they need to
+	# have the same convenience variables.  So, define a few fake
+	# ones here.  The optimizer will remove any that aren't
+	# actually used.
+        __page = -1
+	offset = $pos
+	to = $pos + $len
+	i_flag = 0
+	i_size = 0
+	sb_flag = 0
+	page_index = -1
+	size = $len
+
+        dev = __file_dev($file)
+        ino = __file_ino($file)
+        s_id = __file_id($file)
+        devname = kernel_string(s_id)
+
+        pos = $pos
+        count = $len
+       
+        name = "nfs.aop.write_end"
+        argstr = sprintf("%d", ino)
+
+        units = "bytes"        
+}
+probe __nfs.aop.write_end.return
+               = kernel.function ("nfs_write_end").return !,
+		 module("nfs").function("nfs_write_end").return
+{
+        name = "nfs.aop.write_end.return"
+        retstr = sprintf("%d", $return)
+}
+
+probe __nfs.aop.prepare_write = kernel.function ("nfs_prepare_write") !,
+                                module("nfs").function ("nfs_prepare_write")
+{
+	# Since __nfs.aop.write_begin and __nfs.aop.prepare_write
+	# share a "parent" probe (nfs.aop.write_begin), they need to
+	# have the same convenience variables.  So, define a few fake
+	# ones here.  The optimizer will remove any that aren't
+	# actually used.
+	s_id = -1
+	pos = $offset
+	count = $to - $offset
+
+        __page = $page
+        dev = __page_dev(__page)
+        devname = __find_bdevname(dev, __page_bdev(__page))
+        ino = __page_ino(__page)      
+  
+        offset = $offset
+        to = $to
+       
+        page_index = $page->index
+
+        name = "nfs.aop.prepare_write"
+        argstr = sprintf("%d", page_index)
+
+        size = $to - $offset
+        units = "bytes"        
+}
+
+probe __nfs.aop.prepare_write.return = 
+                 kernel.function ("nfs_prepare_write").return !,
+                 module("nfs").function ("nfs_prepare_write").return
+{
+        name = "nfs.aop.prepare_write.return"
+        retstr = sprintf("%d", $return)
+}
+
+probe __nfs.aop.commit_write = kernel.function ("nfs_commit_write") !,
+                               module("nfs").function ("nfs_commit_write")
+{
+	# Since __nfs.aop.write_end and __nfs.aop.commit_write
+	# share a "parent" probe (nfs.aop.write_end), they need to
+	# have the same convenience variables.  So, define a few fake
+	# ones here.  The optimizer will remove any that aren't
+	# actually used.
+	s_id = -1
+	pos = $offset
+	count = $to - $offset
+
+        __page = $page
+        dev = __page_dev(__page)
+        devname = __find_bdevname(dev, __page_bdev(__page))
+        ino = __page_ino(__page)
+
+        offset = $offset
+        to = $to
+
+        i_flag = __p2i_flag($page) 
+        i_size = __p2i_size($page)
+
+        sb_flag = __p2sb_flag($page) 
+
+        page_index = $page->index
+     
+        name = "nfs.aop.commit_write"
+        argstr = sprintf("%d, %d", offset, to)
+
+        size = $to - $offset
+        units = "bytes"
+}
+
+probe __nfs.aop.commit_write.return =
+             kernel.function ("nfs_commit_write").return !,
+             module("nfs").function ("nfs_commit_write").return
+{
+        name = "nfs.aop.commit_write.return"
+        retstr = sprintf("%d", $return)
+}
+
+/**
+ * probe nfs.aop.release_page - NFS client releasing page
+ * @__page: the address of page
+ * @dev: device identifier
+ * @ino: inode number
+ * @page_index: offset within mapping, can used a page identifier
+ *   and position identifier in the page frame
+ * @size: release pages
+ *  
+ * Fires when do a release operation on NFS.
+ */
+probe nfs.aop.release_page = kernel.function ("nfs_release_page") !,
+                             module("nfs").function ("nfs_release_page") ?
+{
+        __page = $page
+        dev = __page_dev(__page)
+        ino = __page_ino(__page)
+
+//        gfp = $gfp
+        page_index = $page->index
+
+        name = "nfs.aop.release_page"
+        argstr = sprintf("%d", page_index)
+
+        size = 1
+        units = "pages"
+
+}  
+
+probe nfs.aop.release_page.return =
+             kernel.function ("nfs_release_page").return !,
+             module("nfs").function ("nfs_release_page").return ?
+{
+        name = "nfs.aop.release_page.return"
+        retstr = sprintf("%d", $return)
+}

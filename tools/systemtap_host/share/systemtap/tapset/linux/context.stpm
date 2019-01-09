@@ -1,0 +1,3 @@
+@define __context_unwind_error(depth) %(
+        error(sprint("reached end of stack before unwinding to level ", @depth))
+%)

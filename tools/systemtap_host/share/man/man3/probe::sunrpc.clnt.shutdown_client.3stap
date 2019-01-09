@@ -1,0 +1,129 @@
+'\" t
+.\"     Title: probe::sunrpc.clnt.shutdown_client
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: March 2016
+.\"    Manual: Networking Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "PROBE::SUNRPC\&.CLNT" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+probe::sunrpc.clnt.shutdown_client \- Shutdown an RPC client
+.SH "SYNOPSIS"
+.sp
+.nf
+sunrpc\&.clnt\&.shutdown_client 
+.fi
+.SH "VALUES"
+.PP
+\fIom_ntrans\fR
+.RS 4
+the count of RPC transmissions
+.RE
+.PP
+\fIprog\fR
+.RS 4
+the RPC program number
+.RE
+.PP
+\fIprot\fR
+.RS 4
+the IP protocol number
+.RE
+.PP
+\fIservername\fR
+.RS 4
+the server machine name
+.RE
+.PP
+\fIvers\fR
+.RS 4
+the RPC program version number
+.RE
+.PP
+\fIauthflavor\fR
+.RS 4
+the authentication flavor
+.RE
+.PP
+\fIom_rtt\fR
+.RS 4
+the RPC RTT jiffies
+.RE
+.PP
+\fItasks\fR
+.RS 4
+the number of references
+.RE
+.PP
+\fIom_queue\fR
+.RS 4
+the jiffies queued for xmit
+.RE
+.PP
+\fIom_execute\fR
+.RS 4
+the RPC execution jiffies
+.RE
+.PP
+\fIom_bytes_sent\fR
+.RS 4
+the count of bytes out
+.RE
+.PP
+\fIclones\fR
+.RS 4
+the number of clones
+.RE
+.PP
+\fIom_bytes_recv\fR
+.RS 4
+the count of bytes in
+.RE
+.PP
+\fIrpccnt\fR
+.RS 4
+the count of RPC calls
+.RE
+.PP
+\fIprogname\fR
+.RS 4
+the RPC program name
+.RE
+.PP
+\fIport\fR
+.RS 4
+the port number
+.RE
+.PP
+\fInetreconn\fR
+.RS 4
+the count of reconnections
+.RE
+.PP
+\fIom_ops\fR
+.RS 4
+the count of operations
+.RE
+.SH SEE ALSO\n 
+.IR tapset::rpc (3stap)

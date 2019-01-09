@@ -1,0 +1,149 @@
+.\" -*- nroff -*-
+.TH TAPSET::JSON 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::json \- systemtap json tapset
+ 
+.SH DESCRIPTION
+
+ The JSON tapset provides probes, functions, and macros to generate
+ a JSON metadata and data file. The JSON metadata file is located in
+ /proc/systemtap/MODULE/metadata.json. The JSON data file is located
+ in /proc/systemtap/MODULE/data.json. The JSON data file is updated
+ with current data every time the file is read.
+
+.TP
+.P
+.TP
+.B json_set_prefix 
+Set the metric prefix.
+.IP
+See 
+.IR function::json_set_prefix (3stap)
+ for details.
+.P
+.TP
+.B json_add_numeric_metric 
+Add a numeric metric
+.IP
+See 
+.IR function::json_add_numeric_metric (3stap)
+ for details.
+.P
+.TP
+.B json_add_string_metric 
+Add a string metric
+.IP
+See 
+.IR function::json_add_string_metric (3stap)
+ for details.
+.P
+.TP
+.B json_add_array 
+Add an array
+.IP
+See 
+.IR function::json_add_array (3stap)
+ for details.
+.P
+.TP
+.B json_add_array_numeric_metric 
+Add a numeric metric to an array
+.IP
+See 
+.IR function::json_add_array_numeric_metric (3stap)
+ for details.
+.P
+.TP
+.B json_add_array_string_metric 
+Add a string metric to an array
+.IP
+See 
+.IR function::json_add_array_string_metric (3stap)
+ for details.
+.P
+.TP
+.B json_data 
+Fires whenever JSON data is wanted by a reader.
+.IP
+ See 
+.IR probe::json_data (3stap)
+ for details.
+.P
+.TP
+.B @json_output_data_start 
+Start the json output.
+.IP
+ See 
+.IR macro::json_output_data_start (3stap)
+ for details.
+.P
+.TP
+.B @json_output_string_value 
+Output a string value.
+.IP
+ See 
+.IR macro::json_output_string_value (3stap)
+ for details.
+.P
+.TP
+.B @json_output_numeric_value 
+Output a numeric value.
+.IP
+ See 
+.IR macro::json_output_numeric_value (3stap)
+ for details.
+.P
+.TP
+.B @json_output_array_string_value 
+Output a string value for metric in an array.
+.IP
+ See 
+.IR macro::json_output_array_string_value (3stap)
+ for details.
+.P
+.TP
+.B @json_output_array_numeric_value 
+Output a numeric value for metric in an array.
+.IP
+ See 
+.IR macro::json_output_array_numeric_value (3stap)
+ for details.
+.P
+.TP
+.B @json_output_data_end 
+End the json output.
+.IP
+ See 
+.IR macro::json_output_data_end (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::json_set_prefix (3stap),
+.BR
+.IR \%function::json_add_numeric_metric (3stap),
+.BR
+.IR \%function::json_add_string_metric (3stap),
+.BR
+.IR \%function::json_add_array (3stap),
+.BR
+.IR \%function::json_add_array_numeric_metric (3stap),
+.BR
+.IR \%function::json_add_array_string_metric (3stap),
+.BR
+.IR \%probe::json_data (3stap),
+.BR
+.IR \%macro::json_output_data_start (3stap),
+.BR
+.IR \%macro::json_output_string_value (3stap),
+.BR
+.IR \%macro::json_output_numeric_value (3stap),
+.BR
+.IR \%macro::json_output_array_string_value (3stap),
+.BR
+.IR \%macro::json_output_array_numeric_value (3stap),
+.BR
+.IR \%macro::json_output_data_end (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

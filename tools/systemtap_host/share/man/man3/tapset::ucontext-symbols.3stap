@@ -1,0 +1,118 @@
+.\" -*- nroff -*-
+.TH TAPSET::UCONTEXT-SYMBOLS 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::ucontext-symbols \- systemtap ucontext-symbols tapset
+ 
+.SH DESCRIPTION
+
+ User context symbol functions provide additional information about
+ addresses from an application. These functions can provide
+ information about the user space map (library) that the event occurred or
+ the function symbol of an address.
+
+.TP
+.P
+.TP
+.B ustack 
+Return address at given depth of user stack backtrace
+.IP
+See 
+.IR function::ustack (3stap)
+ for details.
+.P
+.TP
+.B usymname 
+Return the symbol of an address in the current task.
+.IP
+See 
+.IR function::usymname (3stap)
+ for details.
+.P
+.TP
+.B usymdata 
+Return the symbol and module offset of an address.
+.IP
+See 
+.IR function::usymdata (3stap)
+ for details.
+.P
+.TP
+.B print_ustack 
+Print out stack for the current task from string.
+.IP
+See 
+.IR function::print_ustack (3stap)
+ for details.
+.P
+.TP
+.B print_usyms 
+Print out user stack from string
+.IP
+See 
+.IR function::print_usyms (3stap)
+ for details.
+.P
+.TP
+.B sprint_ustack 
+Return stack for the current task from string.
+.IP
+See 
+.IR function::sprint_ustack (3stap)
+ for details.
+.P
+.TP
+.B sprint_usyms 
+Return stack for user addresses from string
+.IP
+See 
+.IR function::sprint_usyms (3stap)
+ for details.
+.P
+.TP
+.B usymfileline 
+Return the file name and line number of an address.
+.IP
+See 
+.IR function::usymfileline (3stap)
+ for details.
+.P
+.TP
+.B usymfile 
+Return the file name of a given address.
+.IP
+See 
+.IR function::usymfile (3stap)
+ for details.
+.P
+.TP
+.B usymline 
+Return the line number of an address.
+.IP
+See 
+.IR function::usymline (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::ustack (3stap),
+.BR
+.IR \%function::usymname (3stap),
+.BR
+.IR \%function::usymdata (3stap),
+.BR
+.IR \%function::print_ustack (3stap),
+.BR
+.IR \%function::print_usyms (3stap),
+.BR
+.IR \%function::sprint_ustack (3stap),
+.BR
+.IR \%function::sprint_usyms (3stap),
+.BR
+.IR \%function::usymfileline (3stap),
+.BR
+.IR \%function::usymfile (3stap),
+.BR
+.IR \%function::usymline (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

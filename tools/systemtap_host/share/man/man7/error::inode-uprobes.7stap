@@ -1,0 +1,36 @@
+.\" t
+.TH ERROR::INODE-UPROBES 7stap 
+.SH NAME
+error::inode-uprobes \- limitations of inode-uprobes
+
+.SH DESCRIPTION
+
+The uprobes kernel facility introduced in Linux 3.5 aims to supplant the
+earlier out-of-tree utrace patch to enable user-space probing.  There
+have been some functional limitations in inode-uprobes that preclude
+some systemtap constructs.  Over time, we hope these regressions will
+be corrected.
+
+.TP
+function.return probes
+.IR process.function().return 
+probes require "return-probes" or "uretprobes" functionality, which was not
+implemented in the builtin inode-uprobes until kernel 3.10.  If you cannot
+upgrade your kernel, consider using
+.IR process.statement() 
+probes placed on source line numbers at the function's return statements.
+
+.TP
+function.statement.absolute probes
+In utrace-equipped kernels, systemtap made it possible to address probes
+by literal addresses in the process virtual memory address space.  The 
+new inode-uprobes does not have this capability.
+
+
+.SH SEE ALSO
+.nh
+.nf
+.IR stap (1),
+.IR http://kernelnewbies.org/Linux_3.5 ,
+.IR http://sourceware.org/systemtap/wiki/utrace ,
+.IR error::reporting (7stap)

@@ -1,0 +1,57 @@
+// context-envvar tapset
+// Copyright (C) 2010 Pixar Inc. and/or Lars R. Damerow
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// Context functions provide additional information about where an event occurred. These functions can
+//provide information such as a backtrace to where the event occurred and the current register values for the
+//processor.
+// </tapsetdescription>
+
+/**
+ * sfunction env_var - Fetch environment variable from current process
+ * @name: Name of the environment variable to fetch
+ *
+ * Description: Returns the contents of the specified environment value
+ * for the current process. If the variable isn't set an empty string
+ * is returned.
+ */
+function env_var:string(name:string)
+{
+  if (name == "")
+    return ""
+
+  env_value = "";
+  mm = task_current()->mm;
+  if (mm)
+    {
+      env_start = mm->env_start;
+      env_end = mm->env_end;
+      if (env_start != 0 && env_end != 0)
+        {
+          len = env_end - env_start;
+          cur = user_string(env_start, "");
+          env_name = tokenize(cur, "=");
+          while (env_name != name && len > 0)
+            {
+              env_len = strlen(cur);
+              env_start += env_len + 1;
+              len -= env_len + 1;
+              if (len > 0)
+                {
+                  cur = user_string(env_start, "");
+                  env_name = tokenize(cur, "=");
+                }
+              else
+                env_name = "";
+            }
+
+          if (len > 0)
+            env_value = tokenize("", "");
+        }
+    }
+  return env_value;
+}

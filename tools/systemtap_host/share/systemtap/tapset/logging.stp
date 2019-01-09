@@ -1,0 +1,108 @@
+// logging tapset
+// Copyright (C) 2005-2015 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+
+/**
+ * sfunction log - Send a line to the common trace buffer
+ *
+ * @msg: The formatted message string
+ *
+ * Description: This function logs data. log sends the
+ * message immediately to staprun and to the bulk transport
+ * (relayfs) if it is being used. If the last character given
+ * is not a newline, then one is added. This function is not 
+ * as efficient as printf and should be used only for urgent
+ * messages. 
+ */
+function log (msg:string) %{ /* unprivileged */ /* unmodified-fnargs */
+	STAP_PRINTF ("%s\n", STAP_ARG_msg);
+%}
+
+
+/**
+ * sfunction warn - Send a line to the warning stream
+ *
+ * @msg: The formatted message string
+ *
+ * Description: This function sends a warning message immediately to 
+ * staprun. It is also sent over the bulk transport (relayfs) if it is
+ * being used. If the last characater is not a newline, the one is added.
+ */
+function warn (msg:string) %{ /* unprivileged */ /* unmodified-fnargs */
+    _stp_warn ("%s", STAP_ARG_msg);
+%}
+
+
+/**
+ * sfunction exit - Start shutting down probing script.
+ *
+ * Description: This only enqueues a request to start
+ * shutting down the script.  New probes will not fire
+ * (except "end" probes), but all currently   
+ * running ones may complete their work.
+ */
+function exit () %{ /* unprivileged */
+    atomic_set (session_state(), STAP_SESSION_STOPPING);
+    _stp_exit ();
+%}
+
+
+/**
+ * sfunction error - Send an error message
+ *
+ * @msg: The formatted message string
+ *
+ * Description: An implicit end-of-line is added.  staprun prepends
+ * the string "ERROR:".  Sending an error message aborts the currently
+ * running probe.  Depending on the MAXERRORS parameter, it may
+ * trigger an exit().
+ */
+function error (msg:string) %{ /* unprivileged */ /* unmodified-fnargs */
+  /* NB: we used to reuse msg[] for an assignment to last_error; this
+   is clearer & safer. */
+  strlcpy (CONTEXT->error_buffer, STAP_ARG_msg, MAXSTRINGLEN);
+  CONTEXT->last_error = CONTEXT->error_buffer;
+  CONTEXT->last_stmt = NULL;
+%}
+
+/**
+ * sfunction assert - evaluate assertion
+ *
+ * @expression: The expression to evaluate
+ *
+ * Description: This function checks the expression and aborts the
+ * current running probe if expression evaluates to zero. Uses error()
+ * and may be caught by try{} catch{}. A default message will be
+ * displayed.
+ */
+function assert(expression:long) {
+    if (!expression) {
+        error("Assertion failed")
+    }
+}
+
+/**
+ * sfunction assert - evaluate assertion
+ *
+ * @expression: The expression to evaluate
+ * @msg: The formatted message string
+ *
+ * Description: This function checks the expression and aborts the
+ * current running probe if expression evaluates to zero. Uses error()
+ * and may be caught by try{} catch{}. The specified message will be
+ * displayed.
+ */
+function assert(expression:long, msg:string) {
+    if (!expression) {
+        error(msg)
+    }
+}
+
+function stp_print_binary(n:long, arg1:long, arg2:long, arg3:long, arg4:long) %{
+	_stp_print_binary (STAP_ARG_n, STAP_ARG_arg1, STAP_ARG_arg2, STAP_ARG_arg3, STAP_ARG_arg4);
+%}

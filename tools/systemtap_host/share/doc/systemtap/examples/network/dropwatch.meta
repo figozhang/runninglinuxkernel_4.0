@@ -1,0 +1,14 @@
+title: Watch Where Socket Buffers Are Freed in the Kernel
+name: dropwatch.stp
+version: 1.0
+author: Neil Horman
+keywords: network tracepoint socket
+subsystem: network
+status: production
+exit: user-controlled
+output: timed
+scope: system-wide
+description: Every five seconds the dropwatch.stp script lists the number of socket buffers freed at locations in the kernel.
+test_support: stap -l 'kernel.trace("kfree_skb")'
+test_check: stap -p4 dropwatch.stp
+test_installcheck: stap dropwatch.stp -c "sleep 1"

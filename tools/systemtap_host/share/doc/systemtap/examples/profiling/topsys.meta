@@ -1,0 +1,13 @@
+title: Show Processes Doing Polling Operations
+name: topsys.stp
+version: 1.0
+author: anonymous
+keywords: profiling
+subsystem: syscall
+status: production
+exit: user-controlled
+output: sorted-list
+scope: system-wide
+description:  The topsys.stp script lists out the top twenty systemcalls for the previous 5 seconds. The output is sorted from most frequent to least frequent.
+test_check: stap -p4 topsys.stp
+test_installcheck: stap topsys.stp -c "sleep 1"

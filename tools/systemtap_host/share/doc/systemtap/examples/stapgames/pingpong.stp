@@ -1,0 +1,34 @@
+#!/usr/bin/env stap
+# Ping pong ball in tty window
+# Run in a xterm and resize window
+# Copyright (C) 2011 Masami Hiramatsu <masami.hiramatsu@gmail.com>
+#
+# This file is free software and is distributed under the terms of the GNU
+# General Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+global Row, Col
+global dr = 1, dc = 1
+
+probe begin {
+	Row = game_tty_ws_row()/2; Col = game_tty_ws_col()/2
+}
+
+probe timer.ms(50) {
+	Row += dr; Col += dc
+	if (Row >= game_tty_ws_row()) {
+		dr = -dr; Row = game_tty_ws_row()
+	} else if (Row <= 1) {
+		dr = -dr; Row = 1
+	}
+	if (Col >= game_tty_ws_col()) {
+		dc = -dc; Col = game_tty_ws_col()
+	} else if (Col <= 1) {
+		dc = -dc; Col = 1
+	}
+	ansi_clear_screen()
+	ansi_cursor_move(Col, Row)
+	print("@")
+}
+
+

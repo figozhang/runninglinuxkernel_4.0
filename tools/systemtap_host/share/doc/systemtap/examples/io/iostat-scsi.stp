@@ -1,0 +1,129 @@
+#! /usr/bin/env stap
+
+global devices, reads, writes
+
+/* data collection: SCSI disk */
+%(kernel_v < "2.6.24" %?
+probe module("sd_mod").function("sd_init_command") !,
+      kernel.function("sd_init_command")
+{
+  device = kernel_string($SCpnt->request->rq_disk->disk_name)
+  sector_size = $SCpnt->device->sector_size
+  nr_sectors = $SCpnt->request->nr_sectors
+  devices[device] = 1
+%(kernel_v >= "2.6.19" %?
+  if ($SCpnt->request->cmd_flags & 1)
+%:
+  if ($SCpnt->request->flags & 1)
+%)
+    writes[device] <<< nr_sectors * sector_size
+  else
+    reads[device] <<< nr_sectors * sector_size
+}
+
+%:
+
+%(kernel_v >= "2.6.31" %?
+%{
+#include <linux/blkdev.h>
+%}
+
+function get_nr_sectors:long(rq:long)
+%{ /* pure */
+  STAP_RETVALUE = blk_rq_sectors((const struct request *)(long)STAP_ARG_rq);
+%}
+%)
+
+probe sd_prep_fn = module("sd_mod").function("sd_prep_fn") !,
+		   kernel.function("sd_prep_fn")
+{
+  device = kernel_string($rq->rq_disk->disk_name)
+  sector_size = @cast($q->queuedata, "scsi_device", "kernel<scsi/scsi_device.h>")->sector_size
+%(kernel_v>="2.6.31" %?
+  nr_sectors = get_nr_sectors($rq)
+%:
+  nr_sectors = $rq->nr_sectors
+%)
+  _cmd_flags = $rq->cmd_flags
+}
+
+probe sd_init_command = module("sd_mod").function("sd_init_command") !,
+			kernel.function("sd_init_command")
+{
+  device = kernel_string(@choose_defined($cmd, $SCpnt)->request->rq_disk->disk_name)
+  sector_size = @choose_defined($cmd, $SCpnt)->device->sector_size
+  nr_sectors = get_nr_sectors(@choose_defined($cmd, $SCpnt)->request)
+  _cmd_flags = @choose_defined($cmd, $SCpnt)->request->cmd_flags
+}
+
+probe sd_prep_fn !, sd_init_command
+{
+  devices[device] = 1
+  if (_cmd_flags & 1)
+    writes[device] <<< nr_sectors * sector_size
+  else
+    reads[device] <<< nr_sectors * sector_size
+}
+
+%)
+
+/* data collection: SCSI tape */
+probe module("st").function("st_do_scsi").call !,
+      kernel.function("st_do_scsi").call
+{
+  device = kernel_string($STp->disk->disk_name)
+  devices[device] = 1
+  if ($direction)
+    writes[device] <<< $bytes
+  else
+    reads[device] <<< $bytes
+}
+/*
+ * Handle inlined version of function separately, since on some kernels
+ * (3.10.0-196.el7.ppc64) the variables aren't available (bad
+ * debuginfo). We want to handle this separately from the '.call'
+ * version, so that we'll know if the variable names change.
+ */
+probe module("st").function("st_do_scsi").inline !,
+      kernel.function("st_do_scsi").inline ?
+{
+  if (@defined($STp) && @defined($direction) && @defined($bytes)) {
+    device = kernel_string($STp->disk->disk_name)
+    devices[device] = 1
+    if ($direction)
+      writes[device] <<< $bytes
+    else
+      reads[device] <<< $bytes
+  }
+}
+
+
+/* reporting */
+global blksize = 512
+global hdrcount
+probe timer.s($1)
+{
+  if ((hdrcount % 10) == 0)
+    printf("%9s %9s %9s %9s %9s %9s\n",
+           "Device:", "tps", "blk_read/s", "blk_wrtn/s", "blk_read", "blk_wrtn")
+  hdrcount++
+
+  foreach (dev in devices) {
+    rdcount = @count(reads[dev])
+    wrcount = @count(writes[dev])
+    tps = (rdcount + wrcount) * 100 / $1
+    rdblkcount = rdcount ? @sum(reads[dev]) / blksize : 0
+    wrblkcount =wrcount ? @sum(writes[dev]) / blksize : 0
+    rdblkrate = rdblkcount * 100 / $1
+    wrblkrate = wrblkcount * 100 / $1
+    printf("%9s %6d.%02d %6d.%02d %6d.%02d %9d %9d\n",
+           dev, tps / 100, tps % 100,
+           rdblkrate / 100, rdblkrate % 100,
+           wrblkrate / 100, wrblkrate % 100,
+           rdblkcount, wrblkcount)
+  }
+  printf("\n")
+  delete devices
+  delete reads
+  delete writes
+}

@@ -1,0 +1,13 @@
+title: System-Wide Syscall Statistics with Filtering
+name: syscalltimes
+version: 1.0
+author: IBM Corp.
+keywords: syscall
+subsystem: syscall
+status: production
+exit: user-controlled
+output: sorted-list on-exit
+scope: system-wide
+description: Combination shell/systemtap script to measure system call counts and times.  Can be filtered by process IDs, process names and users.
+test_check: file ./syscalltimes
+test_installcheck: ./syscalltimes -c 'sleep 1'

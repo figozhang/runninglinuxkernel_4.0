@@ -1,0 +1,32 @@
+Examples of execsnoop-nd.stp, the Linux SystemTap version.
+
+
+Tracing while "man ls" was executed:
+
+# ./execsnoop-nd.stp 
+TIME                        UID   PPID    PID           COMM ARGS
+Sat Jan 31 00:56:02 2015      0  11962  13472            man man ls
+Sat Jan 31 00:56:02 2015      0  13472  13473             sh sh -c /usr/bin/gunzip -c /usr/share/man/man1/ls.1.gz
+Sat Jan 31 00:56:02 2015      0  13472  13473         gunzip /bin/sh /usr/bin/gunzip -c /usr/share/man/man1/ls.1.gz
+Sat Jan 31 00:56:02 2015      0  13472  13473           gzip gzip -d -c /usr/share/man/man1/ls.1.gz
+Sat Jan 31 00:56:02 2015      0  13472  13474             sh sh -c /usr/bin/gunzip -c /usr/share/man/man1/ls.1.gz
+Sat Jan 31 00:56:02 2015      0  13472  13474         gunzip /bin/sh /usr/bin/gunzip -c /usr/share/man/man1/ls.1.gz
+Sat Jan 31 00:56:02 2015      0  13472  13474           gzip gzip -d -c /usr/share/man/man1/ls.1.gz
+Sat Jan 31 00:56:02 2015      0  13472  13475             sh sh -c (cd "/usr/share/man" && (echo ".ll 15.5i"; echo ".nr LL 15.5i"; echo ".pl 1100i"; /usr/bin/gunzip -c '/usr/share/man/man1/ls.1.gz'; echo ".\\\""; echo ".pl \n(nlu+10") | /usr/bin/gtbl | /usr/bin/nroff -c -mandoc 2>/dev/null | /usr/bin/less -is)
+Sat Jan 31 00:56:02 2015      0  13476  13479          nroff /bin/bash /usr/bin/nroff -c -mandoc
+Sat Jan 31 00:56:02 2015      0  13476  13481           less /usr/bin/less -is
+Sat Jan 31 00:56:02 2015      0  13476  13478           gtbl /usr/bin/gtbl
+Sat Jan 31 00:56:02 2015      0  13477  13480         gunzip /bin/sh /usr/bin/gunzip -c /usr/share/man/man1/ls.1.gz
+Sat Jan 31 00:56:02 2015      0  13477  13480           gzip gzip -d -c /usr/share/man/man1/ls.1.gz
+Sat Jan 31 00:56:02 2015      0  13482  13483         locale locale charmap
+Sat Jan 31 00:56:02 2015      0  13484  13485         mktemp mktemp /tmp/man.XXXXXX
+Sat Jan 31 00:56:02 2015      0  13479  13486            cat cat
+Sat Jan 31 00:56:02 2015      0  13479  13487          iconv iconv -f utf-8 -t utf-8 /tmp/man.OGU85G
+Sat Jan 31 00:56:02 2015      0  13479  13488             rm rm -f /tmp/man.OGU85G
+Sat Jan 31 00:56:02 2015      0  13476  13479          groff /usr/bin/groff -mtty-char -P-c -mandoc -Tutf8
+Sat Jan 31 00:56:02 2015      0  13479  13489          troff troff -mtty-char -mandoc -Tutf8
+Sat Jan 31 00:56:02 2015      0  13479  13490         grotty grotty -c
+
+The output shows all the exec() syscall, which is a rough way to examine new
+process execution. Some of these processes have called exec() more than once;
+also, some new process that only fork() won't be seen.

@@ -1,0 +1,172 @@
+.\" -*- nroff -*-
+.TH TAPSET::IPMIB 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::ipmib \- systemtap ipmib tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B ipmib_remote_addr 
+Get the remote ip address
+.IP
+See 
+.IR function::ipmib_remote_addr (3stap)
+ for details.
+.P
+.TP
+.B ipmib_local_addr 
+Get the local ip address
+.IP
+See 
+.IR function::ipmib_local_addr (3stap)
+ for details.
+.P
+.TP
+.B ipmib_tcp_remote_port 
+Get the remote tcp port
+.IP
+See 
+.IR function::ipmib_tcp_remote_port (3stap)
+ for details.
+.P
+.TP
+.B ipmib_tcp_local_port 
+Get the local tcp port
+.IP
+See 
+.IR function::ipmib_tcp_local_port (3stap)
+ for details.
+.P
+.TP
+.B ipmib_get_proto 
+Get the protocol value
+.IP
+See 
+.IR function::ipmib_get_proto (3stap)
+ for details.
+.P
+.TP
+.B ipmib.InReceives 
+Count an arriving packet
+.IP
+ See 
+.IR probe::ipmib.InReceives (3stap)
+ for details.
+.P
+.TP
+.B ipmib.InNoRoutes 
+Count an arriving packet with no matching socket
+.IP
+ See 
+.IR probe::ipmib.InNoRoutes (3stap)
+ for details.
+.P
+.TP
+.B ipmib.InAddrErrors 
+Count arriving packets with an incorrect address
+.IP
+ See 
+.IR probe::ipmib.InAddrErrors (3stap)
+ for details.
+.P
+.TP
+.B ipmib.InUnknownProtos 
+Count arriving packets with an unbound proto
+.IP
+ See 
+.IR probe::ipmib.InUnknownProtos (3stap)
+ for details.
+.P
+.TP
+.B ipmib.InDiscards 
+Count discarded inbound packets
+.IP
+ See 
+.IR probe::ipmib.InDiscards (3stap)
+ for details.
+.P
+.TP
+.B ipmib.ForwDatagrams 
+Count forwarded packet
+.IP
+ See 
+.IR probe::ipmib.ForwDatagrams (3stap)
+ for details.
+.P
+.TP
+.B ipmib.OutRequests 
+Count a request to send a packet
+.IP
+ See 
+.IR probe::ipmib.OutRequests (3stap)
+ for details.
+.P
+.TP
+.B ipmib.ReasmTimeout 
+Count Reassembly Timeouts
+.IP
+ See 
+.IR probe::ipmib.ReasmTimeout (3stap)
+ for details.
+.P
+.TP
+.B ipmib.ReasmReqds 
+Count number of packet fragments reassembly requests
+.IP
+ See 
+.IR probe::ipmib.ReasmReqds (3stap)
+ for details.
+.P
+.TP
+.B ipmib.FragOKs 
+Count datagram fragmented successfully
+.IP
+ See 
+.IR probe::ipmib.FragOKs (3stap)
+ for details.
+.P
+.TP
+.B ipmib.FragFails 
+Count datagram fragmented unsuccessfully
+.IP
+ See 
+.IR probe::ipmib.FragFails (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::ipmib_remote_addr (3stap),
+.BR
+.IR \%function::ipmib_local_addr (3stap),
+.BR
+.IR \%function::ipmib_tcp_remote_port (3stap),
+.BR
+.IR \%function::ipmib_tcp_local_port (3stap),
+.BR
+.IR \%function::ipmib_get_proto (3stap),
+.BR
+.IR \%probe::ipmib.InReceives (3stap),
+.BR
+.IR \%probe::ipmib.InNoRoutes (3stap),
+.BR
+.IR \%probe::ipmib.InAddrErrors (3stap),
+.BR
+.IR \%probe::ipmib.InUnknownProtos (3stap),
+.BR
+.IR \%probe::ipmib.InDiscards (3stap),
+.BR
+.IR \%probe::ipmib.ForwDatagrams (3stap),
+.BR
+.IR \%probe::ipmib.OutRequests (3stap),
+.BR
+.IR \%probe::ipmib.ReasmTimeout (3stap),
+.BR
+.IR \%probe::ipmib.ReasmReqds (3stap),
+.BR
+.IR \%probe::ipmib.FragOKs (3stap),
+.BR
+.IR \%probe::ipmib.FragFails (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

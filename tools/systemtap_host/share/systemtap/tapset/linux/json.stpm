@@ -1,0 +1,202 @@
+// JSON tapset macros.
+// Copyright (C) 2015 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+//
+// NB: tapsetdescription is in tapset/linux/json.stp
+
+@define __json_output_metric_metadata(indent_str, name, pointer, type, description, units)
+%(
+  $value .= sprintf("%s{\n", @indent_str)
+  $value .= sprintf("%s  \"name\": \"%s\",\n", @indent_str, @name)
+  $value .= sprintf("%s  \"pointer\": \"%s\",\n", @indent_str, @pointer)
+  $value .= sprintf("%s  \"type\": \"%s\"", @indent_str, @type)
+  if (strlen(@description) > 0) {
+    $value .= sprintf(",\n%s  \"description\": \"%s\"", @indent_str,
+		      @description)
+  }
+  if (strlen(@units) > 0) {
+    $value .= sprintf(",\n%s  \"units\": \"%s\"", @indent_str,
+		      @units)
+  }
+  $value .= sprintf("\n%s}", @indent_str)
+%)
+
+/**
+ * smacro json_output_data_start - Start the json output.
+ *
+ * Description: The json_output_data_start macro is designed to be
+ * called from the 'json_data' probe from the user's script. It marks
+ * the start of the JSON output.
+ */
+@define json_output_data_start
+%(
+  __comma_needed = 0
+  $value =
+    "{\n"
+%)
+
+# Make sure we don't try to output the same metric twice in the same
+# data fetch.
+@define __json_output_check(name)
+%(
+  if (@name in __json_metric_output)
+    error(sprintf("Metric '%s' already output", @name))
+  __json_metric_output[@name] = 1
+%)
+
+# Make sure we don't try to output the same array index twice in the same
+# data fetch.
+@define __json_output_array_check(array_index)
+%(
+  if (@array_index in __json_array_output)
+    error(sprintf("Array index '%s' already output for array metric %s",
+		  @array_index, __json_array_started))
+  __json_array_output[@array_index] = 1
+%)
+
+/**
+ * smacro json_output_string_value - Output a string value.
+ *
+ * @name: The name of the string metric.
+ * @value: The string value to output.
+ *
+ * Description: The json_output_string_value macro is designed to be
+ * called from the 'json_data' probe in the user's script to output a
+ * metric's string value. This metric should have been added with
+ * json_add_string_metric().
+ */
+@define json_output_string_value(name, value)
+%(
+  @__json_output_check(@name)
+  @__json_output_array_end
+  if (__comma_needed)
+    $value .= ",\n"
+  __comma_needed = 1    
+  $value .= sprintf("  \"%s\": \"%s\"", @name, @value)
+%)
+
+/**
+ * smacro json_output_numeric_value - Output a numeric value.
+ *
+ * @name: The name of the numeric metric.
+ * @value: The numeric value to output.
+ *
+ * Description: The json_output_numeric_value macro is designed to be
+ * called from the 'json_data' probe in the user's script to output a
+ * metric's numeric value. This metric should have been added with
+ * json_add_numeric_metric().
+ */
+@define json_output_numeric_value(name, value)
+%(
+  @__json_output_check(@name)
+  @__json_output_array_end
+  if (__comma_needed)
+    $value .= ",\n"
+  __comma_needed = 1    
+  $value .= sprintf("  \"%s\": %d", @name, @value)
+%)
+
+/**
+ * smacro json_output_array_string_value - Output a string value for metric in an array.
+ *
+ * @array_name: The name of the array.
+ * @array_index: The array index (as a string) indicating where to store the string value.
+ * @metric_name: The name of the string metric.
+ * @value: The string value to output.
+ *
+ * Description: The json_output_array_string_value macro is designed
+ * to be called from the 'json_data' probe in the user's script to
+ * output a metric's string value that is in an array. This metric
+ * should have been added with json_add_array_string_metric().
+ */
+@define json_output_array_string_value(array_name, array_index, metric_name, value)
+%(
+  @__json_output_array_start(@array_name, @array_index)
+  if (__comma_needed)
+    $value .= ",\n"
+  __comma_needed = 1    
+  $value .= sprintf("      \"%s\": \"%s\"", @metric_name, @value)
+%)
+
+/**
+ * smacro json_output_array_numeric_value - Output a numeric value for metric in an array.
+ *
+ * @array_name: The name of the array.
+ * @array_index: The array index (as a string) indicating where to store the numeric value.
+ * @metric_name: The name of the numeric metric.
+ * @value: The numeric value to output.
+ *
+ * Description: The json_output_array_numeric_value macro is designed
+ * to be called from the 'json_data' probe in the user's script to
+ * output a metric's numeric value that is in an array. This metric
+ * should have been added with json_add_array_numeric_metric().
+ */
+@define json_output_array_numeric_value(array_name, array_index, metric_name, value)
+%(
+  @__json_output_array_start(@array_name, @array_index)
+  if (__comma_needed)
+    $value .= ",\n"
+  __comma_needed = 1    
+  $value .= sprintf("      \"%s\": %d", @metric_name, @value)
+%)
+
+# Handle the details of starting the output of an array.
+@define __json_output_array_start(array_name, array_index)
+%(
+  if (__json_array_started != @array_name) {
+    @__json_output_check(@array_name)
+    @__json_output_array_end
+    if (__comma_needed)
+      $value .= ",\n"
+    __comma_needed = 1    
+    $value .= sprintf("  \"%s\": [\n", @array_name)
+    $value .= "    {\n"
+    __json_array_started = @array_name
+  }
+  if (__json_array_index_started != @array_index) {
+    @__json_output_array_check(@array_index)
+    if (__json_array_index_started != "") {
+      $value .=
+        "\n"
+	"    },\n"
+	"    {\n"
+    }
+    __json_array_index_started = @array_index
+    $value .= sprintf("      \"__id\": \"%s\"", @array_index)
+  }
+%)
+
+# Handle the details of finishing the output of an array.
+@define __json_output_array_end
+%(
+  if (__json_array_started != "") {
+    $value .=
+      "\n"
+      "    }\n"
+      "  ]"
+    __json_array_started = ""
+    __json_array_index_started = ""
+    delete __json_array_output
+  }
+%)
+
+/**
+ * smacro json_output_data_end - End the json output.
+ *
+ * Description: The json_output_data_end macro is designed to be
+ * called from the 'json_data' probe from the user's script. It marks
+ * the end of the JSON output.
+ */
+@define json_output_data_end
+%(
+  @__json_output_array_end
+  $value .=
+    "\n"
+    "}\n"
+  __comma_needed = 0
+  delete __json_metric_output
+%)

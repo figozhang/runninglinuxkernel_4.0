@@ -1,0 +1,71 @@
+#! /usr/bin/env stap
+
+// Enospc notification script
+// Copyright (C) 2012 Red Hat Inc., Lukas Czerner <lczerner@redhat.com>
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// This tapset is used to watch for ENOSPC on file system operation, print
+// notification and send message to the syslog using logger. Supported file
+// systems so far are ext3, ext4, xfs and btrfs
+
+
+/*
+ * Print the warning message to the stdout and send it
+ * to the syslog via logger.
+ */
+function warnlog(fsname:string, dev:long) {
+	message = sprintf("%s (%d, %d) - no space left on the file system (uid: %d, %s:%d)\n",
+			   fsname, MAJOR(dev), MINOR(dev), uid(), execname(), pid());
+	/* Print the message to the output */
+	printf("[%s]: %s", ctime(gettimeofday_s()), message);
+	/* Log the message with logger */
+	command = sprintf("/usr/bin/logger '%s'", message);
+	system(command);
+}
+
+/* Catch ENOSPC in ext4 file system */
+probe {kernel,module("ext4")}.function("ext4_should_retry_alloc").return ?
+{
+	if (0 == $return)
+		warnlog("ext4", $sb->s_dev);
+}
+
+/* Catch ENOSPC in ext3 file system */
+probe {kernel,module("ext3")}.function("ext3_should_retry_alloc").return ?
+{
+	if (0 == $return)
+		warnlog("ext3", $sb->s_dev);
+}
+
+/* Catch ENOSPC in xfs file system on write */
+probe {kernel,module("xfs")}.function("xfs_file_aio_write").return ?
+{
+	if (-28 == $return)
+		warnlog("xfs", $iocb->ki_filp->f_mapping->host->i_sb->s_dev);
+}
+
+/* Catch ENOSPC in xfs file system on inode creation */
+probe {kernel,module("xfs")}.function("xfs_vn_mknod").return ?
+{
+	if (-28 == $return)
+		warnlog("xfs", $dir->i_sb->s_dev);
+}
+
+/* Catch ENOSPC in xfs file system on fallocate */
+probe {kernel,module("xfs")}.function("xfs_vn_fallocate").return ?
+{
+	if (-28 == $return)
+		warnlog("xfs", $inode->i_sb->s_dev);
+}
+
+/* Catch ENOSPC in btrfs file system */
+probe {kernel,module("btrfs")}.function("btrfs_check_data_free_space").return ?
+{
+	if (-28 == $return)
+		warnlog("btrfs", $inode->i_sb->s_dev);
+}
+

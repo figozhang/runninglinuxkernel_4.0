@@ -1,0 +1,32 @@
+.\" -*- nroff -*-
+.TH TAPSET::TARGET_SET 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::target_set \- systemtap target_set tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B target_set_pid 
+Does pid descend from target process?
+.IP
+See 
+.IR function::target_set_pid (3stap)
+ for details.
+.P
+.TP
+.B target_set_report 
+Print a report about the target set
+.IP
+See 
+.IR function::target_set_report (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::target_set_pid (3stap),
+.BR
+.IR \%function::target_set_report (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

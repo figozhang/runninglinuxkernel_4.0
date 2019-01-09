@@ -1,0 +1,319 @@
+// Block I/O tapset
+// Copyright (C) 2006 Intel Corp.
+// Copyright (C) 2006 IBM Corp.
+// Copyright (C) 2014 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+%{
+#include <linux/bio.h>
+#include <linux/genhd.h>
+#ifdef STAPCONF_BLK_TYPES
+#include <linux/blk_types.h>
+#else
+#define REQ_WRITE               (1 << BIO_RW)
+#endif
+%}
+
+/* get i-node number of mapped file */
+@__private30 function __bio_ino:long(bio:long)
+%{ /* pure */
+    struct bio *bio = (struct bio *)(long)STAP_ARG_bio;
+    struct page *bv_page = ((bio && kread(&(bio->bi_vcnt)))
+			    ? kread(&(bio->bi_io_vec[0].bv_page)) : NULL);
+
+    STAP_RETVALUE = -1;
+    if (bv_page) {
+	/* Before calling PageSlab() and PageSwapCache() on bv_page, we
+	 * need to make sure the bv_page struct is valid. */
+	(void)kderef_buffer(NULL, bv_page, sizeof(struct page));
+
+	if (!PageSlab(bv_page) && !PageSwapCache(bv_page)) {
+	    struct address_space *mapping = kread(&(bv_page->mapping));
+	    if (mapping && ((unsigned long)mapping & PAGE_MAPPING_ANON) == 0) {
+		struct inode *host = kread(&(mapping->host));
+		if (host)
+		    STAP_RETVALUE = kread(&(host->i_ino));
+	    }
+	}
+    }
+    CATCH_DEREF_FAULT();
+%}
+
+/* returns 0 for read, 1 for write */
+function bio_rw_num:long(rw:long)
+{
+    return (rw & %{ /* pure */ REQ_WRITE %})
+}
+
+/* returns R for read, W for write */
+function bio_rw_str(rw:long)
+{
+    return bio_rw_num(rw) == BIO_READ ? "R" : "W"
+}
+
+/* returns start sector */
+@__private30 function __bio_start_sect:long(bio:long)
+{
+    try {
+        return @cast(bio, "bio")->bi_bdev->bd_part->start_sect
+    } catch {
+        return -1
+    }
+}
+
+/* returns the block device name */
+@__private30 function __bio_devname:string(bio:long)
+{
+    return bdevname(@cast(bio, "bio")->bi_bdev)
+}
+
+global BIO_READ = 0, BIO_WRITE = 1
+
+
+/**
+ * probe ioblock.request - Fires whenever making a generic block I/O request.
+ * @name      : name of the probe point
+ * @devname   : block device name
+ * @ino       : i-node number of the mapped file
+ * @sector    : beginning sector for the entire bio
+ * @flags     : see below
+ * 	    BIO_UPTODATE    0       ok after I/O completion
+ * 	    BIO_RW_BLOCK    1       RW_AHEAD set, and read/write would block
+ * 	    BIO_EOF         2       out-out-bounds error
+ * 	    BIO_SEG_VALID   3       nr_hw_seg valid 
+ * 	    BIO_CLONED      4       doesn't own data
+ * 	    BIO_BOUNCED     5       bio is a bounce bio
+ * 	    BIO_USER_MAPPED 6       contains user pages
+ * 	    BIO_EOPNOTSUPP  7       not supported
+ * @rw        : binary trace for read/write request
+ * @vcnt      : bio vector count which represents number of array element (page, offset, length) which make up this I/O request
+ * @idx       : offset into the bio vector array
+ * @phys_segments : number of segments in this bio after physical address coalescing is performed
+ * @hw_segments :   number of segments after physical and DMA remapping hardware coalescing is performed
+ * @size      : total size in bytes
+ * @bdev      : target block device
+ * @bdev_contains : points to the device object which contains the partition (when bio structure represents a partition)
+ * @p_start_sect :  points to the start sector of the partition structure of the device
+ *
+ * Context:
+ *  The process makes block I/O request
+ */
+probe ioblock.request = kernel.function ("generic_make_request")
+{
+	name = "ioblock.request"
+        devname = __bio_devname($bio)
+        ino = __bio_ino($bio)
+
+        sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
+        flags = $bio->bi_flags
+        rw = $bio->bi_rw
+        vcnt = $bio->bi_vcnt
+        idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
+        phys_segments = $bio->bi_phys_segments
+	hw_segments = @choose_defined($bio->bi_hw_segments, 0)
+        size = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
+
+        bdev = $bio->bi_bdev
+        bdev_contains = $bio->bi_bdev->bd_contains
+        p_start_sect = __bio_start_sect($bio)
+}
+
+/**
+ * probe ioblock.end - Fires whenever a block I/O transfer is complete.
+ * @name      : name of the probe point
+ * @devname   : block device name
+ * @ino       : i-node number of the mapped file
+ * @bytes_done : number of bytes transferred
+ * @sector    : beginning sector for the entire bio
+ * @flags     : see below
+ *      BIO_UPTODATE    0       ok after I/O completion
+ *      BIO_RW_BLOCK    1       RW_AHEAD set, and read/write would block
+ *      BIO_EOF         2       out-out-bounds error
+ *      BIO_SEG_VALID   3       nr_hw_seg valid
+ *      BIO_CLONED      4       doesn't own data
+ *      BIO_BOUNCED     5       bio is a bounce bio
+ *      BIO_USER_MAPPED 6       contains user pages
+ *      BIO_EOPNOTSUPP  7       not supported
+ * @error     : 0 on success
+ * @rw        : binary trace for read/write request
+ * @vcnt      : bio vector count which represents number of array element (page, offset, length) which makes up this I/O request
+ * @idx       : offset into the bio vector array
+ * @phys_segments : number of segments in this bio after physical address coalescing is performed.
+ * @hw_segments :   number of segments after physical and DMA remapping hardware coalescing is performed
+ * @size      : total size in bytes
+ *
+ * Context:
+ *  The process signals the transfer is done.
+ */
+probe ioblock.end = kernel.function("bio_endio")
+{
+	name = "ioblock.end"
+        devname = __bio_devname($bio)
+        ino = __bio_ino($bio)
+
+        bytes_done = @choose_defined($bytes_done,
+				     @choose_defined($bio->bi_iter->bi_size,
+						     $bio->bi_size))
+        error = @choose_defined($error,$bio->bi_error)
+
+        sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
+        flags = $bio->bi_flags
+        rw = $bio->bi_rw
+        vcnt = $bio->bi_vcnt
+        idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
+        phys_segments = $bio->bi_phys_segments
+	hw_segments = @choose_defined($bio->bi_hw_segments, 0)
+        size = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
+}
+
+/**
+ * probe ioblock_trace.bounce - Fires whenever a buffer bounce is needed for at least one page of a block IO request.
+ * @name      : name of the probe point
+ * @q         : request queue on which this bio was queued.
+ * @devname   : device for which a buffer bounce was needed.
+ * @ino       : i-node number of the mapped file
+ * @bytes_done : number of bytes transferred
+ * @sector    : beginning sector for the entire bio
+ * @flags     : see below
+ *     BIO_UPTODATE    0       ok after I/O completion
+ *     BIO_RW_BLOCK    1       RW_AHEAD set, and read/write would block
+ *     BIO_EOF         2       out-out-bounds error
+ *     BIO_SEG_VALID   3       nr_hw_seg valid
+ *     BIO_CLONED      4       doesn't own data
+ *     BIO_BOUNCED     5       bio is a bounce bio
+ *     BIO_USER_MAPPED 6       contains user pages
+ *     BIO_EOPNOTSUPP  7       not supported
+ * @rw        : binary trace for read/write request
+ * @vcnt      : bio vector count which represents number of array element (page, offset, length) which makes up this I/O request
+ * @idx       : offset into the bio vector array
+ * @phys_segments - number of segments in this bio after physical address coalescing is performed.
+ * @size      : total size in bytes
+ * @bdev      : target block device
+ * @bdev_contains : points to the device object which contains the partition (when bio structure represents a partition)
+ * @p_start_sect :  points to the start sector of the partition structure of the device
+ *
+ * Context :
+ *	The process creating a block IO request.
+ */
+probe ioblock_trace.bounce = kernel.trace("block_bio_bounce")
+{
+	name = "ioblock_trace.bounce"
+	q = $q
+        devname = __bio_devname($bio)
+        ino = __bio_ino($bio)
+
+        bytes_done = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
+        sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
+        flags = $bio->bi_flags
+        rw = $bio->bi_rw
+        vcnt = $bio->bi_vcnt
+        idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
+        phys_segments = $bio->bi_phys_segments
+        size = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
+        bdev_contains = $bio->bi_bdev->bd_contains
+        bdev = $bio->bi_bdev
+        p_start_sect = __bio_start_sect($bio)
+}
+
+/**
+ * probe ioblock_trace.request - Fires just as a generic block I/O request is created for a bio.
+ * @name      : name of the probe point
+ * @q         : request queue on which this bio was queued.
+ * @devname   : block device name
+ * @ino       : i-node number of the mapped file
+ * @bytes_done : number of bytes transferred
+ * @sector    : beginning sector for the entire bio
+ * @flags     : see below
+ *	    BIO_UPTODATE    0       ok after I/O completion
+ *	    BIO_RW_BLOCK    1       RW_AHEAD set, and read/write would block
+ *	    BIO_EOF         2       out-out-bounds error
+ *	    BIO_SEG_VALID   3       nr_hw_seg valid
+ *	    BIO_CLONED      4       doesn't own data
+ *	    BIO_BOUNCED     5       bio is a bounce bio
+ *	    BIO_USER_MAPPED 6       contains user pages
+ *	    BIO_EOPNOTSUPP  7       not supported
+ * @rw        : binary trace for read/write request
+ * @vcnt      : bio vector count which represents number of array element (page, offset, length) which make up this I/O request
+ * @idx       : offset into the bio vector array
+ * @phys_segments - number of segments in this bio after physical address coalescing is performed.
+ * @size      : total size in bytes
+ * @bdev      : target block device
+ * @bdev_contains : points to the device object which contains the partition (when bio structure represents a partition)
+ * @p_start_sect :  points to the start sector of the partition structure of the device
+ *
+ * Context:
+ *  The process makes block I/O request
+ */
+probe ioblock_trace.request = kernel.trace("block_bio_queue")
+{
+	name = "ioblock_trace.request"
+	q = $q
+        devname = __bio_devname($bio)
+        ino = __bio_ino($bio)
+
+        bytes_done = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
+        sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
+        flags = $bio->bi_flags
+        rw = $bio->bi_rw
+        vcnt = $bio->bi_vcnt
+        idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
+        phys_segments = $bio->bi_phys_segments
+        size = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
+        bdev_contains = $bio->bi_bdev->bd_contains
+        bdev = $bio->bi_bdev
+        p_start_sect = __bio_start_sect($bio)
+}
+
+/**
+ * probe ioblock_trace.end - Fires whenever a block I/O transfer is complete.
+ * @name      : name of the probe point
+ * @q         : request queue on which this bio was queued.
+ * @devname   : block device name
+ * @ino       : i-node number of the mapped file
+ * @bytes_done : number of bytes transferred
+ * @sector    : beginning sector for the entire bio
+ * @flags     : see below
+ *      BIO_UPTODATE    0       ok after I/O completion
+ *      BIO_RW_BLOCK    1       RW_AHEAD set, and read/write would block
+ *      BIO_EOF         2       out-out-bounds error
+ *      BIO_SEG_VALID   3       nr_hw_seg valid
+ *      BIO_CLONED      4       doesn't own data
+ *      BIO_BOUNCED     5       bio is a bounce bio
+ *      BIO_USER_MAPPED 6       contains user pages
+ *      BIO_EOPNOTSUPP  7       not supported
+ * @rw        : binary trace for read/write request
+ * @vcnt      : bio vector count which represents number of array element (page, offset, length) which makes up this I/O request
+ * @idx       : offset into the bio vector array
+ * @phys_segments - number of segments in this bio after physical address coalescing is performed.
+ * @size      : total size in bytes
+ * @bdev      : target block device
+ * @bdev_contains : points to the device object which contains the partition (when bio structure represents a partition)
+ * @p_start_sect :  points to the start sector of the partition structure of the device
+ *
+ * Context:
+ *  The process signals the transfer is done.
+ */
+probe ioblock_trace.end = kernel.trace("block_bio_complete")
+{
+	name = "ioblock_trace.end"
+	q = $q
+        devname = __bio_devname($bio)
+        ino = __bio_ino($bio)
+
+        bytes_done = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
+
+        sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
+        flags = $bio->bi_flags
+        rw = $bio->bi_rw
+        vcnt = $bio->bi_vcnt
+        idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
+        phys_segments = $bio->bi_phys_segments
+        size = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
+        bdev_contains = $bio->bi_bdev->bd_contains
+        bdev = $bio->bi_bdev
+        p_start_sect = __bio_start_sect($bio)
+}

@@ -1,0 +1,457 @@
+.\" -*- nroff -*-
+.TH TAPSET::CONTEXT 3stap "March 2016" "SystemTap Tapset Reference"
+.SH NAME
+tapset::context \- systemtap context tapset
+ 
+.SH DESCRIPTION
+
+ Context functions provide additional information about where an event occurred. These functions can
+provide information such as a backtrace to where the event occurred and the current register values for the
+processor.
+
+.TP
+.P
+.TP
+.B print_regs 
+Print a register dump
+.IP
+See 
+.IR function::print_regs (3stap)
+ for details.
+.P
+.TP
+.B pp 
+Returns the active probe point
+.IP
+See 
+.IR function::pp (3stap)
+ for details.
+.P
+.TP
+.B ppfunc 
+Returns the function name parsed from pp()
+.IP
+See 
+.IR function::ppfunc (3stap)
+ for details.
+.P
+.TP
+.B probe_type 
+The low level probe handler type of the current probe.
+.IP
+See 
+.IR function::probe_type (3stap)
+ for details.
+.P
+.TP
+.B execname 
+Returns the execname of a target process (or group of processes)
+.IP
+See 
+.IR function::execname (3stap)
+ for details.
+.P
+.TP
+.B pid 
+Returns the ID of a target process
+.IP
+See 
+.IR function::pid (3stap)
+ for details.
+.P
+.TP
+.B ns_pid 
+Returns the ID of a target process as seen in a pid namespace
+.IP
+See 
+.IR function::ns_pid (3stap)
+ for details.
+.P
+.TP
+.B tid 
+Returns the thread ID of a target process
+.IP
+See 
+.IR function::tid (3stap)
+ for details.
+.P
+.TP
+.B ns_tid 
+Returns the thread ID of a target process as seen in a pid namespace
+.IP
+See 
+.IR function::ns_tid (3stap)
+ for details.
+.P
+.TP
+.B ppid 
+Returns the process ID of a target process's parent process
+.IP
+See 
+.IR function::ppid (3stap)
+ for details.
+.P
+.TP
+.B ns_ppid 
+Returns the process ID of a target process's parent process as seen in a pid namespace
+.IP
+See 
+.IR function::ns_ppid (3stap)
+ for details.
+.P
+.TP
+.B pgrp 
+Returns the process group ID of the current process
+.IP
+See 
+.IR function::pgrp (3stap)
+ for details.
+.P
+.TP
+.B ns_pgrp 
+Returns the process group ID of the current process as seen in a pid namespace
+.IP
+See 
+.IR function::ns_pgrp (3stap)
+ for details.
+.P
+.TP
+.B sid 
+Returns the session ID of the current process
+.IP
+See 
+.IR function::sid (3stap)
+ for details.
+.P
+.TP
+.B ns_sid 
+Returns the session ID of the current process as seen in a pid namespace
+.IP
+See 
+.IR function::ns_sid (3stap)
+ for details.
+.P
+.TP
+.B pexecname 
+Returns the execname of a target process's parent process
+.IP
+See 
+.IR function::pexecname (3stap)
+ for details.
+.P
+.TP
+.B gid 
+Returns the group ID of a target process
+.IP
+See 
+.IR function::gid (3stap)
+ for details.
+.P
+.TP
+.B ns_gid 
+Returns the group ID of a target process as seen in a user namespace
+.IP
+See 
+.IR function::ns_gid (3stap)
+ for details.
+.P
+.TP
+.B egid 
+Returns the effective gid of a target process
+.IP
+See 
+.IR function::egid (3stap)
+ for details.
+.P
+.TP
+.B ns_egid 
+Returns the effective gid of a target process as seen in a user namespace
+.IP
+See 
+.IR function::ns_egid (3stap)
+ for details.
+.P
+.TP
+.B uid 
+Returns the user ID of a target process
+.IP
+See 
+.IR function::uid (3stap)
+ for details.
+.P
+.TP
+.B ns_uid 
+Returns the user ID of a target process as seen in a user namespace
+.IP
+See 
+.IR function::ns_uid (3stap)
+ for details.
+.P
+.TP
+.B euid 
+Return the effective uid of a target process
+.IP
+See 
+.IR function::euid (3stap)
+ for details.
+.P
+.TP
+.B ns_euid 
+Returns the effective user ID of a target process as seen in a user namespace
+.IP
+See 
+.IR function::ns_euid (3stap)
+ for details.
+.P
+.TP
+.B is_myproc 
+Determines if the current probe point has occurred in the user's own process
+.IP
+See 
+.IR function::is_myproc (3stap)
+ for details.
+.P
+.TP
+.B cpuid 
+Returns the current cpu number
+.IP
+See 
+.IR function::cpuid (3stap)
+ for details.
+.P
+.TP
+.B cpu 
+Returns the current cpu number
+.IP
+See 
+.IR function::cpu (3stap)
+ for details.
+.P
+.TP
+.B registers_valid 
+Determines validity of register() and u_register() in current context
+.IP
+See 
+.IR function::registers_valid (3stap)
+ for details.
+.P
+.TP
+.B user_mode 
+Determines if probe point occurs in user-mode
+.IP
+See 
+.IR function::user_mode (3stap)
+ for details.
+.P
+.TP
+.B is_return 
+Whether the current probe context is a return probe
+.IP
+See 
+.IR function::is_return (3stap)
+ for details.
+.P
+.TP
+.B target 
+Return the process ID of the target process
+.IP
+See 
+.IR function::target (3stap)
+ for details.
+.P
+.TP
+.B module_name 
+The module name of the current script
+.IP
+See 
+.IR function::module_name (3stap)
+ for details.
+.P
+.TP
+.B module_size 
+The module size of the current script
+.IP
+See 
+.IR function::module_size (3stap)
+ for details.
+.P
+.TP
+.B stp_pid 
+The process id of the stapio process
+.IP
+See 
+.IR function::stp_pid (3stap)
+ for details.
+.P
+.TP
+.B remote_id 
+The index of this instance in a remote execution.
+.IP
+See 
+.IR function::remote_id (3stap)
+ for details.
+.P
+.TP
+.B remote_uri 
+The name of this instance in a remote execution.
+.IP
+See 
+.IR function::remote_uri (3stap)
+ for details.
+.P
+.TP
+.B stack_size 
+Return the size of the kernel stack
+.IP
+See 
+.IR function::stack_size (3stap)
+ for details.
+.P
+.TP
+.B stack_used 
+Returns the amount of kernel stack used
+.IP
+See 
+.IR function::stack_used (3stap)
+ for details.
+.P
+.TP
+.B stack_unused 
+Returns the amount of kernel stack currently available
+.IP
+See 
+.IR function::stack_unused (3stap)
+ for details.
+.P
+.TP
+.B addr 
+Address of the current probe point.
+.IP
+See 
+.IR function::addr (3stap)
+ for details.
+.P
+.TP
+.B uaddr 
+User space address of current running task
+.IP
+See 
+.IR function::uaddr (3stap)
+ for details.
+.P
+.TP
+.B cmdline_args 
+Fetch command line arguments from current process
+.IP
+See 
+.IR function::cmdline_args (3stap)
+ for details.
+.P
+.TP
+.B cmdline_arg 
+Fetch a command line argument
+.IP
+See 
+.IR function::cmdline_arg (3stap)
+ for details.
+.P
+.TP
+.B cmdline_str 
+Fetch all command line arguments from current process
+.IP
+See 
+.IR function::cmdline_str (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::print_regs (3stap),
+.BR
+.IR \%function::pp (3stap),
+.BR
+.IR \%function::ppfunc (3stap),
+.BR
+.IR \%function::probe_type (3stap),
+.BR
+.IR \%function::execname (3stap),
+.BR
+.IR \%function::pid (3stap),
+.BR
+.IR \%function::ns_pid (3stap),
+.BR
+.IR \%function::tid (3stap),
+.BR
+.IR \%function::ns_tid (3stap),
+.BR
+.IR \%function::ppid (3stap),
+.BR
+.IR \%function::ns_ppid (3stap),
+.BR
+.IR \%function::pgrp (3stap),
+.BR
+.IR \%function::ns_pgrp (3stap),
+.BR
+.IR \%function::sid (3stap),
+.BR
+.IR \%function::ns_sid (3stap),
+.BR
+.IR \%function::pexecname (3stap),
+.BR
+.IR \%function::gid (3stap),
+.BR
+.IR \%function::ns_gid (3stap),
+.BR
+.IR \%function::egid (3stap),
+.BR
+.IR \%function::ns_egid (3stap),
+.BR
+.IR \%function::uid (3stap),
+.BR
+.IR \%function::ns_uid (3stap),
+.BR
+.IR \%function::euid (3stap),
+.BR
+.IR \%function::ns_euid (3stap),
+.BR
+.IR \%function::is_myproc (3stap),
+.BR
+.IR \%function::cpuid (3stap),
+.BR
+.IR \%function::cpu (3stap),
+.BR
+.IR \%function::registers_valid (3stap),
+.BR
+.IR \%function::user_mode (3stap),
+.BR
+.IR \%function::is_return (3stap),
+.BR
+.IR \%function::target (3stap),
+.BR
+.IR \%function::module_name (3stap),
+.BR
+.IR \%function::module_size (3stap),
+.BR
+.IR \%function::stp_pid (3stap),
+.BR
+.IR \%function::remote_id (3stap),
+.BR
+.IR \%function::remote_uri (3stap),
+.BR
+.IR \%function::stack_size (3stap),
+.BR
+.IR \%function::stack_used (3stap),
+.BR
+.IR \%function::stack_unused (3stap),
+.BR
+.IR \%function::addr (3stap),
+.BR
+.IR \%function::uaddr (3stap),
+.BR
+.IR \%function::cmdline_args (3stap),
+.BR
+.IR \%function::cmdline_arg (3stap),
+.BR
+.IR \%function::cmdline_str (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

@@ -1,0 +1,126 @@
+// stopwatch tapset
+// Copyright (C) 2012 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+@__private30 global _stopwatch_starttime, _stopwatch_acc
+
+/*
+ * Description of the stopwatch states:
+ * if (! name in _stopwatch_acc) {stopwatch doesn't exist}
+ * if (_stopwatch_starttime[name] == 0 ) {stopwatch not running}
+ * if (_stopwatch_starttime[name] != 0 ) {stopwatch running}
+ */
+
+
+/**
+ * sfunction delete_stopwatch - Remove an existing stopwatch
+ * @name: the stopwatch name
+ *
+ * Remove stopwatch @name.
+ */
+function delete_stopwatch (name:string)
+{
+	delete _stopwatch_starttime[name];
+	delete _stopwatch_acc[name];
+}
+
+
+/**
+ * sfunction start_stopwatch - Start a stopwatch 
+ * @name: the stopwatch name
+ *
+ * Start stopwatch @name.
+ * Creates stopwatch @name if it does not currently exist.
+ */
+function start_stopwatch (name:string)
+{
+	stime = _stopwatch_starttime[name]
+	if (stime == 0)
+		_stopwatch_starttime[name] = gettimeofday_ns()
+	/* make sure there is an entry in _stopwatch_acc */
+	_stopwatch_acc[name] = _stopwatch_acc[name]
+}
+
+
+/**
+ * sfunction stop_stopwatch - Stop a stopwatch 
+ * @name: the stopwatch name
+ *
+ * Stop stopwatch @name.
+ * Creates stopwatch @name if it does not currently exist.
+ */
+function stop_stopwatch (name:string)
+{
+	stime = _stopwatch_starttime[name]
+
+	if (stime != 0)
+		delta =  gettimeofday_ns() - stime
+	else
+		delta = 0
+
+	_stopwatch_starttime[name] = 0
+	_stopwatch_acc[name] = _stopwatch_acc[name] + delta
+}
+
+
+/**
+ * sfunction read_stopwatch_ns - Reads the time in nanoseconds for a stopwatch
+ * @name: stopwatch name
+ *
+ * Returns time in nanoseconds for stopwatch @name.
+ * Creates stopwatch @name if it does not currently exist.
+ */
+function read_stopwatch_ns:long (name:string)
+{
+	stime = _stopwatch_starttime[name]
+	if (stime != 0)
+		delta = gettimeofday_ns() - stime
+	else
+		delta = 0
+
+	_stopwatch_acc[name] = _stopwatch_acc[name]
+	return (_stopwatch_acc[name] + delta)
+}
+
+
+/**
+ * sfunction read_stopwatch_us - Reads the time in microseconds for a stopwatch
+ * @name: stopwatch name
+ *
+ * Returns time in microseconds for stopwatch @name.
+ * Creates stopwatch @name if it does not currently exist.
+ */
+function read_stopwatch_us:long (name:string)
+{
+	return read_stopwatch_ns(name)/1000;
+}
+
+
+/**
+ * sfunction read_stopwatch_ms - Reads the time in milliseconds for a stopwatch
+ * @name: stopwatch name
+ *
+ * Returns time in milliseconds for stopwatch @name.
+ * Creates stopwatch @name if it does not currently exist.
+ */
+function read_stopwatch_ms:long (name:string)
+{
+	return read_stopwatch_ns(name)/1000000;
+}
+
+
+/**
+ * sfunction read_stopwatch_s - Reads the time in seconds for a stopwatch
+ * @name: stopwatch name
+ *
+ * Returns time in seconds for stopwatch @name.
+ * Creates stopwatch @name if it does not currently exist.
+ */
+function read_stopwatch_s:long (name:string)
+{
+	return read_stopwatch_ns(name)/1000000000;
+}
