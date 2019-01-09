@@ -1,0 +1,31 @@
+
+How to do this lab
+
+1. compile the kernel module
+$ export ARCH=arm
+$ export CROSS_COMPILE=arm-linux-gnueabi-
+
+## BASEINCLUD is your kernel source code path
+$ make BASEINCLUDE=/home/figo/work/runninglinuxkernel/runninglinuxkernel_4.0
+ 
+2. compile the mmap_test application
+$ arm-linux-gnueabi-gcc test.c -o mmap_test --static
+
+3. copy the kernel module and mmap_test app into kmodules folder
+4. run the QEMU
+5. install the kernel module and run the mmap_test app.
+$ cd /mnt
+$ insmod mydevdemo_mmap.ko
+$ ./mmap_test
+
+you will the log like:
+
+/mnt # ./mmap_test
+demodrv_open: major=10, minor=58
+driver max buffer size=40960
+demodrv_mmap: mapping 40960 bytes of device buffer at offset 0
+mmap driver buffer succeeded: 0xb6f71000
+demodrv_read: read nbytes=40960 done at pos=40960
+data modify and compare succussful
+
+
