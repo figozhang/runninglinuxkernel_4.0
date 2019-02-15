@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <poll.h>
 #include <linux/input.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[])
 {
