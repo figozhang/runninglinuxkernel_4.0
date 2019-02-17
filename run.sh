@@ -39,9 +39,9 @@ case $1 in
 			echo "please create console device node first, and recompile kernel"
 			exit 1
 		fi
-		qemu-system-arm -M vexpress-a9 -smp 4 -m 1024M -kernel arch/arm/boot/zImage \
+		qemu-system-arm -M vexpress-a9 -smp 4 -m 100M -kernel arch/arm/boot/zImage \
 				-dtb arch/arm/boot/dts/vexpress-v2p-ca9.dtb -nographic \
-				-append "rdinit=/linuxrc console=ttyAMA0 loglevel=8" \
+				-append "rdinit=/linuxrc console=ttyAMA0 loglevel=8 slub_debug kmemleak=on" \
 				--fsdev local,id=kmod_dev,path=$PWD/kmodules,security_model=none -device virtio-9p-device,fsdev=kmod_dev,mount_tag=kmod_mount \
 				$DBG ;;
 	arm64)
@@ -50,7 +50,7 @@ case $1 in
 			exit 1
 		fi
 		qemu-system-aarch64 -machine virt -cpu cortex-a57 -machine type=virt \
-				    -m 1024 -smp 2 -kernel arch/arm64/boot/Image \
+				    -m 100 -smp 2 -kernel arch/arm64/boot/Image \
 				    --append "rdinit=/linuxrc console=ttyAMA0" -nographic \
 				    --fsdev local,id=kmod_dev,path=$PWD/kmodules,security_model=none -device virtio-9p-device,fsdev=kmod_dev,mount_tag=kmod_mount \
 				    $DBG ;;
