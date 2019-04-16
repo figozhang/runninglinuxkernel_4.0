@@ -39,6 +39,11 @@ demodrv_read(struct file *file, char __user *buf, size_t lbuf, loff_t *ppos)
 	printk("%s enter\n", __func__);
 
 	max_free = MAX_DEVICE_BUFFER_SIZE - *ppos;
+	if (max_free < 0) {
+		dev_warn(mydemodrv_device, "offset error!");
+		return -EINVAL;
+	}
+		
 	need_read = max_free > lbuf ? lbuf : max_free;	
 	if (need_read == 0)
 		dev_warn(mydemodrv_device, "no space for read");
@@ -65,6 +70,11 @@ demodrv_write(struct file *file, const char __user *buf, size_t count, loff_t *p
 	printk("%s enter\n", __func__);
 
 	free = MAX_DEVICE_BUFFER_SIZE - *ppos;
+	if (max_free < 0) {
+		dev_warn(mydemodrv_device, "offset error!");
+		return -EINVAL;
+	}
+	
 	need_write = free > count ? count : free;
 	if (need_write == 0)
 		dev_warn(mydemodrv_device, "no space for write");
