@@ -52,6 +52,10 @@ https://hub.docker.com/r/benshushu/runninglinuxkernel
 从3月25号起，33集奔跑吧高清视频在B站首发，每天一集，天天精彩。
 请到B站 （https://www.bilibili.com/）搜索：奔跑吧linux内核
 
+配套视频通过GPLv2协议公开，欢迎大家下载和自由传播。网盘下载地址：
+链接：https://pan.baidu.com/s/1AvTkeOyyJUSBJ_K0pxip0Q
+提取码：le2s
+
 6. 配套音频节目
 从3月25号起，33集配套音频节目上线喜马拉雅
 https://www.ximalaya.com/keji/22283701/
