@@ -13,11 +13,13 @@ struct foo {
 };
 
 static struct foo *g_ptr;
-static void myrcu_reader_thread1(void *data) //读者线程1
+static int myrcu_reader_thread1(void *data) //读者线程1
 {
 	struct foo *p1 = NULL;
 
 	while (1) {
+		if(kthread_should_stop())
+			break;
 		msleep(10);
 		rcu_read_lock();
 		p1 = rcu_dereference(g_ptr);
@@ -25,13 +27,17 @@ static void myrcu_reader_thread1(void *data) //读者线程1
 			printk("%s: read a=%d\n", __func__, p1->a);
 		rcu_read_unlock();
 	}
+
+	return 0;
 }
 
-static void myrcu_reader_thread2(void *data) //读者线程2
+static int myrcu_reader_thread2(void *data) //读者线程2
 {
 	struct foo *p2 = NULL;
 
 	while (1) {
+		if(kthread_should_stop())
+			break;
 		msleep(100);
 		rcu_read_lock();
 		mdelay(1500);
@@ -41,6 +47,8 @@ static void myrcu_reader_thread2(void *data) //读者线程2
 		
 		rcu_read_unlock();
 	}
+
+	return 0;
 }
 
 static void myrcu_del(struct rcu_head *rh)
@@ -50,15 +58,17 @@ static void myrcu_del(struct rcu_head *rh)
 	kfree(p);
 }
 
-static void myrcu_writer_thread(void *p) //写者线程
+static int myrcu_writer_thread(void *p) //写者线程
 {
-	struct foo *new;
 	struct foo *old;
+	struct foo *new_ptr;
 	int value = (unsigned long)p;
 
 	while (1) {
+		if(kthread_should_stop())
+			break;
 		msleep(100);
-		struct foo *new_ptr = kmalloc(sizeof (struct foo), GFP_KERNEL);
+		new_ptr = kmalloc(sizeof (struct foo), GFP_KERNEL);
 		old = g_ptr;
 		printk("%s: write to new %d\n", __func__, value);
 		*new_ptr = *old;
@@ -67,13 +77,15 @@ static void myrcu_writer_thread(void *p) //写者线程
 		call_rcu(&old->rcu, myrcu_del); 
 		value++;
 	}
+	return 0;
 }     
+
+static struct task_struct *reader_thread1;
+static struct task_struct *reader_thread2;
+static struct task_struct *writer_thread;
 
 static int __init my_test_init(void)
 {   
-	struct task_struct *reader_thread1;
-	struct task_struct *reader_thread2;
-	struct task_struct *writer_thread;
 	int value = 5;
 
 	printk("figo: my module init\n");
@@ -88,6 +100,9 @@ static int __init my_test_init(void)
 static void __exit my_test_exit(void)
 {
 	printk("goodbye\n");
+	kthread_stop(reader_thread1);
+	kthread_stop(reader_thread2);
+	kthread_stop(writer_thread);
 	if (g_ptr)
 		kfree(g_ptr);
 }
