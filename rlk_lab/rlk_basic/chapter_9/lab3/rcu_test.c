@@ -19,6 +19,8 @@ static int myrcu_reader_thread1(void *data) //读者线程1
 	struct foo *p1 = NULL;
 
 	while (1) {
+		if(kthread_should_stop())
+			break;
 		msleep(20);
 		rcu_read_lock();
 		mdelay(200);
@@ -36,6 +38,8 @@ static int myrcu_reader_thread2(void *data) //读者线程2
 	struct foo *p2 = NULL;
 
 	while (1) {
+		if(kthread_should_stop())
+			break;
 		msleep(30);
 		rcu_read_lock();
 		mdelay(100);
@@ -63,6 +67,8 @@ static int myrcu_writer_thread(void *p) //写者线程
 	int value = (unsigned long)p;
 
 	while (1) {
+		if(kthread_should_stop())
+			break;
 		msleep(250);
 		new_ptr = kmalloc(sizeof (struct foo), GFP_KERNEL);
 		old = g_ptr;
