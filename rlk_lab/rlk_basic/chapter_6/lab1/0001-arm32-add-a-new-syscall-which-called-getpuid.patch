@@ -1,0 +1,91 @@
+From d7d6f9c370197fcd18e5bb3d38e6777d21ecbe33 Mon Sep 17 00:00:00 2001
+From: Wang Long <w@laoqinren.net>
+Date: Fri, 5 Jul 2019 21:03:37 +0800
+Subject: [PATCH] arm32: add a new syscall which called getpuid.
+
+This patch add a new syscall for arm32, which name is getpuid.
+getpuid return the current process's pid and uid.
+
+its prototype is: long sys_getpuid(pid_t *pid, uid_t *uid);
+
+Signed-off-by: Wang Long <w@laoqinren.net>
+---
+ arch/arm/include/asm/unistd.h      |  2 +-
+ arch/arm/include/uapi/asm/unistd.h |  1 +
+ arch/arm/kernel/calls.S            |  1 +
+ arch/arm/kernel/sys_arm.c          | 14 ++++++++++++++
+ include/linux/syscalls.h           |  1 +
+ 5 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/include/asm/unistd.h b/arch/arm/include/asm/unistd.h
+index 32640c43..7cba573c 100644
+--- a/arch/arm/include/asm/unistd.h
++++ b/arch/arm/include/asm/unistd.h
+@@ -19,7 +19,7 @@
+  * This may need to be greater than __NR_last_syscall+1 in order to
+  * account for the padding in the syscall table
+  */
+-#define __NR_syscalls  (388)
++#define __NR_syscalls  (392)
+ 
+ /*
+  * *NOTE*: This is a ghost syscall private to the kernel.  Only the
+diff --git a/arch/arm/include/uapi/asm/unistd.h b/arch/arm/include/uapi/asm/unistd.h
+index 0c3f5a0d..e382e794 100644
+--- a/arch/arm/include/uapi/asm/unistd.h
++++ b/arch/arm/include/uapi/asm/unistd.h
+@@ -414,6 +414,7 @@
+ #define __NR_memfd_create		(__NR_SYSCALL_BASE+385)
+ #define __NR_bpf			(__NR_SYSCALL_BASE+386)
+ #define __NR_execveat			(__NR_SYSCALL_BASE+387)
++#define __NR_getpuid			(__NR_SYSCALL_BASE+388)
+ 
+ /*
+  * The following SWIs are ARM private.
+diff --git a/arch/arm/kernel/calls.S b/arch/arm/kernel/calls.S
+index 05745eb8..be0f593f 100644
+--- a/arch/arm/kernel/calls.S
++++ b/arch/arm/kernel/calls.S
+@@ -397,6 +397,7 @@
+ /* 385 */	CALL(sys_memfd_create)
+ 		CALL(sys_bpf)
+ 		CALL(sys_execveat)
++		CALL(sys_getpuid)
+ #ifndef syscalls_counted
+ .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
+ #define syscalls_counted
+diff --git a/arch/arm/kernel/sys_arm.c b/arch/arm/kernel/sys_arm.c
+index 3151f562..6f3cf7fa 100644
+--- a/arch/arm/kernel/sys_arm.c
++++ b/arch/arm/kernel/sys_arm.c
+@@ -37,3 +37,17 @@ asmlinkage long sys_arm_fadvise64_64(int fd, int advice,
+ {
+ 	return sys_fadvise64_64(fd, offset, len, advice);
+ }
++
++SYSCALL_DEFINE2(getpuid, pid_t __user *, pid, uid_t __user *, uid)
++{
++       if (pid == NULL && uid == NULL)
++               return -EINVAL;
++
++       if (pid != NULL)
++               *pid = task_tgid_vnr(current);
++
++       if (uid != NULL)
++               *uid = from_kuid_munged(current_user_ns(), current_uid());
++
++       return 0;
++}
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index 76d1e38a..fa541ca1 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -884,4 +884,5 @@ asmlinkage long sys_execveat(int dfd, const char __user *filename,
+ 			const char __user *const __user *argv,
+ 			const char __user *const __user *envp, int flags);
+ 
++asmlinkage long sys_getpuid(pid_t __user *pid, uid_t __user *uid);
+ #endif
+-- 
+2.17.1
+
