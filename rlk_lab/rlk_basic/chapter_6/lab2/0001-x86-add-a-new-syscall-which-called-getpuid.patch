@@ -1,0 +1,65 @@
+From e4d3eb5953e8933cad1b51915c917dd7905d7078 Mon Sep 17 00:00:00 2001
+From: Wang Long <w@laoqinren.net>
+Date: Sat, 6 Jul 2019 10:06:03 +0800
+Subject: [PATCH] x86: add a new syscall which called getpuid
+
+This patch add a new syscall for x86, which name is getpuid.
+getpuid return the current process's pid and uid.
+
+its prototype is: long sys_getpuid(pid_t *pid, uid_t *uid);
+
+Signed-off-by: Wang Long <w@laoqinren.net>
+---
+ arch/x86/entry/syscalls/syscall_64.tbl |  1 +
+ include/linux/syscalls.h               |  1 +
+ kernel/sys.c                           | 14 ++++++++++++++
+ 3 files changed, 16 insertions(+)
+
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index 92ee0b437..f8afc50c9 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -343,6 +343,7 @@
+ 332	common	statx			__x64_sys_statx
+ 333	common	io_pgetevents		__x64_sys_io_pgetevents
+ 334	common	rseq			__x64_sys_rseq
++350	common	getpuid			__x64_sys_getpuid
+ # don't use numbers 387 through 423, add new calls after the last
+ # 'common' entry
+ 424	common	pidfd_send_signal	__x64_sys_pidfd_send_signal
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index e446806a5..8f007f00b 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -1390,4 +1390,5 @@ static inline unsigned int ksys_personality(unsigned int personality)
+ 	return old;
+ }
+ 
++asmlinkage long sys_getpuid(pid_t __user *pid, uid_t __user *uid);
+ #endif
+diff --git a/kernel/sys.c b/kernel/sys.c
+index bdbfe8d37..d75d8654d 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -2648,4 +2648,18 @@ COMPAT_SYSCALL_DEFINE1(sysinfo, struct compat_sysinfo __user *, info)
+ 
+ 	return 0;
+ }
++
++SYSCALL_DEFINE2(getpuid, pid_t __user *, pid, uid_t __user *, uid) {
++       if (pid == NULL && uid == NULL)
++               return -EINVAL;
++
++       if (pid != NULL)
++               *pid = task_tgid_vnr(current);
++
++       if (uid != NULL)
++               *uid = from_kuid_munged(current_user_ns(), current_uid());
++
++       return 0;
++}
++
+ #endif /* CONFIG_COMPAT */
+-- 
+2.17.1
+
