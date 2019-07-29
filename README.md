@@ -1,4 +1,11 @@
-# runninglinuxkernel_4.0
+# runninglinuxkernel_4.0 for 《奔跑吧Linux内核》 《奔跑吧Linux内核*入门篇》
+
+#### 配套电子课件ppt
+本书提供70多个linux内核和驱动入门实验，除了配套实验环境和实验代码之外，还精心制作了600多页精美的PPT电子课件，欢迎有兴趣的高校老师发邮件索取ppt源文件：
+runninglinuxkernel@126.com, 请用工作邮箱发送邮件（比如edu域名邮箱）。
+
+pdf版本的课件已经上传到人邮异步社区，ppt版本的课件仅限大专院校老师申请。培训机构或者企业内部培训，也可以
+发邮件申请，需提供购买20本书的发票照片。
 
 #### 奔跑吧入门篇酱香篇配套代码
 本分支是《奔跑吧Linux内核》入门酱香篇配套的实验环境和代码。
@@ -31,10 +38,11 @@
 
 #### 配备全球最丰富的教学和学习资源
 
-1. 配套约600页课件
+1. 配套约600页课件(pdf版本)
 课件已经上传到异步社区和github。
 下载地址：https://www.epubit.com/book/detail/39321
 或者：https://github.com/figozhang/Running-LinuxKernel
+ppt版本仅限大专院校linux相关专业任课老师申请，或者培训机构以及公司培训之用。
 
 2. 配套全套实验代码：
 https://github.com/figozhang/runninglinuxkernel_4.0
@@ -60,7 +68,10 @@ https://hub.docker.com/r/benshushu/runninglinuxkernel
 从3月25号起，33集配套音频节目上线喜马拉雅
 https://www.ximalaya.com/keji/22283701/
 
-7. 微信交流群
+7. 微信交流群，请先加微信：runninglinuxkernel。请先自我介绍，然后才能拉进群。
+
+8. 免费的知识星球
+https://t.zsxq.com/BY7yB2v
 
 #### 图书购买地址
 * 当当：http://product.dangdang.com/26514293.html
