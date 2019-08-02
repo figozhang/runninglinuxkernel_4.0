@@ -101,6 +101,8 @@ run_qemu_debian(){
 			-device virtio-blk-device,drive=hd0 \
 			--fsdev local,id=kmod_dev,path=./kmodules,security_model=none \
 			-device virtio-9p-device,fsdev=kmod_dev,mount_tag=kmod_mount\
+			-netdev user,id=mynet\
+			-device virtio-net-device,netdev=mynet\
 			$DBG
 
 }
