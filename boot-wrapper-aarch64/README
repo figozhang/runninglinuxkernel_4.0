@@ -1,0 +1,14 @@
+Linux boot wrapper with FDT support
+===================================
+
+To get started:
+
+$ autoreconf -i
+$ ./configure --host=<toolchain-triplet> --with-kernel-dir=<kernel-dir> <other-options>
+$ make
+
+Where:
+ - <toolchain-triplet>: this is something like aarch64-linux-gnu
+ - <kernel-dir>: the directory containing a pre-built aarch64 kernel
+   and its sources.
+ - <other-options>: see ./configure -h for a list of other options.
