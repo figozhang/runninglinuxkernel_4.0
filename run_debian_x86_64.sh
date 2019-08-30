@@ -11,7 +11,7 @@ kernel_build=$PWD/rootfs_debian_x86_64/usr/src/linux/
 rootfs_path=$PWD/rootfs_debian_x86_64
 rootfs_image=$PWD/rootfs_debian_x86_64.ext4
 
-rootfs_size=2048
+rootfs_size=8192
 
 SMP="-smp 4"
 
@@ -51,9 +51,12 @@ build_kernel_devel(){
 	cp Makefile .config Module.symvers System.map $kernel_build
 	mkdir -p $kernel_build/arch/x86/
 	mkdir -p $kernel_build/arch/x86/kernel/
+	mkdir -p $kernel_build/scripts
 
 	cp -a arch/x86/include $kernel_build/arch/x86/
 	cp -a arch/x86/Makefile $kernel_build/arch/x86/
+	cp scripts/gcc-goto.sh $kernel_build/scripts
+	cp -a scripts/Makefile.*  $kernel_build/scripts
 	#cp arch/x86/kernel/module.lds $kernel_build/arch/x86/kernel/
 
 	ln -s /usr/src/linux rootfs_debian_x86_64/lib/modules/$kernver/build
@@ -74,7 +77,7 @@ build_rootfs(){
 			make modules_install -j $JOBCOUNT
 			#make headers_install
 
-			#build_kernel_devel
+			build_kernel_devel
 
 			echo "making image..."
 			dd if=/dev/zero of=rootfs_debian_x86_64.ext4 bs=1M count=$rootfs_size

@@ -4,7 +4,7 @@
 #include <linux/init.h>
 
 static char *kbuf;
-static int size = 21*PAGE_SIZE;
+static int size = 20;
 static struct kmem_cache *my_cache;
 module_param(size, int, 0644);
 
