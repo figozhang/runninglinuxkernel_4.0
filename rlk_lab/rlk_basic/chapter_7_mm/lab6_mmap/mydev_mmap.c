@@ -70,8 +70,10 @@ demodrv_mmap(struct file *filp, struct vm_area_struct *vma)
 	printk("%s: mapping %ld bytes of device buffer at offset %ld\n",
 		 __func__, len, offset);
 
-	/*    pfn = page_to_pfn (virt_to_page (ramdisk + offset)); */
+	/* pfn = page_to_pfn (virt_to_page (ramdisk + offset)); */
 	pfn = virt_to_phys(device_buffer + offset) >> PAGE_SHIFT;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	if (remap_pfn_range(vma, vma->vm_start, pfn, len, vma->vm_page_prot))
 		return -EAGAIN;
