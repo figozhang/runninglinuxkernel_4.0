@@ -81,10 +81,12 @@ static void __exit my_exit(void)
 {
 	struct mytype *data;
 	struct rb_node *node;
-	for (node = rb_first(&mytree); node; node = rb_next(node)) {
+	for (node = rb_first(&mytree); node; ) {
 		data = rb_entry(node, struct mytype, node);
+		node = rb_next(node);
 		if (data) {
 		  	rb_erase(&data->node, &mytree);
+			printk("erase key=%d\n", data->key);
 			kfree(data);
 		}
 	}
