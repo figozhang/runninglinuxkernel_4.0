@@ -16,7 +16,7 @@ static int __init my_init(void)
 			pr_err("have alloc %d pages, but continue alloc failed\n", count);
 			break;
 		}
-		count += (order << 1);
+		count += (1 << order);
 	}
 
 	return 0;
