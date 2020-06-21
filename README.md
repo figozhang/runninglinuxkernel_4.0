@@ -1,5 +1,11 @@
 # runninglinuxkernel_4.0 for 《奔跑吧Linux内核》 《奔跑吧Linux内核*入门篇》
 
+## 国内git镜像
+国内下载github比较慢，我们提供一个国内的git镜像。
+```
+$ git clone https://e.coding.net/benshushu/runninglinuxkernel_4.0.git -b rlk_basic
+```
+
 #### 400页实验指导手册免费下载
 国内首本Linux实验指导手册，将近400页，干货满满，融入企业实战项目的经验总结，让您快速入门！
 
